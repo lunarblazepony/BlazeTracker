@@ -91,6 +91,22 @@ export async function initSettingsUI() {
             </select>
           </div>
 
+          <hr>
+
+          <div class="flex-container flexFlowColumn">
+            <label class="checkbox_label">
+              <input type="checkbox" id="blazetracker-tracktime">
+              <span>Enable Time Tracking</span>
+            </label>
+            <small>Extract and track narrative date/time (requires additional LLM call per message)</small>
+          </div>
+
+          <div class="flex-container flexFlowColumn" id="blazetracker-time-options">
+            <label for="blazetracker-leapthreshold">Leap Threshold (minutes)</label>
+            <small>Cap consecutive time jumps to prevent "double sleep" issues. If two messages in a row both jump more than this, the second is capped.</small>
+            <input type="number" id="blazetracker-leapthreshold" class="text_pole" min="5" max="1440" step="5">
+          </div>
+
         </div>
       </div>
     </div>
@@ -177,6 +193,7 @@ export async function initSettingsUI() {
     });
   }
 
+  // Set up display position
   const positionSelect = panel.querySelector('#blazetracker-position') as HTMLSelectElement;
   if (positionSelect) {
     positionSelect.value = settings.displayPosition;
@@ -184,6 +201,37 @@ export async function initSettingsUI() {
       updateSetting('displayPosition', positionSelect.value as 'above' | 'below');
       document.querySelectorAll('.bt-state-root').forEach(el => el.remove());
       setTimeout(() => renderAllStates(), 200);
+    });
+  }
+
+  // Set up time tracking checkbox
+  const trackTimeCheckbox = panel.querySelector('#blazetracker-tracktime') as HTMLInputElement;
+  const timeOptionsContainer = panel.querySelector('#blazetracker-time-options') as HTMLElement;
+
+  const updateTimeOptionsVisibility = () => {
+    if (timeOptionsContainer) {
+      timeOptionsContainer.style.display = trackTimeCheckbox?.checked ? 'flex' : 'none';
+    }
+  };
+
+  if (trackTimeCheckbox) {
+    trackTimeCheckbox.checked = settings.trackTime !== false; // Default to true
+    updateTimeOptionsVisibility();
+
+    trackTimeCheckbox.addEventListener('change', () => {
+      updateSetting('trackTime', trackTimeCheckbox.checked);
+      updateTimeOptionsVisibility();
+      // Re-render to show/hide time in display
+      setTimeout(() => renderAllStates(), 100);
+    });
+  }
+
+  // Set up leap threshold
+  const leapThresholdInput = panel.querySelector('#blazetracker-leapthreshold') as HTMLInputElement;
+  if (leapThresholdInput) {
+    leapThresholdInput.value = String(settings.leapThresholdMinutes ?? 20);
+    leapThresholdInput.addEventListener('change', () => {
+      updateSetting('leapThresholdMinutes', parseInt(leapThresholdInput.value) || 20);
     });
   }
 

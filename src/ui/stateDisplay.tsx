@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import type { CharacterOutfit, TrackedState, Scene } from '../types/state';
+import type { CharacterOutfit, TrackedState, Scene, NarrativeDateTime } from '../types/state';
 import type { STContext } from '../types/st';
 import { st_echo } from 'sillytavern-utils-lib/config';
 import { extractState } from '../extractors/extractState';
@@ -8,9 +8,8 @@ import { getMessageState, setMessageState } from '../utils/messageState';
 import { openStateEditor } from './stateEditor';
 import { updateInjectionFromChat } from '../injectors/injectState';
 import { getSettings } from './settings';
-
-const EXTENSION_NAME = 'BlazeTracker';
-const EXTENSION_KEY = 'blazetracker';
+import { resetTimeTracker, setTimeTrackerState } from '../extractors/extractTime';
+import { EXTENSION_NAME } from '../constants';
 
 // --- Icon Mappings (UI concern, lives here not in state types) ---
 
@@ -64,11 +63,27 @@ export const extractionInProgress = new Set<number>();
 
 // --- Helper Functions ---
 
-function formatTime(time: TrackedState['time']): string {
+function formatTime(time: NarrativeDateTime): string {
+  const MONTH_NAMES = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'];
+
   const hour = String(time.hour).padStart(2, '0');
   const minute = String(time.minute).padStart(2, '0');
-  const day = time.day ? `${time.day}, ` : '';
-  return `${day}${hour}:${minute}`;
+  const month = MONTH_NAMES[time.month - 1];
+
+  // "Mon, Jan 15, 14:30"
+  return `${time.dayOfWeek.slice(0, 3)}, ${month} ${time.day} ${time.year}, ${hour}:${minute}`;
 }
 
 function formatLocation(location: TrackedState['location']): string {
@@ -256,15 +271,19 @@ function StateDisplay({ stateData, isExtracting }: StateDisplayProps) {
   }
 
   const { state } = stateData;
+  const settings = getSettings();
+  const showTime = settings.trackTime !== false;
 
   return (
     <div className="bt-state-container">
 
       {/* Time/Weather/Location row */}
       <div className="bt-state-summary">
-        <span className="bt-time">
-          <i className="fa-regular fa-clock"></i> {formatTime(state.time)}
-        </span>
+        {showTime && (
+          <span className="bt-time">
+            <i className="fa-regular fa-clock"></i> {formatTime(state.time)}
+          </span>
+        )}
         {state.climate && (
           <span className="bt-climate">
             <i className={`fa-solid ${getWeatherIcon(state.climate.weather)}`}></i>
@@ -538,7 +557,21 @@ export function unmountMessageState(messageId: number) {
 export function renderAllStates() {
   const context = SillyTavern.getContext() as STContext;
 
+  // Reset time tracker first
+  resetTimeTracker();
+
+  // Find most recent message with state and initialize time tracker
+  for (let i = context.chat.length - 1; i >= 0; i--) {
+    const msg = context.chat[i];
+    const stored = getMessageState(msg);
+    if (stored?.state?.time) {
+      setTimeTrackerState(stored.state.time);
+      break;
+    }
+  }
+
   // Unmount and remove roots that aren't mid-extraction
+  document.querySelectorAll('.bt-state-root').forEach(el => el.remove());
   for (const [messageId, root] of roots) {
     if (!extractionInProgress.has(messageId)) {
       root.unmount();
@@ -587,6 +620,7 @@ export function initStateDisplay() {
 
   // Only handle chat change for initial render - let index.ts handle message events
   context.eventSource.on(context.event_types.CHAT_CHANGED, (() => {
+    resetTimeTracker();
     setTimeout(renderAllStates, 100);
   }) as (...args: unknown[]) => void);
 }

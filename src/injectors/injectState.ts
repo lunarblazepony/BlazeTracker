@@ -1,8 +1,14 @@
-import type { CharacterOutfit, TrackedState, Scene } from '../types/state';
+import type { CharacterOutfit, TrackedState, Scene, NarrativeDateTime } from '../types/state';
 import type { STContext } from '../types/st';
 import { getMessageState } from '../utils/messageState';
+import { getSettings } from '../ui/settings';
 
 const EXTENSION_KEY = 'blazetracker';
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 function formatOutfit(outfit: CharacterOutfit): string {
   const outfitParts = [
@@ -40,9 +46,30 @@ Tension: ${tensionParts.join(', ')}`;
   return text;
 }
 
+function formatNarrativeDateTime(time: NarrativeDateTime): string {
+  const hour12 = time.hour % 12 || 12;
+  const ampm = time.hour < 12 ? 'AM' : 'PM';
+  const minuteStr = String(time.minute).padStart(2, '0');
+
+  // "Monday, June 15th, 2024 at 2:30 PM"
+  const dayOrdinal = getDayOrdinal(time.day);
+
+  return `${time.dayOfWeek}, ${MONTH_NAMES[time.month - 1]} ${time.day}${dayOrdinal}, ${time.year} at ${hour12}:${minuteStr} ${ampm}`;
+}
+
+function getDayOrdinal(day: number): string {
+  if (day >= 11 && day <= 13) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
 export function formatStateForInjection(state: TrackedState): string {
-  const time = `${String(state.time.hour).padStart(2, '0')}:${String(state.time.minute).padStart(2, '0')}`;
-  const day = state.time.day ? `${state.time.day}, ` : '';
+  const settings = getSettings();
+  const showTime = settings.trackTime !== false;
 
   const location = [state.location.area, state.location.place, state.location.position]
     .filter(Boolean)
@@ -73,8 +100,13 @@ export function formatStateForInjection(state: TrackedState): string {
     output += `\n${formatScene(state.scene)}`;
   }
 
+  // Only include time if tracking is enabled
+  if (showTime && state.time) {
+    const timeStr = formatNarrativeDateTime(state.time);
+    output += `\nTime: ${timeStr}`;
+  }
+
   output += `
-Time: ${day}${time}
 Location: ${location}
 Nearby objects: ${props}`;
 

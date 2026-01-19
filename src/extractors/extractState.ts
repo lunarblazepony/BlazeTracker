@@ -1,11 +1,13 @@
 import type { STContext, ChatMessage } from '../types/st';
-import { TrackedState, EXTRACTION_SCHEMA, getSchemaExample } from '../types/state';
+import type { TrackedState, NarrativeDateTime } from '../types/state';
+import { EXTRACTION_SCHEMA, getSchemaExample } from '../types/state';
 import type { ExtractedData } from 'sillytavern-utils-lib/types';
 import type { Message } from 'sillytavern-utils-lib';
 import { Generator } from 'sillytavern-utils-lib';
 import { getSettings } from '../ui/settings';
 import { getMessageState } from '../utils/messageState';
 import { calculateTensionDirection } from '../utils/tension';
+import { extractTime, setTimeTrackerState } from './extractTime';
 
 const generator = new Generator();
 let currentAbortController: AbortController | null = null;
@@ -18,6 +20,7 @@ const EXTRACTION_PROMPT = `Analyze this roleplay conversation and extract the cu
 - Your task is to produce a JSON object defining the state of the scene as it is at the end of recent_messages.
 - Your final JSON object must perfectly match the defined schema.
 - You must only output valid JSON, with no surrounding commentary.
+- Do NOT include time in your output - time is tracked separately.
 </objective>
 <general>
 - The previous_state, if defined, is the state of the scene prior to the recent_messages.
@@ -26,11 +29,6 @@ const EXTRACTION_PROMPT = `Analyze this roleplay conversation and extract the cu
 - Where information is not provided, infer reasonable defaults. For example, if a character is wearing a full set of outdoors clothes, it is reasonable to assume they are wearing socks & underwear.
 - Pruning out of date information is just as important as adding new information. For every field, consider what is no longer important. Respect 'max' in the schema.
 </general>
-<time>
-- Increment time realistically based on what happened in the recent_messages. Dialogue = 1-3 mins per message, actions = varies.
-- Remember to tick over the hour/day when necessary (i.e. if previous_state shows Monday, 23:58 and the time passed is 2 minutes, advance to Tuesday 00:00).
-- Do not introduce large leaps of time unless they are explicitly stated in the recent_messages (i.e. sleeping, a long journey, explicit 'days passed').
-</time>
 <location>
 - Track location changes through the scene.
 - Do not include character or activity information in the location.
@@ -40,8 +38,10 @@ const EXTRACTION_PROMPT = `Analyze this roleplay conversation and extract the cu
 - Be careful to introduce new props introduced or props changing state.
 </location>
 <climate>
+- The current narrative time is provided below - use it to help infer climate and season.
 - Detect any weather changes in the text, infer the temperature from the time, location and weather.
 - Temperature for indoors locations should be based on the temperature indoors, not the temperature outdoors.
+- Consider the season based on the month and hemisphere of the location.
 </climate>
 <scene>
 - Consider whether the topic or tone of the scene has changed since the previous_state.
@@ -66,8 +66,13 @@ For each character in the scene, watch closely for the following:
 </instructions>
 
 <character_info>
+{{userInfo}}
 {{characterInfo}}
 </character_info>
+
+<current_narrative_time>
+{{currentTime}}
+</current_narrative_time>
 
 <previous_state>
 {{previousState}}
@@ -85,12 +90,15 @@ For each character in the scene, watch closely for the following:
 {{schemaExample}}
 </output_example>
 
-Extract the current state as valid JSON:`;
+Extract the current state as valid JSON (do NOT include time):`;
 
 export interface ExtractionResult {
   state: TrackedState;
   raw: string;
 }
+
+// Type for partial state (without time, as returned by LLM)
+type PartialState = Omit<TrackedState, 'time'>;
 
 function setSendButtonState(isGenerating: boolean) {
   const context = SillyTavern.getContext();
@@ -145,6 +153,30 @@ export async function extractState(
   try {
     const { lastXMessages, maxResponseTokens } = settings;
 
+    // ========================================
+    // STEP 1: Initialize time tracker from previous state if exists
+    // ========================================
+    if (previousState?.time) {
+      setTimeTrackerState(previousState.time);
+    }
+
+    // ========================================
+    // STEP 2: Extract time first (needed for climate inference)
+    // ========================================
+    let narrativeTime: NarrativeDateTime = previousState?.time ?? {
+      year: new Date().getFullYear(),
+      month: 6,
+      day: 15,
+      hour: 12,
+      minute: 0,
+      second: 0,
+      dayOfWeek: 'Monday',
+    };
+
+    // ========================================
+    // STEP 3: Extract state (with time context for climate)
+    // ========================================
+
     // Get recent messages for context
     let startIdx = 0;
     if (previousState) {
@@ -167,20 +199,48 @@ export async function extractState(
       .map((msg) => `${msg.name}: ${msg.mes}`)
       .join('\n\n');
 
+    if (settings.trackTime !== false) {
+      narrativeTime = await extractTime(
+        previousState !== null,
+        formattedMessages,
+        abortController.signal
+      );
+    }
+
+    // Get user persona info
+    const userPersona = context.powerUserSettings?.persona_description || '';
+    const userInfo = userPersona
+      ? `Name: ${context.name1}\nDescription: ${userPersona
+        .replace(/\{\{user\}\}/gi, context.name1)
+        .replace(/\{\{char\}\}/gi, context.name2)}`
+      : `Name: ${context.name1}`;
+
     // Get character info
     const character = context.characters?.[context.characterId];
-    const characterInfo = character
-      ? `Name: ${context.name2}\nDescription: ${character.description || 'No description'}`
-      : `Name: ${context.name2}`;
+    const charDescription = (character?.description || 'No description')
+      .replace(/\{\{char\}\}/gi, context.name2)
+      .replace(/\{\{user\}\}/gi, context.name1);
+    const characterInfo = `Name: ${context.name2}\nDescription: ${charDescription}`;
+
+    // Format time for prompt
+    const timeStr = formatNarrativeTimeForPrompt(narrativeTime);
+
+    // Build previous state without time for the prompt (avoid confusion)
+    const previousStateForPrompt = previousState
+      ? JSON.stringify(omitTime(previousState), null, 2)
+      : 'No previous state - this is the start of the scene.';
 
     // Build the prompt
     const prompt = EXTRACTION_PROMPT
       .replace('{{characterInfo}}', previousState
         ? 'Not provided - initial state calculated already.'
         : characterInfo)
-      .replace('{{previousState}}', previousState
-        ? JSON.stringify(previousState, null, 2)
-        : 'No previous state - this is the start of the scene.')
+      .replace('{{userInfo}}', previousState
+        ? 'Not provided - initial state calculated already.'
+        : userInfo
+      )
+      .replace('{{currentTime}}', timeStr)
+      .replace('{{previousState}}', previousStateForPrompt)
       .replace('{{messages}}', formattedMessages)
       .replace('{{schema}}', JSON.stringify(EXTRACTION_SCHEMA, null, 2))
       .replace('{{schemaExample}}', getSchemaExample());
@@ -198,8 +258,16 @@ export async function extractState(
       abortController.signal
     );
 
-    // Parse response
-    const state = parseResponse(response);
+    // Parse response (returns state without time)
+    const partialState = parseResponse(response);
+
+    // ========================================
+    // STEP 4: Merge time into final state
+    // ========================================
+    const state: TrackedState = {
+      ...partialState,
+      time: narrativeTime,
+    };
 
     if (state.scene?.tension) {
       state.scene.tension.direction = calculateTensionDirection(
@@ -218,6 +286,28 @@ export async function extractState(
       currentAbortController = null;
     }
   }
+}
+
+// ============================================
+// Helper Functions
+// ============================================
+
+function formatNarrativeTimeForPrompt(time: NarrativeDateTime): string {
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const hour12 = time.hour % 12 || 12;
+  const ampm = time.hour < 12 ? 'AM' : 'PM';
+  const minuteStr = String(time.minute).padStart(2, '0');
+
+  return `${time.dayOfWeek}, ${monthNames[time.month - 1]} ${time.day}, ${time.year} at ${hour12}:${minuteStr} ${ampm}`;
+}
+
+function omitTime(state: TrackedState): PartialState {
+  const { time, ...rest } = state;
+  return rest;
 }
 
 function makeGeneratorRequest(
@@ -268,7 +358,7 @@ function makeGeneratorRequest(
   });
 }
 
-function parseResponse(response: string): TrackedState {
+function parseResponse(response: string): PartialState {
   // Try to extract JSON from response
   // Handle cases where model wraps in markdown code blocks
   let jsonStr = response.trim();
@@ -295,15 +385,9 @@ function parseResponse(response: string): TrackedState {
   }
 }
 
-function validateState(data: any): TrackedState {
+function validateState(data: any): PartialState {
   // Basic validation - ensure required fields exist
-
-  if (!data.time || typeof data.time.hour !== 'number') {
-    throw new Error('Invalid state: missing or invalid time.hour');
-  }
-  if (typeof data.time.minute !== 'number') {
-    data.time.minute = 0; // Default to :00 if not specified
-  }
+  // Note: time is NOT validated here - it's added after
 
   if (!data.location || !data.location.place) {
     throw new Error('Invalid state: missing or invalid location');
@@ -324,5 +408,10 @@ function validateState(data: any): TrackedState {
     }
   }
 
-  return data as TrackedState;
+  // Remove time if the LLM included it anyway (we don't want it)
+  if ('time' in data) {
+    delete data.time;
+  }
+
+  return data as PartialState;
 }

@@ -41,10 +41,17 @@ A SillyTavern extension that uses LLM analysis to track and maintain scene state
 ## Features
 
 ### Scene State Tracking
-- **Time**: Hour, minute, day of week
+- **Time**: Full narrative date and time tracking (year, month, day, hour, minute, day of week) with intelligent inference from scene context
 - **Location**: Area, place, position, nearby props
-- **Climate**: Weather and temperature
+- **Climate**: Weather and temperature (informed by time/season)
 - **Characters**: Position, activity, mood, goals, physical state, outfit (head, jacket, torso, legs, underwear, socks, footwear), and dispositions toward other characters
+
+### Intelligent Time Tracking
+BlazeTracker uses a dedicated LLM call to track narrative time:
+- **Initial extraction**: Infers date/time from scene context (weather, lighting, activities, seasonal clues)
+- **Delta tracking**: Detects time jumps in subsequent messages ("an hour later", "the next morning", travel time, etc.)
+- **Leap detection**: Prevents "double sleep" issues where parallel actions are interpreted as sequential (e.g., two characters sleeping doesn't advance time twice)
+- **Automatic day-of-week**: Calculated from the date, so it's always consistent
 
 ### Scene Context
 - **Topic**: What the scene is about (3-5 words)
@@ -63,10 +70,13 @@ A SillyTavern extension that uses LLM analysis to track and maintain scene state
 
 ### Context Injection
 - Automatically injects current scene state into the prompt
+- Full date/time included (e.g., "Monday, June 15th, 2024 at 2:30 PM")
 - Helps the AI maintain consistency without manual reminders
 
 ### Visual Display
-- Inline state display below each message
+- Inline state display below (or above) each message
+- Date and time shown in compact format (e.g., "Sun, Dec 15 2024, 17:00")
+- Climate with weather icons (☀️ sunny, ☁️ cloudy, ❄️ snowy, 🌧️ rainy, 💨 windy, ⛈️ thunderstorm)
 - Tension visualized with icons (☕ relaxed, 👁 aware, 🛡 guarded, 😬 tense, ⚡ charged, 🔥 volatile, 💥 explosive)
 - Direction indicators (📈 escalating, ➖ stable, 📉 decreasing)
 - Expandable details for characters and props
@@ -74,7 +84,8 @@ A SillyTavern extension that uses LLM analysis to track and maintain scene state
 
 ### Manual Editing
 - Full state editor UI
-- Edit any field: time, location, characters, outfits, tension, events
+- Edit any field: date, time, location, characters, outfits, tension, events
+- Date picker with automatic day-of-week calculation
 - Add/remove characters and dispositions
 
 ## Configuration
@@ -103,13 +114,27 @@ Number of tokens for the state response, default is 4,000. A block with 2 charac
 - **Above message**: Show the state block above the message
 - **Below message**: Show the state block below the message
 
+### Enable Time Tracking
+When enabled, BlazeTracker makes an additional lightweight LLM call per message to track narrative time:
+- First message: Extracts full date/time from scene context
+- Subsequent messages: Extracts time delta (how much time passed)
+
+This is a fast operation (~100-150 tokens in, ~20 tokens out) but can be disabled if you don't need time tracking or want to reduce API calls.
+
+### Leap Threshold (minutes)
+Prevents the "double sleep" problem. If two consecutive messages both contain time jumps larger than this threshold, the second jump is capped.
+
+**Example**: Character A sleeps (8 hours). Character B also sleeps (8 hours). Without leap detection, this would advance time 16 hours. With a 20-minute threshold, the second sleep is capped to 20 minutes since it's assumed to be parallel action.
+
+Default: 20 minutes. Increase if your RP legitimately has back-to-back large time skips.
+
 ## Usage
 
 ### Automatic Mode
 With auto-extraction enabled, state is extracted after each message. A loading indicator shows while extraction is in progress.
 
 #### Note: Manual Editing
-I usually like to edit the state after the first assistant message, since it will make a bunch of assumptions that may or not be true for your roleplay. This isn't required, but setting the initial state manually will help to keep the roleplay coherent.
+I usually like to edit the state after the first assistant message, since it will make a bunch of assumptions that may or may not be true for your roleplay. This isn't required, but setting the initial state manually will help to keep the roleplay coherent.
 
 ### Manual Mode
 1. Click the 🔥 button in the '...' menu on any message to extract state
@@ -123,11 +148,12 @@ Each swipe maintains its own state. When you swipe to a new response, BlazeTrack
 
 ## How It Works
 
-1. **Extraction**: When triggered, BlazeTracker sends recent messages plus the previous state to your LLM with a structured extraction prompt
-2. **Delta Processing**: The LLM returns only what changed, which is merged with the previous state
-3. **Storage**: State is stored in `message.extra.blazetracker` for each message/swipe
-4. **Injection**: The most recent state is formatted and injected into the prompt context
-5. **Display**: React components render the state inline with each message
+1. **Time Extraction**: If enabled, a lightweight LLM call extracts the narrative date/time (initial) or time delta (subsequent)
+2. **State Extraction**: Recent messages plus the previous state are sent to your LLM with a structured extraction prompt, including the current narrative time for climate inference
+3. **Delta Processing**: The LLM returns only what changed, which is merged with the previous state
+4. **Storage**: State is stored in `message.extra.blazetracker` for each message/swipe
+5. **Injection**: The most recent state is formatted and injected into the prompt context
+6. **Display**: React components render the state inline with each message
 
 ## Building from Source
 
@@ -154,6 +180,14 @@ npm run build
 ### Old state showing after swipe
 - This is usually a timing issue - state should update within a moment
 - Try clicking the extract button manually
+
+### Time seems wrong
+- The initial time is inferred from context clues (weather, lighting, activities). If the scene doesn't have clear indicators, it may guess wrong.
+- Use the editor to correct the initial date/time - subsequent deltas will be applied correctly from there.
+
+### Double time advancement
+- If time is advancing too fast (e.g., both characters sleeping advances time twice), try lowering the Leap Threshold setting.
+- The default 20 minutes works well for most scenarios.
 
 ### Extension not appearing
 - Ensure you have the latest SillyTavern version

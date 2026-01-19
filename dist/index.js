@@ -37918,6 +37918,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _ui_settings__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../ui/settings */ "./src/ui/settings.ts");
 /* harmony import */ var _utils_messageState__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../utils/messageState */ "./src/utils/messageState.ts");
 /* harmony import */ var _utils_tension__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../utils/tension */ "./src/utils/tension.ts");
+/* harmony import */ var _extractTime__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./extractTime */ "./src/extractors/extractTime.ts");
+
 
 
 
@@ -37933,6 +37935,7 @@ const EXTRACTION_PROMPT = `Analyze this roleplay conversation and extract the cu
 - Your task is to produce a JSON object defining the state of the scene as it is at the end of recent_messages.
 - Your final JSON object must perfectly match the defined schema.
 - You must only output valid JSON, with no surrounding commentary.
+- Do NOT include time in your output - time is tracked separately.
 </objective>
 <general>
 - The previous_state, if defined, is the state of the scene prior to the recent_messages.
@@ -37941,11 +37944,6 @@ const EXTRACTION_PROMPT = `Analyze this roleplay conversation and extract the cu
 - Where information is not provided, infer reasonable defaults. For example, if a character is wearing a full set of outdoors clothes, it is reasonable to assume they are wearing socks & underwear.
 - Pruning out of date information is just as important as adding new information. For every field, consider what is no longer important. Respect 'max' in the schema.
 </general>
-<time>
-- Increment time realistically based on what happened in the recent_messages. Dialogue = 1-3 mins per message, actions = varies.
-- Remember to tick over the hour/day when necessary (i.e. if previous_state shows Monday, 23:58 and the time passed is 2 minutes, advance to Tuesday 00:00).
-- Do not introduce large leaps of time unless they are explicitly stated in the recent_messages (i.e. sleeping, a long journey, explicit 'days passed').
-</time>
 <location>
 - Track location changes through the scene.
 - Do not include character or activity information in the location.
@@ -37955,8 +37953,10 @@ const EXTRACTION_PROMPT = `Analyze this roleplay conversation and extract the cu
 - Be careful to introduce new props introduced or props changing state.
 </location>
 <climate>
+- The current narrative time is provided below - use it to help infer climate and season.
 - Detect any weather changes in the text, infer the temperature from the time, location and weather.
 - Temperature for indoors locations should be based on the temperature indoors, not the temperature outdoors.
+- Consider the season based on the month and hemisphere of the location.
 </climate>
 <scene>
 - Consider whether the topic or tone of the scene has changed since the previous_state.
@@ -37981,8 +37981,13 @@ For each character in the scene, watch closely for the following:
 </instructions>
 
 <character_info>
+{{userInfo}}
 {{characterInfo}}
 </character_info>
+
+<current_narrative_time>
+{{currentTime}}
+</current_narrative_time>
 
 <previous_state>
 {{previousState}}
@@ -38000,7 +38005,7 @@ For each character in the scene, watch closely for the following:
 {{schemaExample}}
 </output_example>
 
-Extract the current state as valid JSON:`;
+Extract the current state as valid JSON (do NOT include time):`;
 function setSendButtonState(isGenerating) {
     const context = SillyTavern.getContext();
     if (isGenerating) {
@@ -38041,6 +38046,27 @@ async function extractState(context, messageId, previousState, abortSignal) {
     }
     try {
         const { lastXMessages, maxResponseTokens } = settings;
+        // ========================================
+        // STEP 1: Initialize time tracker from previous state if exists
+        // ========================================
+        if (previousState?.time) {
+            (0,_extractTime__WEBPACK_IMPORTED_MODULE_5__.setTimeTrackerState)(previousState.time);
+        }
+        // ========================================
+        // STEP 2: Extract time first (needed for climate inference)
+        // ========================================
+        let narrativeTime = previousState?.time ?? {
+            year: new Date().getFullYear(),
+            month: 6,
+            day: 15,
+            hour: 12,
+            minute: 0,
+            second: 0,
+            dayOfWeek: 'Monday',
+        };
+        // ========================================
+        // STEP 3: Extract state (with time context for climate)
+        // ========================================
         // Get recent messages for context
         let startIdx = 0;
         if (previousState) {
@@ -38060,19 +38086,38 @@ async function extractState(context, messageId, previousState, abortSignal) {
         const formattedMessages = chatMessages
             .map((msg) => `${msg.name}: ${msg.mes}`)
             .join('\n\n');
+        if (settings.trackTime !== false) {
+            narrativeTime = await (0,_extractTime__WEBPACK_IMPORTED_MODULE_5__.extractTime)(previousState !== null, formattedMessages, abortController.signal);
+        }
+        // Get user persona info
+        const userPersona = context.powerUserSettings?.persona_description || '';
+        const userInfo = userPersona
+            ? `Name: ${context.name1}\nDescription: ${userPersona
+                .replace(/\{\{user\}\}/gi, context.name1)
+                .replace(/\{\{char\}\}/gi, context.name2)}`
+            : `Name: ${context.name1}`;
         // Get character info
         const character = context.characters?.[context.characterId];
-        const characterInfo = character
-            ? `Name: ${context.name2}\nDescription: ${character.description || 'No description'}`
-            : `Name: ${context.name2}`;
+        const charDescription = (character?.description || 'No description')
+            .replace(/\{\{char\}\}/gi, context.name2)
+            .replace(/\{\{user\}\}/gi, context.name1);
+        const characterInfo = `Name: ${context.name2}\nDescription: ${charDescription}`;
+        // Format time for prompt
+        const timeStr = formatNarrativeTimeForPrompt(narrativeTime);
+        // Build previous state without time for the prompt (avoid confusion)
+        const previousStateForPrompt = previousState
+            ? JSON.stringify(omitTime(previousState), null, 2)
+            : 'No previous state - this is the start of the scene.';
         // Build the prompt
         const prompt = EXTRACTION_PROMPT
             .replace('{{characterInfo}}', previousState
             ? 'Not provided - initial state calculated already.'
             : characterInfo)
-            .replace('{{previousState}}', previousState
-            ? JSON.stringify(previousState, null, 2)
-            : 'No previous state - this is the start of the scene.')
+            .replace('{{userInfo}}', previousState
+            ? 'Not provided - initial state calculated already.'
+            : userInfo)
+            .replace('{{currentTime}}', timeStr)
+            .replace('{{previousState}}', previousStateForPrompt)
             .replace('{{messages}}', formattedMessages)
             .replace('{{schema}}', JSON.stringify(_types_state__WEBPACK_IMPORTED_MODULE_0__.EXTRACTION_SCHEMA, null, 2))
             .replace('{{schemaExample}}', (0,_types_state__WEBPACK_IMPORTED_MODULE_0__.getSchemaExample)());
@@ -38082,8 +38127,15 @@ async function extractState(context, messageId, previousState, abortSignal) {
         ];
         // Call LLM via Generator
         const response = await makeGeneratorRequest(messages, settings.profileId, maxResponseTokens, abortController.signal);
-        // Parse response
-        const state = parseResponse(response);
+        // Parse response (returns state without time)
+        const partialState = parseResponse(response);
+        // ========================================
+        // STEP 4: Merge time into final state
+        // ========================================
+        const state = {
+            ...partialState,
+            time: narrativeTime,
+        };
         if (state.scene?.tension) {
             state.scene.tension.direction = (0,_utils_tension__WEBPACK_IMPORTED_MODULE_4__.calculateTensionDirection)(state.scene.tension.level, previousState?.scene?.tension?.level);
         }
@@ -38098,6 +38150,23 @@ async function extractState(context, messageId, previousState, abortSignal) {
             currentAbortController = null;
         }
     }
+}
+// ============================================
+// Helper Functions
+// ============================================
+function formatNarrativeTimeForPrompt(time) {
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const hour12 = time.hour % 12 || 12;
+    const ampm = time.hour < 12 ? 'AM' : 'PM';
+    const minuteStr = String(time.minute).padStart(2, '0');
+    return `${time.dayOfWeek}, ${monthNames[time.month - 1]} ${time.day}, ${time.year} at ${hour12}:${minuteStr} ${ampm}`;
+}
+function omitTime(state) {
+    const { time, ...rest } = state;
+    return rest;
 }
 function makeGeneratorRequest(messages, profileId, maxTokens, abortSignal) {
     return new Promise((resolve, reject) => {
@@ -38162,12 +38231,7 @@ function parseResponse(response) {
 }
 function validateState(data) {
     // Basic validation - ensure required fields exist
-    if (!data.time || typeof data.time.hour !== 'number') {
-        throw new Error('Invalid state: missing or invalid time.hour');
-    }
-    if (typeof data.time.minute !== 'number') {
-        data.time.minute = 0; // Default to :00 if not specified
-    }
+    // Note: time is NOT validated here - it's added after
     if (!data.location || !data.location.place) {
         throw new Error('Invalid state: missing or invalid location');
     }
@@ -38184,7 +38248,369 @@ function validateState(data) {
             char.mood = char.mood ? [char.mood] : ['neutral'];
         }
     }
+    // Remove time if the LLM included it anyway (we don't want it)
+    if ('time' in data) {
+        delete data.time;
+    }
     return data;
+}
+
+
+/***/ },
+
+/***/ "./src/extractors/extractTime.ts"
+/*!***************************************!*\
+  !*** ./src/extractors/extractTime.ts ***!
+  \***************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   extractTime: () => (/* binding */ extractTime),
+/* harmony export */   getCurrentDateTime: () => (/* binding */ getCurrentDateTime),
+/* harmony export */   isTimeTrackerInitialized: () => (/* binding */ isTimeTrackerInitialized),
+/* harmony export */   resetTimeTracker: () => (/* binding */ resetTimeTracker),
+/* harmony export */   setTimeTrackerState: () => (/* binding */ setTimeTrackerState)
+/* harmony export */ });
+/* harmony import */ var sillytavern_utils_lib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! sillytavern-utils-lib */ "./node_modules/sillytavern-utils-lib/dist/index.js");
+/* harmony import */ var _ui_settings__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../ui/settings */ "./src/ui/settings.ts");
+
+
+const generator = new sillytavern_utils_lib__WEBPACK_IMPORTED_MODULE_0__.Generator();
+// ============================================
+// Schemas
+// ============================================
+const DATETIME_SCHEMA = {
+    type: 'object',
+    properties: {
+        year: { type: 'number', description: 'Four digit year, e.g. 2024. Infer from context or use a reasonable default.' },
+        month: { type: 'number', description: 'Month 1-12. Infer from seasonal context, weather, or use a reasonable default.' },
+        day: { type: 'number', description: 'Day of month 1-31. Infer if possible or use a reasonable default.' },
+        hour: { type: 'number', description: 'Hour 0-23 in 24-hour format.' },
+        minute: { type: 'number', description: 'Minute 0-59.' },
+        second: { type: 'number', description: 'Second 0-59. Usually 0 unless specifically mentioned.' },
+    },
+    required: ['year', 'month', 'day', 'hour', 'minute', 'second'],
+};
+const DATETIME_EXAMPLE = JSON.stringify({
+    year: 2024,
+    month: 6,
+    day: 15,
+    hour: 14,
+    minute: 30,
+    second: 0,
+}, null, 2);
+const DELTA_SCHEMA = {
+    type: 'object',
+    properties: {
+        hours: { type: 'number', description: 'Hours passed. 0 if less than an hour.' },
+        minutes: { type: 'number', description: 'Minutes passed (0-59). Added to hours.' },
+        seconds: { type: 'number', description: 'Seconds passed (0-59). Usually 0 unless specifically mentioned.' },
+    },
+    required: ['hours', 'minutes', 'seconds'],
+};
+const DELTA_EXAMPLE = JSON.stringify({
+    hours: 0,
+    minutes: 5,
+    seconds: 0,
+}, null, 2);
+// ============================================
+// Prompts
+// ============================================
+const DATETIME_PROMPT = `Analyze this roleplay scene opening and determine the narrative date and time. You must only return valid JSON with no commentary.
+
+<instructions>
+- Determine the date and time when this scene takes place.
+- Look for explicit mentions: "Monday morning", "3pm", "June 15th", "winter evening", etc.
+- Look for contextual clues: weather, lighting, activities, meals, seasons.
+- If the year is not specified, infer from context or use a reasonable modern year.
+- If the month is not specified, infer from seasonal/weather clues or use a reasonable default.
+- If the day is not specified, use a reasonable default (e.g., 15 for mid-month).
+- Always provide complete values for all fields - never omit anything.
+- Use 24-hour format for the hour field.
+</instructions>
+
+<scene_opening>
+{{message}}
+</scene_opening>
+
+<schema>
+${JSON.stringify(DATETIME_SCHEMA, null, 2)}
+</schema>
+
+<output_example>
+${DATETIME_EXAMPLE}
+</output_example>
+
+Extract the narrative date and time as valid JSON:`;
+const DELTA_PROMPT = `Analyze these roleplay messages and determine how much narrative time has passed. You must only return valid JSON with no commentary.
+
+<instructions>
+- Determine how much time passes WITHIN this message.
+- Look for explicit time jumps: "an hour later", "after a few minutes", "the next morning".
+- Look for implicit time passage: travel, sleeping, waiting, activities with known durations.
+- If the message is just dialogue or immediate action with no time skip, return all zeros.
+- Conversations without time skips: 1-2 minutes typically.
+- Walking somewhere nearby: 5-15 minutes.
+- Napping: 1-3 hours typically but consider currentTime.
+- Sleeping: 6-10 hours typically but dependent on currentTime.
+- "A few minutes": 3-5 minutes.
+- "A while": 15-30 minutes.
+- "Some time": 30-60 minutes.
+- Be conservative - if unsure, prefer smaller time jumps.
+</instructions>
+
+<current_time>
+{{currentTime}}
+</current_time>
+
+<message>
+{{message}}
+</message>
+
+<schema>
+${JSON.stringify(DELTA_SCHEMA, null, 2)}
+</schema>
+
+<output_example>
+${DELTA_EXAMPLE}
+</output_example>
+
+Extract the time delta as valid JSON:`;
+// ============================================
+// Time Tracker State (module-level singleton)
+// ============================================
+const timeTracker = {
+    currentDate: new Date(),
+    lastDeltaSeconds: 0,
+    initialized: false,
+};
+// ============================================
+// Public API
+// ============================================
+/**
+ * Extract time for a message. Handles both initial datetime extraction
+ * and delta extraction based on whether there's previous state.
+ */
+async function extractTime(hasPreviousState, messages, // Add: formatted message window, same as main extraction
+abortSignal) {
+    const settings = (0,_ui_settings__WEBPACK_IMPORTED_MODULE_1__.getSettings)();
+    if (!hasPreviousState) {
+        const extracted = await extractDateTime(messages, settings.profileId, abortSignal);
+        initializeTracker(extracted);
+    }
+    else {
+        const delta = await extractTimeDelta(messages, settings.profileId, abortSignal);
+        applyDelta(delta, settings.leapThresholdMinutes ?? 20);
+    }
+    return getCurrentDateTime();
+}
+/**
+ * Get the current narrative datetime without extraction.
+ */
+function getCurrentDateTime() {
+    return dateToNarrative(timeTracker.currentDate);
+}
+/**
+ * Check if the time tracker has been initialized.
+ */
+function isTimeTrackerInitialized() {
+    return timeTracker.initialized;
+}
+/**
+ * Reset the time tracker (e.g., when switching chats).
+ */
+function resetTimeTracker() {
+    timeTracker.currentDate = new Date();
+    timeTracker.lastDeltaSeconds = 0;
+    timeTracker.initialized = false;
+}
+/**
+ * Manually set the tracker state (e.g., when loading from saved state).
+ */
+function setTimeTrackerState(datetime) {
+    timeTracker.currentDate = narrativeToDate(datetime);
+    timeTracker.lastDeltaSeconds = 0;
+    timeTracker.initialized = true;
+}
+// ============================================
+// Internal: Extraction Functions
+// ============================================
+async function extractDateTime(message, profileId, abortSignal) {
+    const prompt = DATETIME_PROMPT.replace('{{message}}', message);
+    const messages = [
+        { role: 'system', content: 'You are a time analysis agent. Return only valid JSON.' },
+        { role: 'user', content: prompt }
+    ];
+    const response = await makeGeneratorRequest(messages, profileId, 100, abortSignal);
+    const parsed = parseJsonResponse(response);
+    return validateDateTime(parsed);
+}
+async function extractTimeDelta(message, profileId, abortSignal) {
+    const currentTimeStr = formatTimeForPrompt(timeTracker.currentDate);
+    const prompt = DELTA_PROMPT
+        .replace('{{message}}', message)
+        .replace('{{currentTime}}', currentTimeStr);
+    const messages = [
+        { role: 'system', content: 'You are a time analysis agent. Return only valid JSON.' },
+        { role: 'user', content: prompt }
+    ];
+    const response = await makeGeneratorRequest(messages, profileId, 50, abortSignal);
+    const parsed = parseJsonResponse(response);
+    return validateDelta(parsed);
+}
+// ============================================
+// Internal: Time Tracker Operations
+// ============================================
+function initializeTracker(datetime) {
+    timeTracker.currentDate = narrativeToDate(datetime);
+    timeTracker.lastDeltaSeconds = 0;
+    timeTracker.initialized = true;
+}
+function applyDelta(delta, leapThresholdMinutes) {
+    const deltaSeconds = delta.hours * 3600 + delta.minutes * 60 + delta.seconds;
+    const thresholdSeconds = leapThresholdMinutes * 60;
+    // Consecutive leap detection
+    const isLeap = deltaSeconds > thresholdSeconds;
+    const wasLeap = timeTracker.lastDeltaSeconds > thresholdSeconds;
+    const cappedSeconds = (isLeap && wasLeap)
+        ? thresholdSeconds
+        : deltaSeconds;
+    // Apply to Date object - handles all edge cases (month overflow, leap years, etc.)
+    timeTracker.currentDate = new Date(timeTracker.currentDate.getTime() + cappedSeconds * 1000);
+    // Store the raw delta (not capped) for next comparison
+    timeTracker.lastDeltaSeconds = deltaSeconds;
+}
+// ============================================
+// Internal: Conversion Utilities
+// ============================================
+const DAYS_OF_WEEK = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+];
+function dateToNarrative(date) {
+    return {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1, // JS months are 0-indexed
+        day: date.getDate(),
+        hour: date.getHours(),
+        minute: date.getMinutes(),
+        second: date.getSeconds(),
+        dayOfWeek: DAYS_OF_WEEK[date.getDay()],
+    };
+}
+function narrativeToDate(narrative) {
+    return new Date(narrative.year, narrative.month - 1, // JS months are 0-indexed
+    narrative.day, narrative.hour, narrative.minute, narrative.second);
+}
+function formatTimeForPrompt(date) {
+    const narrative = dateToNarrative(date);
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const hour12 = narrative.hour % 12 || 12;
+    const ampm = narrative.hour < 12 ? 'AM' : 'PM';
+    const minuteStr = String(narrative.minute).padStart(2, '0');
+    return `${narrative.dayOfWeek}, ${monthNames[narrative.month - 1]} ${narrative.day}, ${narrative.year} at ${hour12}:${minuteStr} ${ampm}`;
+}
+// ============================================
+// Internal: LLM Communication
+// ============================================
+function makeGeneratorRequest(messages, profileId, maxTokens, abortSignal) {
+    return new Promise((resolve, reject) => {
+        if (abortSignal?.aborted) {
+            return reject(new DOMException('Aborted', 'AbortError'));
+        }
+        const abortController = new AbortController();
+        if (abortSignal) {
+            abortSignal.addEventListener('abort', () => abortController.abort());
+        }
+        generator.generateRequest({
+            profileId,
+            prompt: messages,
+            maxTokens,
+            custom: { signal: abortController.signal },
+            overridePayload: {
+                temperature: 0.3, // Lower temp for more consistent time extraction
+            }
+        }, {
+            abortController,
+            onFinish: (requestId, data, error) => {
+                if (error) {
+                    return reject(error);
+                }
+                if (!data) {
+                    return reject(new DOMException('Request aborted', 'AbortError'));
+                }
+                const content = data.content;
+                if (typeof content === 'string') {
+                    resolve(content);
+                }
+                else {
+                    resolve(JSON.stringify(content));
+                }
+            },
+        });
+    });
+}
+// ============================================
+// Internal: Response Parsing
+// ============================================
+function parseJsonResponse(response) {
+    let jsonStr = response.trim();
+    // Remove markdown code blocks if present
+    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+        jsonStr = jsonMatch[1].trim();
+    }
+    // Try to find JSON object if there's other text
+    const objectMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+        jsonStr = objectMatch[0];
+    }
+    try {
+        return JSON.parse(jsonStr);
+    }
+    catch (e) {
+        console.error('[BlazeTracker/Time] Failed to parse response:', e);
+        console.error('[BlazeTracker/Time] Response was:', response);
+        throw new Error('Failed to parse time extraction response as JSON');
+    }
+}
+function validateDateTime(data) {
+    // Parse and clamp year/month first
+    const year = typeof data.year === 'number' ? clamp(data.year, 1, 9999) : new Date().getFullYear();
+    const month = typeof data.month === 'number' ? clamp(data.month, 1, 12) : 6;
+    // Clamp day to valid range for this month (handles Feb 30 -> Feb 28/29, etc.)
+    const maxDay = getDaysInMonth(year, month);
+    const day = typeof data.day === 'number' ? clamp(data.day, 1, maxDay) : 15;
+    const result = {
+        year,
+        month,
+        day,
+        hour: typeof data.hour === 'number' ? clamp(data.hour, 0, 23) : 12,
+        minute: typeof data.minute === 'number' ? clamp(data.minute, 0, 59) : 0,
+        second: typeof data.second === 'number' ? clamp(data.second, 0, 59) : 0,
+        dayOfWeek: '', // Will be calculated
+    };
+    // Get correct day of week from Date object
+    const date = narrativeToDate(result);
+    result.dayOfWeek = DAYS_OF_WEEK[date.getDay()];
+    return result;
+}
+function getDaysInMonth(year, month) {
+    // Day 0 of next month = last day of this month
+    return new Date(year, month, 0).getDate();
+}
+function validateDelta(data) {
+    return {
+        hours: typeof data.hours === 'number' ? Math.max(0, Math.floor(data.hours)) : 0,
+        minutes: typeof data.minutes === 'number' ? clamp(Math.floor(data.minutes), 0, 59) : 0,
+        seconds: typeof data.seconds === 'number' ? clamp(Math.floor(data.seconds), 0, 59) : 0,
+    };
+}
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
 }
 
 
@@ -38203,8 +38629,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   updateInjectionFromChat: () => (/* binding */ updateInjectionFromChat)
 /* harmony export */ });
 /* harmony import */ var _utils_messageState__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../utils/messageState */ "./src/utils/messageState.ts");
+/* harmony import */ var _ui_settings__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../ui/settings */ "./src/ui/settings.ts");
+
 
 const EXTENSION_KEY = 'blazetracker';
+const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
 function formatOutfit(outfit) {
     const outfitParts = [
         outfit.torso || 'topless',
@@ -38234,9 +38666,27 @@ Tension: ${tensionParts.join(', ')}`;
     }
     return text;
 }
+function formatNarrativeDateTime(time) {
+    const hour12 = time.hour % 12 || 12;
+    const ampm = time.hour < 12 ? 'AM' : 'PM';
+    const minuteStr = String(time.minute).padStart(2, '0');
+    // "Monday, June 15th, 2024 at 2:30 PM"
+    const dayOrdinal = getDayOrdinal(time.day);
+    return `${time.dayOfWeek}, ${MONTH_NAMES[time.month - 1]} ${time.day}${dayOrdinal}, ${time.year} at ${hour12}:${minuteStr} ${ampm}`;
+}
+function getDayOrdinal(day) {
+    if (day >= 11 && day <= 13)
+        return 'th';
+    switch (day % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+    }
+}
 function formatStateForInjection(state) {
-    const time = `${String(state.time.hour).padStart(2, '0')}:${String(state.time.minute).padStart(2, '0')}`;
-    const day = state.time.day ? `${state.time.day}, ` : '';
+    const settings = (0,_ui_settings__WEBPACK_IMPORTED_MODULE_1__.getSettings)();
+    const showTime = settings.trackTime !== false;
     const location = [state.location.area, state.location.place, state.location.position]
         .filter(Boolean)
         .join(' - ');
@@ -38267,8 +38717,12 @@ function formatStateForInjection(state) {
     if (state.scene) {
         output += `\n${formatScene(state.scene)}`;
     }
+    // Only include time if tracking is enabled
+    if (showTime && state.time) {
+        const timeStr = formatNarrativeDateTime(state.time);
+        output += `\nTime: ${timeStr}`;
+    }
     output += `
-Time: ${day}${time}
 Location: ${location}
 Nearby objects: ${props}`;
     if (climate) {
@@ -38334,6 +38788,8 @@ const defaultSettings = {
     lastXMessages: 10,
     maxResponseTokens: 4000,
     displayPosition: 'below',
+    trackTime: true,
+    leapThresholdMinutes: 20,
 };
 const settingsManager = new sillytavern_utils_lib__WEBPACK_IMPORTED_MODULE_0__.ExtensionSettingsManager(_constants__WEBPACK_IMPORTED_MODULE_1__.EXTENSION_KEY, defaultSettings);
 
@@ -38357,31 +38813,13 @@ __webpack_require__.r(__webpack_exports__);
 // ============================================
 // ============================================
 // JSON Schema for LLM Extraction
+// (Note: time is NOT included - it's extracted separately)
 // ============================================
 const EXTRACTION_SCHEMA = {
     type: "object",
-    description: "Schema representing current state of the roleplay scenario",
+    description: "Schema representing current state of the roleplay scenario (excluding time, which is tracked separately)",
     additionalProperties: false,
     properties: {
-        time: {
-            type: "object",
-            properties: {
-                hour: {
-                    type: "number",
-                    description: "Hour in 24h format (0-23)"
-                },
-                minute: {
-                    type: "number",
-                    description: "Minute (0-59)"
-                },
-                day: {
-                    type: "string",
-                    enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-                    description: "Day of the week i.e. 'Sunday'"
-                }
-            },
-            required: ["hour", "minute", "day"]
-        },
         location: {
             type: "object",
             properties: {
@@ -38570,7 +39008,7 @@ const EXTRACTION_SCHEMA = {
             }
         }
     },
-    required: ["time", "location", "characters"]
+    required: ["location", "climate", "scene", "characters"]
 };
 // ============================================
 // Schema to Example (for prompt engineering)
@@ -38606,9 +39044,9 @@ function schemaToExample(schema) {
             return null;
     }
 }
+// Note: Example does NOT include time - it's merged in after extraction
 function getSchemaExample() {
     return JSON.stringify({
-        time: { hour: 21, minute: 30, day: "Friday" },
         location: {
             area: "Downtown Seattle",
             place: "The Rusty Nail bar",
@@ -38805,6 +39243,22 @@ async function initSettingsUI() {
             </select>
           </div>
 
+          <hr>
+
+          <div class="flex-container flexFlowColumn">
+            <label class="checkbox_label">
+              <input type="checkbox" id="blazetracker-tracktime">
+              <span>Enable Time Tracking</span>
+            </label>
+            <small>Extract and track narrative date/time (requires additional LLM call per message)</small>
+          </div>
+
+          <div class="flex-container flexFlowColumn" id="blazetracker-time-options">
+            <label for="blazetracker-leapthreshold">Leap Threshold (minutes)</label>
+            <small>Cap consecutive time jumps to prevent "double sleep" issues. If two messages in a row both jump more than this, the second is capped.</small>
+            <input type="number" id="blazetracker-leapthreshold" class="text_pole" min="5" max="1440" step="5">
+          </div>
+
         </div>
       </div>
     </div>
@@ -38880,6 +39334,7 @@ async function initSettingsUI() {
             updateSetting('maxResponseTokens', parseInt(maxTokensInput.value) || 2000);
         });
     }
+    // Set up display position
     const positionSelect = panel.querySelector('#blazetracker-position');
     if (positionSelect) {
         positionSelect.value = settings.displayPosition;
@@ -38887,6 +39342,32 @@ async function initSettingsUI() {
             updateSetting('displayPosition', positionSelect.value);
             document.querySelectorAll('.bt-state-root').forEach(el => el.remove());
             setTimeout(() => (0,_stateDisplay__WEBPACK_IMPORTED_MODULE_1__.renderAllStates)(), 200);
+        });
+    }
+    // Set up time tracking checkbox
+    const trackTimeCheckbox = panel.querySelector('#blazetracker-tracktime');
+    const timeOptionsContainer = panel.querySelector('#blazetracker-time-options');
+    const updateTimeOptionsVisibility = () => {
+        if (timeOptionsContainer) {
+            timeOptionsContainer.style.display = trackTimeCheckbox?.checked ? 'flex' : 'none';
+        }
+    };
+    if (trackTimeCheckbox) {
+        trackTimeCheckbox.checked = settings.trackTime !== false; // Default to true
+        updateTimeOptionsVisibility();
+        trackTimeCheckbox.addEventListener('change', () => {
+            updateSetting('trackTime', trackTimeCheckbox.checked);
+            updateTimeOptionsVisibility();
+            // Re-render to show/hide time in display
+            setTimeout(() => (0,_stateDisplay__WEBPACK_IMPORTED_MODULE_1__.renderAllStates)(), 100);
+        });
+    }
+    // Set up leap threshold
+    const leapThresholdInput = panel.querySelector('#blazetracker-leapthreshold');
+    if (leapThresholdInput) {
+        leapThresholdInput.value = String(settings.leapThresholdMinutes ?? 20);
+        leapThresholdInput.addEventListener('change', () => {
+            updateSetting('leapThresholdMinutes', parseInt(leapThresholdInput.value) || 20);
         });
     }
     console.log('[BlazeTracker] Settings UI initialized');
@@ -38939,6 +39420,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _stateEditor__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./stateEditor */ "./src/ui/stateEditor.tsx");
 /* harmony import */ var _injectors_injectState__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../injectors/injectState */ "./src/injectors/injectState.ts");
 /* harmony import */ var _settings__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./settings */ "./src/ui/settings.ts");
+/* harmony import */ var _extractors_extractTime__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../extractors/extractTime */ "./src/extractors/extractTime.ts");
+/* harmony import */ var _constants__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../constants */ "./src/constants.ts");
 
 
 
@@ -38947,8 +39430,8 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-const EXTENSION_NAME = 'BlazeTracker';
-const EXTENSION_KEY = 'blazetracker';
+
+
 // --- Icon Mappings (UI concern, lives here not in state types) ---
 const TENSION_LEVEL_ICONS = {
     relaxed: 'fa-mug-hot',
@@ -38987,10 +39470,25 @@ const roots = new Map();
 const extractionInProgress = new Set();
 // --- Helper Functions ---
 function formatTime(time) {
+    const MONTH_NAMES = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December'
+    ];
     const hour = String(time.hour).padStart(2, '0');
     const minute = String(time.minute).padStart(2, '0');
-    const day = time.day ? `${time.day}, ` : '';
-    return `${day}${hour}:${minute}`;
+    const month = MONTH_NAMES[time.month - 1];
+    // "Mon, Jan 15, 14:30"
+    return `${time.dayOfWeek.slice(0, 3)}, ${month} ${time.day} ${time.year}, ${hour}:${minute}`;
 }
 function formatLocation(location) {
     const parts = [location.position, location.place, location.area];
@@ -39020,7 +39518,7 @@ async function waitForMessageElement(messageId, maxWaitMs = 2000) {
         }
         await new Promise(resolve => setTimeout(resolve, 50));
     }
-    console.warn(`[${EXTENSION_NAME}] Timeout waiting for message element ${messageId}`);
+    console.warn(`[${_constants__WEBPACK_IMPORTED_MODULE_9__.EXTENSION_NAME}] Timeout waiting for message element ${messageId}`);
     return null;
 }
 function SceneDisplay({ scene }) {
@@ -39053,7 +39551,9 @@ function StateDisplay({ stateData, isExtracting }) {
         return null;
     }
     const { state } = stateData;
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-container", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-summary", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-time", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-regular fa-clock" }), " ", formatTime(state.time)] }), state.climate && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-climate", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: `fa-solid ${getWeatherIcon(state.climate.weather)}` }), state.climate.temperature !== undefined && ` ${state.climate.temperature}°F`] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-location", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), " ", formatLocation(state.location)] })] }), state.scene && (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(SceneDisplay, { scene: state.scene }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-state-details", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { children: ["Details (", state.characters.length, " characters, ", state.location.props.length, " props)"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-props-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-props-header", children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-props", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("ul", { children: state.location.props.map((prop, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("li", { children: prop }, idx))) }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-characters", children: state.characters.map((char, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(Character, { character: char }, `${char.name}-${idx}`))) })] })] }));
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_7__.getSettings)();
+    const showTime = settings.trackTime !== false;
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-container", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-summary", children: [showTime && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-time", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-regular fa-clock" }), " ", formatTime(state.time)] })), state.climate && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-climate", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: `fa-solid ${getWeatherIcon(state.climate.weather)}` }), state.climate.temperature !== undefined && ` ${state.climate.temperature}°F`] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-location", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), " ", formatLocation(state.location)] })] }), state.scene && (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(SceneDisplay, { scene: state.scene }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-state-details", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { children: ["Details (", state.characters.length, " characters, ", state.location.props.length, " props)"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-props-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-props-header", children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-props", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("ul", { children: state.location.props.map((prop, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("li", { children: prop }, idx))) }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-characters", children: state.characters.map((char, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(Character, { character: char }, `${char.name}-${idx}`))) })] })] }));
 }
 // --- State Extraction ---
 function getPreviousState(context, beforeMessageId) {
@@ -39073,7 +39573,7 @@ async function doExtractState(messageId) {
     const context = SillyTavern.getContext();
     const message = context.chat[messageId];
     if (!message) {
-        console.warn(`[${EXTENSION_NAME}] Message not found:`, messageId);
+        console.warn(`[${_constants__WEBPACK_IMPORTED_MODULE_9__.EXTENSION_NAME}] Message not found:`, messageId);
         return null;
     }
     // Mark extraction in progress
@@ -39109,7 +39609,7 @@ async function doExtractState(messageId) {
             (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_2__.st_echo)?.('warning', '🔥 Extraction aborted');
         }
         else {
-            console.warn(`[${EXTENSION_NAME}] Extraction failed:`, e);
+            console.warn(`[${_constants__WEBPACK_IMPORTED_MODULE_9__.EXTENSION_NAME}] Extraction failed:`, e);
             (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_2__.st_echo)?.('error', `🔥 Extraction failed: ${e.message}`);
         }
         // Clear loading state on error
@@ -39243,7 +39743,19 @@ function unmountMessageState(messageId) {
 }
 function renderAllStates() {
     const context = SillyTavern.getContext();
+    // Reset time tracker first
+    (0,_extractors_extractTime__WEBPACK_IMPORTED_MODULE_8__.resetTimeTracker)();
+    // Find most recent message with state and initialize time tracker
+    for (let i = context.chat.length - 1; i >= 0; i--) {
+        const msg = context.chat[i];
+        const stored = (0,_utils_messageState__WEBPACK_IMPORTED_MODULE_4__.getMessageState)(msg);
+        if (stored?.state?.time) {
+            (0,_extractors_extractTime__WEBPACK_IMPORTED_MODULE_8__.setTimeTrackerState)(stored.state.time);
+            break;
+        }
+    }
     // Unmount and remove roots that aren't mid-extraction
+    document.querySelectorAll('.bt-state-root').forEach(el => el.remove());
     for (const [messageId, root] of roots) {
         if (!extractionInProgress.has(messageId)) {
             root.unmount();
@@ -39282,6 +39794,7 @@ function initStateDisplay() {
     const context = SillyTavern.getContext();
     // Only handle chat change for initial render - let index.ts handle message events
     context.eventSource.on(context.event_types.CHAT_CHANGED, (() => {
+        (0,_extractors_extractTime__WEBPACK_IMPORTED_MODULE_8__.resetTimeTracker)();
         setTimeout(renderAllStates, 100);
     }));
 }
@@ -39335,12 +39848,24 @@ __webpack_require__.r(__webpack_exports__);
 
 // --- Constants from Schema ---
 const WEATHER_OPTIONS = ['sunny', 'cloudy', 'snowy', 'rainy', 'windy', 'thunderstorm'];
-const DAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
 const OUTFIT_SLOTS = ['head', 'jacket', 'torso', 'legs', 'underwear', 'socks', 'footwear'];
 const TENSION_LEVELS = ['relaxed', 'aware', 'guarded', 'tense', 'charged', 'volatile', 'explosive'];
 const TENSION_DIRECTIONS = ['escalating', 'stable', 'decreasing'];
 const TENSION_TYPES = ['confrontation', 'intimate', 'vulnerable', 'celebratory', 'negotiation', 'suspense', 'conversation'];
 // --- Helper Functions ---
+function getDaysInMonth(year, month) {
+    // Day 0 of next month = last day of this month
+    return new Date(year, month, 0).getDate();
+}
+function getDayOfWeek(year, month, day) {
+    const date = new Date(year, month - 1, day);
+    return DAYS_OF_WEEK[date.getDay()];
+}
 function createEmptyScene() {
     return {
         topic: '',
@@ -39349,9 +39874,21 @@ function createEmptyScene() {
         recentEvents: []
     };
 }
+function createEmptyTime() {
+    const now = new Date();
+    return {
+        year: now.getFullYear(),
+        month: now.getMonth() + 1,
+        day: now.getDate(),
+        hour: 12,
+        minute: 0,
+        second: 0,
+        dayOfWeek: DAYS_OF_WEEK[now.getDay()],
+    };
+}
 function createEmptyState() {
     return {
-        time: { hour: 12, minute: 0, day: 'Monday' },
+        time: createEmptyTime(),
         location: { area: '', place: '', position: '', props: [] },
         climate: { weather: 'sunny', temperature: 70 },
         scene: createEmptyScene(),
@@ -39392,14 +39929,21 @@ function validateState(state) {
         errors['scene.tone'] = 'Tone is required';
     }
     // Time
+    if (state.time.year < 1 || state.time.year > 9999) {
+        errors['time.year'] = 'Year must be 1-9999';
+    }
+    if (state.time.month < 1 || state.time.month > 12) {
+        errors['time.month'] = 'Month must be 1-12';
+    }
+    const maxDay = getDaysInMonth(state.time.year, state.time.month);
+    if (state.time.day < 1 || state.time.day > maxDay) {
+        errors['time.day'] = `Day must be 1-${maxDay}`;
+    }
     if (state.time.hour < 0 || state.time.hour > 23) {
         errors['time.hour'] = 'Hour must be 0-23';
     }
     if (state.time.minute < 0 || state.time.minute > 59) {
         errors['time.minute'] = 'Minute must be 0-59';
-    }
-    if (!state.time.day) {
-        errors['time.day'] = 'Day is required';
     }
     // Location
     if (!state.location.area?.trim()) {
@@ -39518,9 +40062,21 @@ function StateEditor({ initialState, onSave, onCancel }) {
             }
         }));
     };
-    // Time
+    // Time - with automatic dayOfWeek calculation
     const updateTime = (field, value) => {
-        setState(s => ({ ...s, time: { ...s.time, [field]: value } }));
+        setState(s => {
+            const newTime = { ...s.time, [field]: value };
+            // Recalculate dayOfWeek if date components change
+            if (field === 'year' || field === 'month' || field === 'day') {
+                // Clamp day to valid range for the month
+                const maxDay = getDaysInMonth(newTime.year, newTime.month);
+                if (newTime.day > maxDay) {
+                    newTime.day = maxDay;
+                }
+                newTime.dayOfWeek = getDayOfWeek(newTime.year, newTime.month, newTime.day);
+            }
+            return { ...s, time: newTime };
+        });
     };
     // Location
     const updateLocation = (field, value) => {
@@ -39556,7 +40112,9 @@ function StateEditor({ initialState, onSave, onCancel }) {
         }
     };
     const hasErrors = Object.keys(errors).length > 0;
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-tabs", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", className: `bt-tab ${tab === 'scene' ? 'active' : ''}`, onClick: () => setTab('scene'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), " Scene"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", className: `bt-tab ${tab === 'chars' ? 'active' : ''}`, onClick: () => setTab('chars'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-users" }), " Characters (", state.characters.length, ")"] })] }), tab === 'scene' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-panel", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-clapperboard" }), " Context"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Topic *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.scene?.topic || '', onChange: e => updateScene('topic', e.target.value), placeholder: "3-5 words: main topic of interaction", className: errors['scene.topic'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tone *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.scene?.tone || '', onChange: e => updateScene('tone', e.target.value), placeholder: "2-3 words: emotional tone", className: errors['scene.tone'] ? 'bt-err' : '' })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Type" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.scene?.tension?.type || 'conversation', onChange: e => updateTension('type', e.target.value), children: TENSION_TYPES.map(t => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: t, children: t }, t))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Level" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.scene?.tension?.level || 'relaxed', onChange: e => updateTension('level', e.target.value), children: TENSION_LEVELS.map(l => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: l, children: l }, l))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Direction" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.scene?.tension?.direction || 'stable', onChange: e => updateTension('direction', e.target.value), children: TENSION_DIRECTIONS.map(d => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: d, children: d }, d))) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Recent Events" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(EventListEditor, { events: state.scene?.recentEvents || [], onChange: events => updateScene('recentEvents', events) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-clock" }), " Time"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Hour" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", min: 0, max: 23, value: state.time.hour, onChange: e => updateTime('hour', parseInt(e.target.value) || 0), className: errors['time.hour'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Minute" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", min: 0, max: 59, value: state.time.minute, onChange: e => updateTime('minute', parseInt(e.target.value) || 0), className: errors['time.minute'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Day" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.time.day || 'Monday', onChange: e => updateTime('day', e.target.value), className: errors['time.day'] ? 'bt-err' : '', children: DAY_OPTIONS.map(d => (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: d, children: d }, d)) })] })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-map-marker-alt" }), " Location"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Area *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.location.area, onChange: e => updateLocation('area', e.target.value), placeholder: "City, district, region...", className: errors['location.area'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Place *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.location.place, onChange: e => updateLocation('place', e.target.value), placeholder: "Building, establishment, room...", className: errors['location.place'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Position *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.location.position, onChange: e => updateLocation('position', e.target.value), placeholder: "Position within the place...", className: errors['location.position'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TagInput, { tags: state.location.props || [], onChange: t => updateLocation('props', t), placeholder: "Add props..." })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-cloud-sun" }), " Climate"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Weather" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.climate?.weather || 'sunny', onChange: e => updateClimate('weather', e.target.value), children: WEATHER_OPTIONS.map(w => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: w, children: w.charAt(0).toUpperCase() + w.slice(1) }, w))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Temperature (\u00B0F)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", value: state.climate?.temperature ?? 70, onChange: e => updateClimate('temperature', parseInt(e.target.value) || 0) })] })] })] })] })), tab === 'chars' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-panel", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-chars-list", children: state.characters.map((char, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(CharacterEditor, { character: char, index: idx, onChange: c => updateChar(idx, c), onRemove: () => removeChar(idx), otherNames: getOtherNames(idx), errors: errors }, idx))) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", onClick: addChar, className: "bt-add-char", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), " Add Character"] })] })), hasErrors && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-errors", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-exclamation-triangle" }), "Fix highlighted errors before saving."] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-actions", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "bt-btn", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", onClick: handleSave, className: "bt-btn bt-btn-primary", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-save" }), " Save"] })] })] }));
+    // Calculate max days for current month
+    const maxDaysInMonth = getDaysInMonth(state.time.year, state.time.month);
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-tabs", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", className: `bt-tab ${tab === 'scene' ? 'active' : ''}`, onClick: () => setTab('scene'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), " Scene"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", className: `bt-tab ${tab === 'chars' ? 'active' : ''}`, onClick: () => setTab('chars'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-users" }), " Characters (", state.characters.length, ")"] })] }), tab === 'scene' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-panel", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-clapperboard" }), " Context"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Topic *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.scene?.topic || '', onChange: e => updateScene('topic', e.target.value), placeholder: "3-5 words: main topic of interaction", className: errors['scene.topic'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tone *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.scene?.tone || '', onChange: e => updateScene('tone', e.target.value), placeholder: "2-3 words: emotional tone", className: errors['scene.tone'] ? 'bt-err' : '' })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Type" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.scene?.tension?.type || 'conversation', onChange: e => updateTension('type', e.target.value), children: TENSION_TYPES.map(t => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: t, children: t }, t))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Level" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.scene?.tension?.level || 'relaxed', onChange: e => updateTension('level', e.target.value), children: TENSION_LEVELS.map(l => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: l, children: l }, l))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Direction" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.scene?.tension?.direction || 'stable', onChange: e => updateTension('direction', e.target.value), children: TENSION_DIRECTIONS.map(d => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: d, children: d }, d))) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Recent Events" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(EventListEditor, { events: state.scene?.recentEvents || [], onChange: events => updateScene('recentEvents', events) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-calendar-clock" }), " Date & Time"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Year" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", min: 1, max: 9999, value: state.time.year, onChange: e => updateTime('year', parseInt(e.target.value) || 2024), className: errors['time.year'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Month" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.time.month, onChange: e => updateTime('month', parseInt(e.target.value)), className: errors['time.month'] ? 'bt-err' : '', children: MONTH_NAMES.map((m, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: idx + 1, children: m }, m))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Day" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", min: 1, max: maxDaysInMonth, value: state.time.day, onChange: e => updateTime('day', parseInt(e.target.value) || 1), className: errors['time.day'] ? 'bt-err' : '' })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Hour (0-23)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", min: 0, max: 23, value: state.time.hour, onChange: e => updateTime('hour', parseInt(e.target.value) || 0), className: errors['time.hour'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Minute" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", min: 0, max: 59, value: state.time.minute, onChange: e => updateTime('minute', parseInt(e.target.value) || 0), className: errors['time.minute'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Day of Week" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.time.dayOfWeek, disabled: true, style: { opacity: 0.7, cursor: 'not-allowed' } })] })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-map-marker-alt" }), " Location"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Area *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.location.area, onChange: e => updateLocation('area', e.target.value), placeholder: "City, district, region...", className: errors['location.area'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Place *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.location.place, onChange: e => updateLocation('place', e.target.value), placeholder: "Building, establishment, room...", className: errors['location.place'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Position *" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: state.location.position, onChange: e => updateLocation('position', e.target.value), placeholder: "Position within the place...", className: errors['location.position'] ? 'bt-err' : '' })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TagInput, { tags: state.location.props || [], onChange: t => updateLocation('props', t), placeholder: "Add props..." })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("fieldset", { className: "bt-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("legend", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-cloud-sun" }), " Climate"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-row-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Weather" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: state.climate?.weather || 'sunny', onChange: e => updateClimate('weather', e.target.value), children: WEATHER_OPTIONS.map(w => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: w, children: w.charAt(0).toUpperCase() + w.slice(1) }, w))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Temperature (\u00B0F)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", value: state.climate?.temperature ?? 70, onChange: e => updateClimate('temperature', parseInt(e.target.value) || 0) })] })] })] })] })), tab === 'chars' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-panel", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-chars-list", children: state.characters.map((char, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(CharacterEditor, { character: char, index: idx, onChange: c => updateChar(idx, c), onRemove: () => removeChar(idx), otherNames: getOtherNames(idx), errors: errors }, idx))) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", onClick: addChar, className: "bt-add-char", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), " Add Character"] })] })), hasErrors && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-errors", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-exclamation-triangle" }), "Fix highlighted errors before saving."] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-actions", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "bt-btn", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", onClick: handleSave, className: "bt-btn bt-btn-primary", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-save" }), " Save"] })] })] }));
 }
 // --- Integration with SillyTavern Popup ---
 /**

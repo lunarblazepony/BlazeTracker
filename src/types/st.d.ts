@@ -22,6 +22,10 @@ export interface STContext {
   name1: string; // User name
   name2: string; // Character name
 
+  powerUserSettings?: {
+    persona_description?: string;
+  }
+
   // Generation
   generateQuietPrompt(options: GenerateOptions): Promise<string>;
   generateRaw(options: GenerateRawOptions): Promise<string>;

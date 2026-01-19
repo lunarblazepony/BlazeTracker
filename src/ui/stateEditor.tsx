@@ -7,12 +7,16 @@
 
 import React, { useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
-import type { TrackedState, Character, CharacterOutfit, Climate, Scene } from '../types/state';
+import type { TrackedState, Character, CharacterOutfit, Climate, Scene, NarrativeDateTime } from '../types/state';
 
 // --- Constants from Schema ---
 
 const WEATHER_OPTIONS = ['sunny', 'cloudy', 'snowy', 'rainy', 'windy', 'thunderstorm'] as const;
-const DAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+] as const;
 const OUTFIT_SLOTS = ['head', 'jacket', 'torso', 'legs', 'underwear', 'socks', 'footwear'] as const;
 
 const TENSION_LEVELS = ['relaxed', 'aware', 'guarded', 'tense', 'charged', 'volatile', 'explosive'] as const;
@@ -31,6 +35,16 @@ type ValidationErrors = Record<string, string>;
 
 // --- Helper Functions ---
 
+function getDaysInMonth(year: number, month: number): number {
+  // Day 0 of next month = last day of this month
+  return new Date(year, month, 0).getDate();
+}
+
+function getDayOfWeek(year: number, month: number, day: number): string {
+  const date = new Date(year, month - 1, day);
+  return DAYS_OF_WEEK[date.getDay()];
+}
+
 function createEmptyScene(): Scene {
   return {
     topic: '',
@@ -40,9 +54,22 @@ function createEmptyScene(): Scene {
   };
 }
 
+function createEmptyTime(): NarrativeDateTime {
+  const now = new Date();
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+    hour: 12,
+    minute: 0,
+    second: 0,
+    dayOfWeek: DAYS_OF_WEEK[now.getDay()],
+  };
+}
+
 function createEmptyState(): TrackedState {
   return {
-    time: { hour: 12, minute: 0, day: 'Monday' },
+    time: createEmptyTime(),
     location: { area: '', place: '', position: '', props: [] },
     climate: { weather: 'sunny', temperature: 70 },
     scene: createEmptyScene(),
@@ -89,14 +116,21 @@ function validateState(state: TrackedState): ValidationErrors {
   }
 
   // Time
+  if (state.time.year < 1 || state.time.year > 9999) {
+    errors['time.year'] = 'Year must be 1-9999';
+  }
+  if (state.time.month < 1 || state.time.month > 12) {
+    errors['time.month'] = 'Month must be 1-12';
+  }
+  const maxDay = getDaysInMonth(state.time.year, state.time.month);
+  if (state.time.day < 1 || state.time.day > maxDay) {
+    errors['time.day'] = `Day must be 1-${maxDay}`;
+  }
   if (state.time.hour < 0 || state.time.hour > 23) {
     errors['time.hour'] = 'Hour must be 0-23';
   }
   if (state.time.minute < 0 || state.time.minute > 59) {
     errors['time.minute'] = 'Minute must be 0-59';
-  }
-  if (!state.time.day) {
-    errors['time.day'] = 'Day is required';
   }
 
   // Location
@@ -471,9 +505,23 @@ export function StateEditor({ initialState, onSave, onCancel }: StateEditorProps
     }));
   };
 
-  // Time
-  const updateTime = (field: keyof TrackedState['time'], value: any) => {
-    setState(s => ({ ...s, time: { ...s.time, [field]: value } }));
+  // Time - with automatic dayOfWeek calculation
+  const updateTime = (field: keyof NarrativeDateTime, value: any) => {
+    setState(s => {
+      const newTime = { ...s.time, [field]: value };
+
+      // Recalculate dayOfWeek if date components change
+      if (field === 'year' || field === 'month' || field === 'day') {
+        // Clamp day to valid range for the month
+        const maxDay = getDaysInMonth(newTime.year, newTime.month);
+        if (newTime.day > maxDay) {
+          newTime.day = maxDay;
+        }
+        newTime.dayOfWeek = getDayOfWeek(newTime.year, newTime.month, newTime.day);
+      }
+
+      return { ...s, time: newTime };
+    });
   };
 
   // Location
@@ -518,6 +566,9 @@ export function StateEditor({ initialState, onSave, onCancel }: StateEditorProps
   };
 
   const hasErrors = Object.keys(errors).length > 0;
+
+  // Calculate max days for current month
+  const maxDaysInMonth = getDaysInMonth(state.time.year, state.time.month);
 
   return (
     <div className="bt-editor">
@@ -611,12 +662,52 @@ export function StateEditor({ initialState, onSave, onCancel }: StateEditorProps
             </div>
           </fieldset>
 
-          {/* Time */}
+          {/* Date & Time */}
           <fieldset className="bt-section">
-            <legend><i className="fa-solid fa-clock"></i> Time</legend>
+            <legend><i className="fa-solid fa-calendar-clock"></i> Date &amp; Time</legend>
+
+            {/* Date row */}
             <div className="bt-row-3">
               <div className="bt-field">
-                <label>Hour</label>
+                <label>Year</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={9999}
+                  value={state.time.year}
+                  onChange={e => updateTime('year', parseInt(e.target.value) || 2024)}
+                  className={errors['time.year'] ? 'bt-err' : ''}
+                />
+              </div>
+              <div className="bt-field">
+                <label>Month</label>
+                <select
+                  value={state.time.month}
+                  onChange={e => updateTime('month', parseInt(e.target.value))}
+                  className={errors['time.month'] ? 'bt-err' : ''}
+                >
+                  {MONTH_NAMES.map((m, idx) => (
+                    <option key={m} value={idx + 1}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="bt-field">
+                <label>Day</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={maxDaysInMonth}
+                  value={state.time.day}
+                  onChange={e => updateTime('day', parseInt(e.target.value) || 1)}
+                  className={errors['time.day'] ? 'bt-err' : ''}
+                />
+              </div>
+            </div>
+
+            {/* Time row */}
+            <div className="bt-row-3">
+              <div className="bt-field">
+                <label>Hour (0-23)</label>
                 <input
                   type="number"
                   min={0}
@@ -638,14 +729,13 @@ export function StateEditor({ initialState, onSave, onCancel }: StateEditorProps
                 />
               </div>
               <div className="bt-field">
-                <label>Day</label>
-                <select
-                  value={state.time.day || 'Monday'}
-                  onChange={e => updateTime('day', e.target.value)}
-                  className={errors['time.day'] ? 'bt-err' : ''}
-                >
-                  {DAY_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <label>Day of Week</label>
+                <input
+                  type="text"
+                  value={state.time.dayOfWeek}
+                  disabled
+                  style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                />
               </div>
             </div>
           </fieldset>

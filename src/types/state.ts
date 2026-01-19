@@ -2,12 +2,18 @@
 // Runtime State Types
 // ============================================
 
+export interface NarrativeDateTime {
+  year: number;
+  month: number;      // 1-12
+  day: number;        // 1-31
+  hour: number;       // 0-23
+  minute: number;     // 0-59
+  second: number;     // 0-59
+  dayOfWeek: string;  // "Monday", "Tuesday", etc.
+}
+
 export interface TrackedState {
-  time: {
-    hour: number;
-    minute: number;
-    day: string;
-  };
+  time: NarrativeDateTime;
   location: {
     area: string;
     place: string;
@@ -63,32 +69,14 @@ export interface StoredStateData {
 
 // ============================================
 // JSON Schema for LLM Extraction
+// (Note: time is NOT included - it's extracted separately)
 // ============================================
 
 export const EXTRACTION_SCHEMA = {
   type: "object",
-  description: "Schema representing current state of the roleplay scenario",
+  description: "Schema representing current state of the roleplay scenario (excluding time, which is tracked separately)",
   additionalProperties: false,
   properties: {
-    time: {
-      type: "object",
-      properties: {
-        hour: {
-          type: "number",
-          description: "Hour in 24h format (0-23)"
-        },
-        minute: {
-          type: "number",
-          description: "Minute (0-59)"
-        },
-        day: {
-          type: "string",
-          enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-          description: "Day of the week i.e. 'Sunday'"
-        }
-      },
-      required: ["hour", "minute", "day"]
-    },
     location: {
       type: "object",
       properties: {
@@ -277,7 +265,7 @@ export const EXTRACTION_SCHEMA = {
       }
     }
   },
-  required: ["time", "location", "characters"]
+  required: ["location", "climate", "scene", "characters"]
 } as const;
 
 // ============================================
@@ -317,9 +305,9 @@ export function schemaToExample(schema: any): any {
   }
 }
 
+// Note: Example does NOT include time - it's merged in after extraction
 export function getSchemaExample(): string {
   return JSON.stringify({
-    time: { hour: 21, minute: 30, day: "Friday" },
     location: {
       area: "Downtown Seattle",
       place: "The Rusty Nail bar",
