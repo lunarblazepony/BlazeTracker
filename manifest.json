@@ -1,0 +1,11 @@
+{
+    "display_name": "BlazeTracker",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "js": "dist/index.js",
+    "auto_update": true,
+    "author": "Lunar Blaze",
+    "version": "0.2.0",
+    "homePage": "https://github.com/lunarblazepony/BlazeTracker"
+}

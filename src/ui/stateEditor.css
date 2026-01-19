@@ -1,0 +1,542 @@
+/* BlazeTracker State Editor - Fixed for ST popups */
+
+#bt-editor-root {
+    max-height: 65vh;
+    overflow: hidden;
+    display: flex;
+}
+
+.bt-editor {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 65vh;
+    max-height: 65vh;
+    overflow: hidden;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    border-radius: 6px;
+}
+
+/* Tabs */
+.bt-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px;
+    background: #222;
+    flex-shrink: 0;
+}
+
+.bt-tab {
+    padding: 8px 16px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: #aaa;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+}
+
+.bt-tab:hover {
+    background: #333;
+    color: #fff;
+}
+
+.bt-tab.active {
+    background: #f80;
+    color: #000;
+    border-color: #f80;
+}
+
+/* THIS IS THE KEY - scrollable panel */
+.bt-panel {
+    flex: 1 1 auto;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    padding: 12px;
+    min-height: 0;
+    max-height: calc(65vh - 140px);
+    /* Account for tabs + actions */
+}
+
+/* Sections */
+.bt-section {
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 0 0 12px 0;
+    background: #252525;
+}
+
+.bt-section legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: #f80;
+    padding: 0 8px;
+    font-size: 0.9em;
+}
+
+/* Form fields */
+.bt-field {
+    margin-bottom: 12px;
+}
+
+.bt-field:last-child {
+    margin-bottom: 0;
+}
+
+.bt-field>label {
+    display: block;
+    font-size: 0.8em;
+    color: #999;
+    margin-bottom: 4px;
+}
+
+.bt-field input[type="text"],
+.bt-field input[type="number"],
+.bt-field select,
+.bt-field textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 0.9em;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.bt-field textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.bt-field input:focus,
+.bt-field select:focus,
+.bt-field textarea:focus {
+    outline: none;
+    border-color: #f80;
+}
+
+.bt-err {
+    border-color: #f44 !important;
+}
+
+/* Grid rows */
+.bt-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.bt-row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+}
+
+/* Tag Input */
+.bt-tag-input {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bt-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 28px;
+}
+
+.bt-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #f80;
+    color: #000;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.bt-tag-x {
+    background: none;
+    border: none;
+    color: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    padding: 0;
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.bt-tag-x:hover {
+    color: #000;
+}
+
+.bt-tag-add {
+    display: flex;
+    gap: 6px;
+}
+
+.bt-tag-add input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.85em;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.bt-tag-add button {
+    padding: 6px 12px;
+    border: none;
+    background: #f80;
+    color: #000;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Event List (for recent events) */
+.bt-event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bt-event-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #1e1e1e;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.bt-event-text {
+    flex: 1;
+    font-size: 0.9em;
+}
+
+.bt-event-add {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.bt-event-add input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.85em;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.bt-event-add button {
+    padding: 6px 12px;
+    border: none;
+    background: #f80;
+    color: #000;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.bt-event-hint {
+    font-size: 0.75em;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* Characters list */
+.bt-chars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bt-char-card {
+    border: 1px solid #444;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #222;
+}
+
+.bt-char-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: #2a2a2a;
+    cursor: pointer;
+    user-select: none;
+}
+
+.bt-char-header:hover {
+    background: #333;
+}
+
+.bt-char-header>i {
+    color: #888;
+    width: 16px;
+    flex-shrink: 0;
+}
+
+.bt-char-name {
+    flex: 1;
+    font-weight: 600;
+    color: #fff;
+}
+
+.bt-char-body {
+    padding: 16px;
+    background: #252525;
+}
+
+/* Add character button */
+.bt-add-char {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    border: 2px dashed #555;
+    border-radius: 6px;
+    background: transparent;
+    color: #888;
+    cursor: pointer;
+    font-size: 0.9em;
+    margin-top: 12px;
+}
+
+.bt-add-char:hover {
+    border-color: #f80;
+    color: #f80;
+}
+
+/* Details/Accordion */
+.bt-details {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #333;
+}
+
+.bt-details>summary {
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9em;
+    color: #aaa;
+    margin-bottom: 10px;
+    padding: 4px 0;
+}
+
+.bt-details>summary:hover {
+    color: #f80;
+}
+
+/* Outfit Grid */
+.bt-outfit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.bt-outfit-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bt-outfit-slot>label {
+    font-size: 0.75em;
+    color: #888;
+    text-transform: capitalize;
+}
+
+.bt-outfit-row {
+    display: flex;
+    gap: 6px;
+}
+
+.bt-outfit-row input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.85em;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    min-width: 0;
+}
+
+/* X buttons */
+.bt-x {
+    padding: 4px 8px;
+    border: none;
+    background: #333;
+    color: #888;
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.bt-x:hover {
+    background: #444;
+    color: #fff;
+}
+
+.bt-x-red {
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: #e55;
+    cursor: pointer;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.bt-x-red:hover {
+    background: rgba(255, 68, 68, 0.2);
+}
+
+/* Dispositions */
+.bt-dispositions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bt-disposition {
+    background: #1e1e1e;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.bt-disposition-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    color: #8af;
+    font-weight: 500;
+}
+
+.bt-add-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bt-add-row select,
+.bt-add-row input {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 0.85em;
+}
+
+.bt-add-row button {
+    padding: 8px 16px;
+    border: none;
+    background: #f80;
+    color: #000;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.bt-add-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Error Summary */
+.bt-errors {
+    background: rgba(255, 68, 68, 0.15);
+    border: 1px solid rgba(255, 68, 68, 0.5);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 0 12px;
+    color: #f99;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Actions - fixed at bottom */
+.bt-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px;
+    background: #222;
+    flex-shrink: 0;
+}
+
+.bt-btn {
+    padding: 10px 20px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #2a2a2a;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bt-btn:hover {
+    background: #333;
+    color: #fff;
+}
+
+.bt-btn-primary {
+    background: #f80;
+    color: #000;
+    border-color: #f80;
+    font-weight: 500;
+}
+
+.bt-btn-primary:hover {
+    background: #fa0;
+}
+
+/* Scrollbar */
+.bt-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.bt-panel::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 4px;
+}
+
+.bt-panel::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+.bt-panel::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
