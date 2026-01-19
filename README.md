@@ -12,6 +12,32 @@ A SillyTavern extension that uses LLM analysis to track and maintain scene state
 
 ![](./img/detailed_screenshot.png)
 
+## Installation
+
+### Requirements
+- SillyTavern 1.12.0 or later
+- Git installed on your system
+
+### Install via SillyTavern
+1. Open SillyTavern
+2. Go to **Extensions** → **Install Extension**
+3. Paste the repository URL:
+   ```
+   https://github.com/yourusername/BlazeTracker
+   ```
+4. Click **Install**
+5. Reload SillyTavern
+
+### Manual Installation
+1. Navigate to your SillyTavern installation
+2. Go to `data/<user>/extensions/` (or `public/scripts/extensions/third-party/` for all users)
+3. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/BlazeTracker
+   ```
+4. Restart SillyTavern
+5. See Configuration to get started
+
 ## Features
 
 ### Scene State Tracking
@@ -50,31 +76,6 @@ A SillyTavern extension that uses LLM analysis to track and maintain scene state
 - Full state editor UI
 - Edit any field: time, location, characters, outfits, tension, events
 - Add/remove characters and dispositions
-
-## Installation
-
-### Requirements
-- SillyTavern 1.12.0 or later
-- Git installed on your system
-
-### Install via SillyTavern
-1. Open SillyTavern
-2. Go to **Extensions** → **Install Extension**
-3. Paste the repository URL:
-   ```
-   https://github.com/yourusername/BlazeTracker
-   ```
-4. Click **Install**
-5. Reload SillyTavern
-
-### Manual Installation
-1. Navigate to your SillyTavern installation
-2. Go to `data/<user>/extensions/` (or `public/scripts/extensions/third-party/` for all users)
-3. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/BlazeTracker
-   ```
-4. Restart SillyTavern
 
 ## Configuration
 
