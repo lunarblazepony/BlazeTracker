@@ -212,7 +212,7 @@ export function setTimeTrackerState(datetime: NarrativeDateTime): void {
 // Internal: Extraction Functions
 // ============================================
 
-async function extractDateTime(
+export async function extractDateTime(
   message: string,
   profileId: string,
   abortSignal?: AbortSignal

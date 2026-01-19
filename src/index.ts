@@ -15,6 +15,8 @@ import { settingsManager } from './settings';
 import { updateInjectionFromChat } from './injectors/injectState';
 import { EXTENSION_NAME } from './constants';
 import { getMessageState } from './utils/messageState';
+import { st_echo } from 'sillytavern-utils-lib/config';
+import { migrateOldTimeFormats } from './migrations/migrateOldTime';
 
 function log(...args: unknown[]) {
   console.log(`[${EXTENSION_NAME}]`, ...args);
@@ -83,8 +85,18 @@ async function init() {
   }
 
   // Update injection on chat change
-  context.eventSource.on(context.event_types.CHAT_CHANGED, (() => {
+  context.eventSource.on(context.event_types.CHAT_CHANGED, (async () => {
+    const ctx = SillyTavern.getContext() as STContext;
+    const settings = getSettings();
+
+    // Run migration before rendering
+    if (settings.profileId) {
+      st_echo?.('warning', '🔥 Updating date/time to v0.3.0 format.');
+      await migrateOldTimeFormats(ctx, settings.profileId);
+    }
+
     setTimeout(() => {
+      renderAllStates();
       updateInjectionFromChat();
     }, 100);
   }) as (...args: unknown[]) => void);

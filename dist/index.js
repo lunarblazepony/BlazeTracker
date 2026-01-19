@@ -38266,6 +38266,7 @@ function validateState(data) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   extractDateTime: () => (/* binding */ extractDateTime),
 /* harmony export */   extractTime: () => (/* binding */ extractTime),
 /* harmony export */   getCurrentDateTime: () => (/* binding */ getCurrentDateTime),
 /* harmony export */   isTimeTrackerInitialized: () => (/* binding */ isTimeTrackerInitialized),
@@ -38762,6 +38763,153 @@ function updateInjectionFromChat() {
     }
     // No state found, clear injection
     injectState(null);
+}
+
+
+/***/ },
+
+/***/ "./src/migrations/migrateOldTime.ts"
+/*!******************************************!*\
+  !*** ./src/migrations/migrateOldTime.ts ***!
+  \******************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   migrateOldTimeFormats: () => (/* binding */ migrateOldTimeFormats)
+/* harmony export */ });
+/* harmony import */ var _utils_messageState__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../utils/messageState */ "./src/utils/messageState.ts");
+/* harmony import */ var _extractors_extractTime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../extractors/extractTime */ "./src/extractors/extractTime.ts");
+// migration.ts
+
+
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function isOldTimeFormat(time) {
+    return time && typeof time.day === 'string' && !time.dayOfWeek;
+}
+function getDayIndex(dayName) {
+    return DAYS_OF_WEEK.indexOf(dayName);
+}
+function daysBetween(fromDay, toDay) {
+    const fromIdx = getDayIndex(fromDay);
+    const toIdx = getDayIndex(toDay);
+    if (fromIdx === -1 || toIdx === -1)
+        return 0;
+    // Calculate forward distance (handles wrap-around)
+    let diff = toIdx - fromIdx;
+    if (diff <= 0)
+        diff += 7; // Went to next week
+    if (diff === 7)
+        diff = 0; // Same day
+    return diff;
+}
+function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+}
+function dateToNarrativeTime(date, hour, minute) {
+    return {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
+        hour,
+        minute,
+        second: 0,
+        dayOfWeek: DAYS_OF_WEEK[date.getDay()],
+    };
+}
+function narrativeToDate(time) {
+    return new Date(time.year, time.month - 1, time.day, time.hour, time.minute, time.second);
+}
+/**
+ * Migrate old time formats to NarrativeDateTime.
+ * Call on CHAT_CHANGED after loading states.
+ */
+async function migrateOldTimeFormats(context, profileId) {
+    let needsMigration = false;
+    let firstOldStateIdx = -1;
+    // First pass: check if any states need migration
+    for (let i = 0; i < context.chat.length; i++) {
+        const stored = (0,_utils_messageState__WEBPACK_IMPORTED_MODULE_0__.getMessageState)(context.chat[i]);
+        if (stored?.state && isOldTimeFormat(stored.state.time)) {
+            needsMigration = true;
+            if (firstOldStateIdx === -1) {
+                firstOldStateIdx = i;
+            }
+            break;
+        }
+    }
+    if (!needsMigration) {
+        return false;
+    }
+    console.log('[BlazeTracker] Migrating old time formats to NarrativeDateTime...');
+    // Get messages up to and including the first state for context
+    const contextMessages = context.chat
+        .slice(0, Math.min(firstOldStateIdx + 1, 5))
+        .map(m => `${m.name}: ${m.mes}`)
+        .join('\n\n');
+    // Use LLM to infer baseline date
+    let baselineTime;
+    try {
+        baselineTime = await (0,_extractors_extractTime__WEBPACK_IMPORTED_MODULE_1__.extractDateTime)(contextMessages, profileId);
+        console.log('[BlazeTracker] LLM inferred baseline date:', baselineTime);
+    }
+    catch (e) {
+        console.error('[BlazeTracker] Failed to infer baseline date, using defaults:', e);
+        baselineTime = {
+            year: new Date().getFullYear(),
+            month: 6,
+            day: 15,
+            hour: 12,
+            minute: 0,
+            second: 0,
+            dayOfWeek: 'Monday',
+        };
+    }
+    // Adjust baseline to match the first state's day of week
+    const firstStored = (0,_utils_messageState__WEBPACK_IMPORTED_MODULE_0__.getMessageState)(context.chat[firstOldStateIdx]);
+    let currentDate = narrativeToDate(baselineTime);
+    const firstTime = firstStored?.state?.time;
+    if (firstTime && isOldTimeFormat(firstTime)) {
+        const targetDayIdx = getDayIndex(firstTime.day);
+        const currentDayIdx = currentDate.getDay();
+        if (targetDayIdx !== -1 && targetDayIdx !== currentDayIdx) {
+            let diff = targetDayIdx - currentDayIdx;
+            if (diff > 0)
+                diff -= 7;
+            currentDate = addDays(currentDate, diff);
+        }
+    }
+    let lastDayOfWeek = null;
+    // Second pass: migrate each state
+    for (let i = 0; i < context.chat.length; i++) {
+        const msg = context.chat[i];
+        const stored = (0,_utils_messageState__WEBPACK_IMPORTED_MODULE_0__.getMessageState)(msg);
+        if (!stored?.state || !isOldTimeFormat(stored.state.time)) {
+            continue;
+        }
+        const oldTime = stored.state.time;
+        // If day changed, advance the date
+        if (lastDayOfWeek !== null && oldTime.day !== lastDayOfWeek) {
+            const daysToAdd = daysBetween(lastDayOfWeek, oldTime.day);
+            currentDate = addDays(currentDate, daysToAdd);
+        }
+        // Create new time format, preserving the original hour/minute
+        const newTime = dateToNarrativeTime(currentDate, oldTime.hour, oldTime.minute);
+        // Update state
+        const newState = {
+            ...stored.state,
+            time: newTime,
+        };
+        (0,_utils_messageState__WEBPACK_IMPORTED_MODULE_0__.setMessageState)(msg, { ...stored, state: newState });
+        lastDayOfWeek = oldTime.day;
+    }
+    // Save the chat to persist migrations
+    const saveContext = SillyTavern.getContext();
+    await saveContext.saveChat();
+    console.log('[BlazeTracker] Migration complete');
+    return true;
 }
 
 
@@ -40436,7 +40584,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _injectors_injectState__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./injectors/injectState */ "./src/injectors/injectState.ts");
 /* harmony import */ var _constants__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./constants */ "./src/constants.ts");
 /* harmony import */ var _utils_messageState__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./utils/messageState */ "./src/utils/messageState.ts");
+/* harmony import */ var sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! sillytavern-utils-lib/config */ "./node_modules/sillytavern-utils-lib/dist/config.js");
+/* harmony import */ var _migrations_migrateOldTime__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./migrations/migrateOldTime */ "./src/migrations/migrateOldTime.ts");
 console.log('[BlazeTracker] Script loading...');
+
+
 
 
 
@@ -40501,8 +40653,16 @@ async function init() {
         }));
     }
     // Update injection on chat change
-    context.eventSource.on(context.event_types.CHAT_CHANGED, (() => {
+    context.eventSource.on(context.event_types.CHAT_CHANGED, (async () => {
+        const ctx = SillyTavern.getContext();
+        const settings = (0,_ui_settings__WEBPACK_IMPORTED_MODULE_1__.getSettings)();
+        // Run migration before rendering
+        if (settings.profileId) {
+            (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_7__.st_echo)?.('warning', '🔥 Updating date/time to v0.3.0 format.');
+            await (0,_migrations_migrateOldTime__WEBPACK_IMPORTED_MODULE_8__.migrateOldTimeFormats)(ctx, settings.profileId);
+        }
         setTimeout(() => {
+            (0,_ui_stateDisplay__WEBPACK_IMPORTED_MODULE_2__.renderAllStates)();
             (0,_injectors_injectState__WEBPACK_IMPORTED_MODULE_4__.updateInjectionFromChat)();
         }, 100);
     }));
