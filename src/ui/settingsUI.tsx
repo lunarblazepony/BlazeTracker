@@ -138,9 +138,11 @@ function PromptEditor({ definition, customPrompts, customTemperatures, onSave, o
 	const [editValue, setEditValue] = useState('');
 	const [editTemperature, setEditTemperature] = useState(definition.defaultTemperature);
 
+	// Defensive: customTemperatures may be undefined for existing users
+	const temps = customTemperatures ?? {};
 	const isPromptCustomized = !!customPrompts[definition.key];
-	const isTemperatureCustomized = definition.key in customTemperatures;
-	const currentTemperature = customTemperatures[definition.key] ?? definition.defaultTemperature;
+	const isTemperatureCustomized = definition.key in temps;
+	const currentTemperature = temps[definition.key] ?? definition.defaultTemperature;
 
 	const handleEdit = () => {
 		setEditValue(customPrompts[definition.key] || definition.default);
@@ -265,7 +267,7 @@ function PromptEditor({ definition, customPrompts, customTemperatures, onSave, o
 							className="bt-prompt-temperature-badge"
 							title={`Custom temperature: ${currentTemperature}`}
 						>
-							🌡️{currentTemperature}
+							<i className="fa-solid fa-temperature-half"></i> {currentTemperature}
 						</span>
 					)}
 					{isPromptCustomized && (
@@ -298,8 +300,10 @@ function PromptsSection({ customPrompts, customTemperatures, onUpdatePrompt, onU
 	const [isExpanded, setIsExpanded] = useState(false);
 	const definitions = getAllPromptDefinitions();
 
+	// Defensive: customTemperatures may be undefined for existing users
+	const temps = customTemperatures ?? {};
 	const customizedPromptCount = definitions.filter(d => !!customPrompts[d.key]).length;
-	const customizedTempCount = definitions.filter(d => d.key in customTemperatures).length;
+	const customizedTempCount = definitions.filter(d => d.key in temps).length;
 	const totalCustomized = customizedPromptCount + customizedTempCount;
 
 	return (
@@ -404,7 +408,7 @@ function SettingsPanel() {
 
 	const handlePromptUpdate = useCallback(
 		(key: PromptKey, value: string | null) => {
-			const newCustomPrompts = { ...settings.customPrompts };
+			const newCustomPrompts = { ...(settings.customPrompts ?? {}) };
 			if (value === null) {
 				delete newCustomPrompts[key];
 			} else {
@@ -417,7 +421,7 @@ function SettingsPanel() {
 
 	const handleTemperatureUpdate = useCallback(
 		(key: PromptKey, value: number | null) => {
-			const newCustomTemperatures = { ...settings.customTemperatures };
+			const newCustomTemperatures = { ...(settings.customTemperatures ?? {}) };
 			if (value === null) {
 				delete newCustomTemperatures[key];
 			} else {
