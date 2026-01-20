@@ -192,7 +192,7 @@ export async function extractState(
 		// ========================================
 		// STEP 5: Extract Scene (conditional)
 		// ========================================
-		let scene: Scene;
+		let scene: Scene | undefined;
 
 		if (shouldRunScene) {
 			setExtractionStep('scene', shouldRunScene);
@@ -205,8 +205,9 @@ export async function extractState(
 				previousState,
 			);
 
+			const isInitialScene = !previousState?.scene;
 			scene = await extractScene(
-				isInitial,
+				isInitialScene,
 				sceneMessages,
 				characters,
 				isInitial ? characterInfo : '',
@@ -215,7 +216,7 @@ export async function extractState(
 			);
 		} else {
 			// Carry forward previous scene or create default
-			scene = previousState?.scene ?? getDefaultScene();
+			scene = previousState?.scene;
 		}
 
 		// ========================================
@@ -324,8 +325,8 @@ function prepareExtractionContext(
 	const userPersona = context.powerUserSettings?.persona_description || '';
 	const userInfo = userPersona
 		? `Name: ${context.name1}\nDescription: ${userPersona
-				.replace(/\{\{user\}\}/gi, context.name1)
-				.replace(/\{\{char\}\}/gi, context.name2)}`
+			.replace(/\{\{user\}\}/gi, context.name1)
+			.replace(/\{\{char\}\}/gi, context.name2)}`
 		: `Name: ${context.name1}`;
 
 	// Get character info

@@ -16,7 +16,7 @@ export interface TrackedState {
 	time: NarrativeDateTime;
 	location: LocationState;
 	climate: Climate;
-	scene: Scene;
+	scene?: Scene;
 	characters: Character[];
 }
 

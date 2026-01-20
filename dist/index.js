@@ -38756,11 +38756,12 @@ async function extractState(context, messageId, previousState, abortSignal, opti
             (0,_extractionProgress__WEBPACK_IMPORTED_MODULE_7__.setExtractionStep)('scene', shouldRunScene);
             // Scene needs at least 2 messages for tension analysis
             const sceneMessages = formatMessagesForScene(context, messageId, lastXMessages, previousState);
-            scene = await (0,_extractScene__WEBPACK_IMPORTED_MODULE_6__.extractScene)(isInitial, sceneMessages, characters, isInitial ? characterInfo : '', previousState?.scene ?? null, abortController.signal);
+            const isInitialScene = !previousState?.scene;
+            scene = await (0,_extractScene__WEBPACK_IMPORTED_MODULE_6__.extractScene)(isInitialScene, sceneMessages, characters, isInitial ? characterInfo : '', previousState?.scene ?? null, abortController.signal);
         }
         else {
             // Carry forward previous scene or create default
-            scene = previousState?.scene ?? getDefaultScene();
+            scene = previousState?.scene;
         }
         // ========================================
         // STEP 6: Assemble Final State
@@ -40422,7 +40423,7 @@ function unmountSettingsUI() {
   \*********************************/
 (module, __unused_webpack_exports, __webpack_require__) {
 
-module.exports = __webpack_require__.p + "f9b3fc3575f2e299ada3.css";
+module.exports = __webpack_require__.p + "b25f02397c9a4212814f.css";
 
 /***/ },
 
@@ -40581,7 +40582,7 @@ function StateDisplay({ stateData, isExtracting, extractionStep }) {
     const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_8__.getSettings)();
     const showTime = settings.trackTime !== false;
     return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-container", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-summary", children: [showTime && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-time", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-regular fa-clock" }), ' ', formatTime(state.time)] })), state.climate && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-climate", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: `fa-solid ${getWeatherIcon(state.climate.weather)}` }), state.climate.temperature !== undefined &&
-                                ` ${(0,_utils_temperatures__WEBPACK_IMPORTED_MODULE_11__.formatTemperature)(state.climate.temperature, settings.temperatureUnit)}`] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-location", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), ' ', formatLocation(state.location)] })] }), state.scene && (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(SceneDisplay, { scene: state.scene }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-state-details", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { children: ["Details (", state.characters.length, " characters,", ' ', state.location.props.length, " props)"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-props-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-props-header", children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-props", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("ul", { children: state.location.props.map((prop, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("li", { children: prop }, idx))) }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-characters", children: state.characters.map((char, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(Character, { character: char }, `${char.name}-${idx}`))) })] })] }));
+                                ` ${(0,_utils_temperatures__WEBPACK_IMPORTED_MODULE_11__.formatTemperature)(state.climate.temperature, settings.temperatureUnit)}`] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-location", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), ' ', formatLocation(state.location)] })] }), state.scene ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(SceneDisplay, { scene: state.scene })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-scene-pending", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-hourglass-half" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { children: "Scene analysis will happen after first character response" })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-state-details", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { children: ["Details (", state.characters.length, " characters,", ' ', state.location.props.length, " props)"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-props-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-props-header", children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-props", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("ul", { children: state.location.props.map((prop, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("li", { children: prop }, idx))) }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-characters", children: state.characters.map((char, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(Character, { character: char }, `${char.name}-${idx}`))) })] })] }));
 }
 // --- State Extraction ---
 function getPreviousState(context, beforeMessageId) {
