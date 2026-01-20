@@ -17,6 +17,7 @@ import { setExtractionStep } from './extractionProgress';
 
 let currentAbortController: AbortController | null = null;
 let extractionCount = 0;
+let generationWasStopped = false;
 
 // ============================================
 // Types
@@ -52,12 +53,23 @@ export function setupExtractionAbortHandler(): void {
 	const context = SillyTavern.getContext();
 
 	context.eventSource.on(context.event_types.GENERATION_STOPPED, (() => {
+		generationWasStopped = true;
 		if (currentAbortController) {
 			console.warn('[BlazeTracker] Generation stopped, aborting extraction');
 			currentAbortController.abort();
 			currentAbortController = null;
 		}
 	}) as (...args: unknown[]) => void);
+}
+
+/**
+ * Check if the last generation was stopped/aborted by the user.
+ * Returns the flag value and resets it to false.
+ */
+export function wasGenerationAborted(): boolean {
+	const wasStopped = generationWasStopped;
+	generationWasStopped = false;
+	return wasStopped;
 }
 
 export function abortCurrentExtraction(): void {

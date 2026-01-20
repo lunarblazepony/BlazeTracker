@@ -82,6 +82,12 @@ export interface STContext {
 		NEGATIVE: number;
 		CANCELLED: number;
 	};
+
+	// Streaming processor
+	streamingProcessor: {
+		isStopped: boolean;
+		isFinished: boolean;
+	}
 }
 
 export interface EventEmitter {
@@ -142,4 +148,4 @@ export interface GenerateRawOptions {
 	schema?: object;
 }
 
-export {};
+export { };

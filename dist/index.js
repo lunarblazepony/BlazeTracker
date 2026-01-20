@@ -38628,7 +38628,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   abortCurrentExtraction: () => (/* binding */ abortCurrentExtraction),
 /* harmony export */   extractState: () => (/* binding */ extractState),
-/* harmony export */   setupExtractionAbortHandler: () => (/* binding */ setupExtractionAbortHandler)
+/* harmony export */   setupExtractionAbortHandler: () => (/* binding */ setupExtractionAbortHandler),
+/* harmony export */   wasGenerationAborted: () => (/* binding */ wasGenerationAborted)
 /* harmony export */ });
 /* harmony import */ var _settings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../settings */ "./src/settings.ts");
 /* harmony import */ var _utils_messageState__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../utils/messageState */ "./src/utils/messageState.ts");
@@ -38652,6 +38653,7 @@ __webpack_require__.r(__webpack_exports__);
 // ============================================
 let currentAbortController = null;
 let extractionCount = 0;
+let generationWasStopped = false;
 // ============================================
 // Send Button State Management
 // ============================================
@@ -38670,12 +38672,22 @@ function setSendButtonState(isGenerating) {
 function setupExtractionAbortHandler() {
     const context = SillyTavern.getContext();
     context.eventSource.on(context.event_types.GENERATION_STOPPED, (() => {
+        generationWasStopped = true;
         if (currentAbortController) {
             console.warn('[BlazeTracker] Generation stopped, aborting extraction');
             currentAbortController.abort();
             currentAbortController = null;
         }
     }));
+}
+/**
+ * Check if the last generation was stopped/aborted by the user.
+ * Returns the flag value and resets it to false.
+ */
+function wasGenerationAborted() {
+    const wasStopped = generationWasStopped;
+    generationWasStopped = false;
+    return wasStopped;
 }
 function abortCurrentExtraction() {
     if (currentAbortController) {
@@ -42103,6 +42115,14 @@ async function init() {
     if (autoExtractResponses) {
         // This ensures the message is fully rendered and DOM is stable
         context.eventSource.on(context.event_types.GENERATION_ENDED, (async (_messageId) => {
+            // Yield to microtask queue - ensures any synchronous
+            // GENERATION_STOPPED handlers complete first
+            await Promise.resolve();
+            // Skip extraction if the generation was aborted
+            if ((0,_extractors_extractState__WEBPACK_IMPORTED_MODULE_0__.wasGenerationAborted)()) {
+                log('Generation was aborted, skipping extraction');
+                return;
+            }
             // messageId might not be passed, get the last message
             const stContext = SillyTavern.getContext();
             const lastMessageId = stContext.chat.length - 1;

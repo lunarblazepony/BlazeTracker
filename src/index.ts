@@ -1,7 +1,7 @@
 console.log('[BlazeTracker] Script loading...');
 
 import type { STContext } from './types/st';
-import { setupExtractionAbortHandler } from './extractors/extractState';
+import { setupExtractionAbortHandler, wasGenerationAborted } from './extractors/extractState';
 import { initSettingsUI } from './ui/settingsUI';
 import {
 	initStateDisplay,
@@ -72,6 +72,16 @@ async function init() {
 		context.eventSource.on(context.event_types.GENERATION_ENDED, (async (
 			_messageId: number,
 		) => {
+			// Yield to microtask queue - ensures any synchronous
+			// GENERATION_STOPPED handlers complete first
+			await Promise.resolve();
+
+			// Skip extraction if the generation was aborted
+			if (wasGenerationAborted()) {
+				log('Generation was aborted, skipping extraction');
+				return;
+			}
+
 			// messageId might not be passed, get the last message
 			const stContext = SillyTavern.getContext() as STContext;
 			const lastMessageId = stContext.chat.length - 1;
