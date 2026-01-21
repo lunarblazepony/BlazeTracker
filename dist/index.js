@@ -39732,9 +39732,27 @@ Extract updated characters as valid JSON array:`,
 - Tone should be 2-3 words capturing the emotional atmosphere.
 </general>
 <tension>
-- Level indicates how charged the scene is emotionally/dramatically.
-- Type categorizes what kind of tension: confrontation, intimate, negotiation, etc.
 - Direction will be calculated automatically, but set your best guess.
+<levels>
+Tension levels form a spectrum of emotional/dramatic intensity (applies to ALL tension types):
+- relaxed: Low stakes, comfortable. Casual chat, downtime, nothing pressing.
+- aware: Mild interest or attention. Something noted but no real stakes yet.
+- guarded: Careful, measured. Testing waters - whether for trust, attraction, or safety.
+- tense: Stakes feel real. Could be conflict brewing, unspoken attraction, or difficult truth approaching.
+- charged: Intense emotions dominate. Anger before a fight, desire before a kiss, fear before confession.
+- volatile: On the edge. One word changes everything - into violence, intimacy, or revelation.
+- explosive: The moment itself. Fight breaks out, characters kiss or engage in sex, secret revealed, breakdown happens.
+</levels>
+<types>
+Tension type describes the nature of what's driving the tension:
+- conversation: Neutral dialogue, information exchange, casual interaction.
+- negotiation: Competing interests seeking agreement. Deals, persuasion, bargaining.
+- confrontation: Direct opposition or conflict. Arguments, accusations, standoffs.
+- intimate: Emotional/physical closeness. Romance, deep sharing, intimacy, sexual tension.
+- vulnerable: Exposure of weakness or secrets. Confessions, emotional risk, asking for help.
+- suspense: Uncertainty about outcome. Waiting, anticipation, something about to happen.
+- celebratory: Positive excitement. Joy, triumph, celebration, shared happiness.
+</types>
 </tension>
 <recent_events>
 - Include significant events that affect the ongoing narrative.
@@ -39788,9 +39806,28 @@ Extract the scene state as valid JSON:`,
 - Consider whether tension has increased, decreased, or remained stable.
 </general>
 <tension>
-- Adjust level based on what happened in the messages.
-- Type may change: a negotiation could become a confrontation.
 - Direction will be recalculated based on level change.
+- If previous direction was 'stable', strongly consider whether type or level has changed.
+<levels>
+Tension levels form a spectrum of emotional/dramatic intensity (applies to ALL tension types):
+- relaxed: Low stakes, comfortable. Casual chat, downtime, nothing pressing.
+- aware: Mild interest or attention. Something noted but no real stakes yet.
+- guarded: Careful, measured. Testing waters - whether for trust, attraction, or safety.
+- tense: Stakes feel real. Could be conflict brewing, unspoken attraction, or difficult truth approaching.
+- charged: Intense emotions dominate. Anger before a fight, desire before a kiss, fear before confession.
+- volatile: On the edge. One word changes everything - into violence, intimacy, or revelation.
+- explosive: The moment itself. Fight breaks out, characters kiss or engage in sex, secret revealed, breakdown happens.
+</levels>
+<types>
+Tension type describes the nature of what's driving the tension:
+- conversation: Neutral dialogue, information exchange, casual interaction.
+- negotiation: Competing interests seeking agreement. Deals, persuasion, bargaining.
+- confrontation: Direct opposition or conflict. Arguments, accusations, standoffs.
+- intimate: Emotional/physical closeness. Romance, deep sharing, intimacy, sexual tension.
+- vulnerable: Exposure of weakness or secrets. Confessions, emotional risk, asking for help.
+- suspense: Uncertainty about outcome. Waiting, anticipation, something about to happen.
+- celebratory: Positive excitement. Joy, triumph, celebration, shared happiness.
+</types>
 </tension>
 <recent_events>
 - Keep events that are still relevant to the ongoing scene.
