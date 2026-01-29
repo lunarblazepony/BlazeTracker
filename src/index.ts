@@ -417,10 +417,10 @@ async function init() {
 
 		log('Current swipe_id for message', messageId, 'is', swipeId);
 
-		// Unmount v2 display for this message on swipe
-		// The loading indicator will mount when generation ends and extraction starts
 		if (hasV2InitialSnapshot()) {
+			// Unmount and remount to show projection for the new swipe
 			unmountV2ProjectionDisplay(messageId);
+			mountV2ProjectionDisplay(messageId);
 			// For swipes, inject state FOR the swiped message (state at messageId - 1)
 			updateV2Injection(messageId);
 		}

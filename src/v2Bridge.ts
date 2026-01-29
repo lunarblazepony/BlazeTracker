@@ -626,12 +626,18 @@ export async function deleteV2EventsForMessage(messageId: number): Promise<void>
 
 /**
  * Delete events for a specific message/swipe from the v2 store.
+ * Also reindexes swipeIds for remaining swipes (swipe N+1 becomes swipe N, etc.)
  * Used when a swipe is deleted.
  */
 export async function deleteV2EventsForSwipe(messageId: number, swipeId: number): Promise<void> {
 	if (!currentEventStore) return;
 
+	// Delete events for the deleted swipe
 	currentEventStore.deleteEventsAtMessage({ messageId, swipeId });
+
+	// Reindex remaining swipes (swipe N+1 becomes swipe N, etc.)
+	currentEventStore.reindexSwipesAfterDeletion(messageId, swipeId);
+
 	await saveV2EventStore();
 }
 

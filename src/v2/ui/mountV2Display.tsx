@@ -23,6 +23,7 @@ import {
 	getInitialSnapshotMessageId,
 	type V2ExtractionProgress,
 } from '../../v2Bridge';
+import { setManualExtractionInProgress } from '../../index';
 import type { STContext } from '../../types/st';
 import { getV2Settings } from '../settings';
 import { debugLog, debugWarn } from '../../utils/debug';
@@ -201,6 +202,9 @@ async function handleRetryExtraction(messageId: number, swipeId: number): Promis
 	// Delete existing events for this message/swipe
 	await deleteV2EventsForSwipe(messageId, swipeId);
 
+	// Mark manual extraction in progress to prevent GENERATION_ENDED from triggering another extraction
+	setManualExtractionInProgress(true);
+
 	// Set extraction in progress
 	setV2ExtractionInProgress(messageId, true);
 	mountV2ProjectionDisplay(messageId);
@@ -212,6 +216,8 @@ async function handleRetryExtraction(messageId: number, swipeId: number): Promis
 		});
 	} finally {
 		// Clear extraction state
+		// Delay clearing manual flag to avoid race condition with GENERATION_ENDED event
+		setTimeout(() => setManualExtractionInProgress(false), 50);
 		setV2ExtractionInProgress(messageId, false);
 		mountV2ProjectionDisplay(messageId);
 	}

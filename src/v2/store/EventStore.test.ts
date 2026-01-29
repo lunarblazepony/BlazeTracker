@@ -400,6 +400,128 @@ describe('EventStore', () => {
 		});
 	});
 
+	describe('reindexSwipesAfterDeletion', () => {
+		it('decrements swipeIds for events after deleted swipe', () => {
+			// Events at message 5 with swipes 0, 1, 2
+			const event0 = {
+				...createTimeInitialEvent('1', 5),
+				source: { messageId: 5, swipeId: 0 },
+			};
+			const event1 = {
+				...createTimeDeltaEvent('2', 5),
+				source: { messageId: 5, swipeId: 1 },
+			};
+			const event2 = {
+				...createTimeDeltaEvent('3', 5),
+				source: { messageId: 5, swipeId: 2 },
+			};
+
+			store.appendEvents([event0, event1, event2]);
+
+			// Delete swipe 0 and reindex
+			store.deleteEventsAtMessage({ messageId: 5, swipeId: 0 });
+			store.reindexSwipesAfterDeletion(5, 0);
+
+			const active = store.getActiveEvents();
+			expect(active).toHaveLength(2);
+			// Swipe 1 should now be swipe 0
+			expect(active[0].source.swipeId).toBe(0);
+			// Swipe 2 should now be swipe 1
+			expect(active[1].source.swipeId).toBe(1);
+		});
+
+		it('does not affect events at other messages', () => {
+			const event1 = {
+				...createTimeInitialEvent('1', 5),
+				source: { messageId: 5, swipeId: 1 },
+			};
+			const event2 = {
+				...createTimeDeltaEvent('2', 6),
+				source: { messageId: 6, swipeId: 1 },
+			};
+
+			store.appendEvents([event1, event2]);
+
+			// Delete swipe 0 at message 5 and reindex
+			store.reindexSwipesAfterDeletion(5, 0);
+
+			const active = store.getActiveEvents();
+			// Event at message 5 should be reindexed
+			expect(active.find(e => e.source.messageId === 5)?.source.swipeId).toBe(0);
+			// Event at message 6 should be unchanged
+			expect(active.find(e => e.source.messageId === 6)?.source.swipeId).toBe(1);
+		});
+
+		it('does not affect events with swipeId less than deleted', () => {
+			const event0 = {
+				...createTimeInitialEvent('1', 5),
+				source: { messageId: 5, swipeId: 0 },
+			};
+			const event2 = {
+				...createTimeDeltaEvent('2', 5),
+				source: { messageId: 5, swipeId: 2 },
+			};
+
+			store.appendEvents([event0, event2]);
+
+			// Delete swipe 1 (middle) and reindex
+			store.reindexSwipesAfterDeletion(5, 1);
+
+			const active = store.getActiveEvents();
+			// Swipe 0 should be unchanged
+			expect(active.find(e => e.id === '1')?.source.swipeId).toBe(0);
+			// Swipe 2 should now be swipe 1
+			expect(active.find(e => e.id === '2')?.source.swipeId).toBe(1);
+		});
+
+		it('reindexes snapshots at the affected message', () => {
+			store.replaceInitialSnapshot(createInitialSnapshot(0));
+
+			// Add chapter snapshot at message 5, swipe 1
+			const chapterSnapshot: Snapshot = {
+				...createInitialSnapshot(5),
+				type: 'chapter',
+				chapterIndex: 0,
+				swipeId: 1,
+			};
+			chapterSnapshot.source.swipeId = 1;
+			store.addChapterSnapshot(chapterSnapshot);
+
+			// Delete swipe 0 at message 5 and reindex
+			store.reindexSwipesAfterDeletion(5, 0);
+
+			// Chapter snapshot should now be at swipe 0
+			expect(store.chapterSnapshots[0].source.swipeId).toBe(0);
+			expect(store.chapterSnapshots[0].swipeId).toBe(0);
+		});
+
+		it('handles the original bug scenario: delete swipe 0 after swiping back', () => {
+			// Scenario: user creates swipe 1, swipes back to 0, deletes 0
+			// Events at swipe 1 should become swipe 0
+
+			const eventSwipe0 = {
+				...createTimeInitialEvent('swipe0', 5),
+				source: { messageId: 5, swipeId: 0 },
+			};
+			const eventSwipe1 = {
+				...createTimeDeltaEvent('swipe1', 5),
+				source: { messageId: 5, swipeId: 1 },
+			};
+
+			store.appendEvents([eventSwipe0, eventSwipe1]);
+
+			// User deletes swipe 0
+			store.deleteEventsAtMessage({ messageId: 5, swipeId: 0 });
+			store.reindexSwipesAfterDeletion(5, 0);
+
+			const active = store.getActiveEvents();
+			expect(active).toHaveLength(1);
+			expect(active[0].id).toBe('swipe1');
+			// The event from old swipe 1 should now be swipe 0
+			expect(active[0].source.swipeId).toBe(0);
+		});
+	});
+
 	describe('utility methods', () => {
 		it('getMessageIdsWithEvents returns sorted unique IDs', () => {
 			store.appendEvents([

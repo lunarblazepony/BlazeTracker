@@ -143,6 +143,40 @@ export class EventStore {
 	}
 
 	/**
+	 * Reindex swipeIds after a swipe is deleted.
+	 * When swipe N is deleted, swipes N+1, N+2, etc. become N, N+1, etc.
+	 * This method decrements swipeId for all events at the message with swipeId > deletedSwipeId.
+	 */
+	reindexSwipesAfterDeletion(messageId: number, deletedSwipeId: number): void {
+		// Reindex events
+		for (const event of this._events) {
+			if (
+				event.source.messageId === messageId &&
+				event.source.swipeId > deletedSwipeId
+			) {
+				event.source.swipeId--;
+			}
+		}
+
+		// Reindex snapshots
+		for (const snapshot of this._snapshots) {
+			if (
+				snapshot.source.messageId === messageId &&
+				snapshot.source.swipeId > deletedSwipeId
+			) {
+				snapshot.source.swipeId--;
+			}
+			// Also update swipeId field if it exists
+			if (
+				snapshot.source.messageId === messageId &&
+				snapshot.swipeId > deletedSwipeId
+			) {
+				snapshot.swipeId--;
+			}
+		}
+	}
+
+	/**
 	 * Soft-delete all events for messages beyond a given messageId.
 	 * Used when branching to clean up events that don't exist in the branch.
 	 */
