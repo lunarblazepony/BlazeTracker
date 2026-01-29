@@ -628,6 +628,122 @@ OUTPUT:
     }
   ]
 }
+
+### Example 16: Context-Based Inference (Setting Implies Attire)
+INPUT:
+"""
+Narrator: *The construction site was in full swing - the skeleton of the new office building rising against the morning sky. Mike climbed down from the scaffolding, wiping sweat from his forehead. He'd been up there since dawn, and his stomach was starting to rumble.*
+
+*He spotted his wife Linda walking across the site, carefully picking her way around the debris. She worked at the law firm across the street and had brought him lunch - he could see the paper bag in her hand.*
+
+"You're a lifesaver," *he called out, grinning.*
+"""
+OUTPUT:
+{
+  "reasoning": "No explicit clothing described, but context strongly implies appropriate attire. Mike is a construction worker on an active job site - he would be wearing safety gear and work clothes: hard hat (required on sites), work boots (required), high-visibility vest or work shirt, sturdy pants like jeans or Carhartt-style work pants. Linda works at a law firm across the street - she'd be in professional attire: blouse or dress shirt, dress pants or pencil skirt, professional shoes like flats or low heels. Both would have standard underwear appropriate to their clothing.",
+  "outfits": [
+    {
+      "character": "Mike",
+      "outfit": {
+        "head": "yellow hard hat",
+        "neck": null,
+        "jacket": "high-visibility safety vest",
+        "back": null,
+        "torso": "worn work t-shirt",
+        "legs": "tan work pants",
+        "footwear": "steel-toed work boots",
+        "socks": "thick work socks",
+        "underwear": "boxer briefs"
+      }
+    },
+    {
+      "character": "Linda",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": "white silk blouse",
+        "legs": "charcoal pencil skirt",
+        "footwear": "black leather flats",
+        "socks": "nude pantyhose",
+        "underwear": "underwear"
+      }
+    }
+  ]
+}
+
+### Example 17: Multiple Settings Imply Different Attire
+INPUT:
+"""
+Narrator: *The five-star restaurant was packed for Saturday night. At the corner table, Richard and his daughter Emma celebrated her college acceptance. The maître d' had given them one of the best spots - right by the window overlooking the city lights.*
+
+*Meanwhile, in the alley behind the restaurant, dishwasher Tony stepped out for a smoke break. Another long shift ahead of him.*
+
+*Back inside, their waitress approached the table with menus.*
+"""
+OUTPUT:
+{
+  "reasoning": "High-end restaurant setting implies formal attire for diners. Richard is celebrating a special occasion at a five-star restaurant - he'd be wearing a suit or at minimum dress shirt and slacks. Emma is a young woman (college age) at an upscale dinner - nice dress or elegant top with dress pants. Tony is a dishwasher on shift - kitchen workers wear practical, often provided uniforms: chef pants, work shirt, non-slip shoes, likely an apron. The waitress at a five-star establishment would have a formal uniform - typically black dress pants, white dress shirt, sometimes a vest or tie.",
+  "outfits": [
+    {
+      "character": "Richard",
+      "outfit": {
+        "head": null,
+        "neck": "silk tie",
+        "jacket": "charcoal suit jacket",
+        "back": null,
+        "torso": "white dress shirt",
+        "legs": "charcoal suit pants",
+        "footwear": "polished black leather oxfords",
+        "socks": "black dress socks",
+        "underwear": "boxer briefs"
+      }
+    },
+    {
+      "character": "Emma",
+      "outfit": {
+        "head": null,
+        "neck": "simple silver necklace",
+        "jacket": null,
+        "back": null,
+        "torso": "elegant navy cocktail dress",
+        "legs": "elegant navy cocktail dress",
+        "footwear": "strappy heels",
+        "socks": null,
+        "underwear": "underwear"
+      }
+    },
+    {
+      "character": "Tony",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": "stained kitchen apron",
+        "back": null,
+        "torso": "white kitchen t-shirt",
+        "legs": "black kitchen pants",
+        "footwear": "black non-slip kitchen shoes",
+        "socks": "black socks",
+        "underwear": "boxers"
+      }
+    },
+    {
+      "character": "the waitress",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": "black server vest",
+        "back": null,
+        "torso": "crisp white dress shirt",
+        "legs": "black dress pants",
+        "footwear": "black flats",
+        "socks": "black ankle socks",
+        "underwear": "underwear"
+      }
+    }
+  ]
+}
 `;
 
 const BAD_EXAMPLES = `
@@ -1113,6 +1229,120 @@ WRONG OUTPUT:
   ]
 }
 WHY THIS IS WRONG: Use null for empty slots, not words like "nothing", "none", "bare", "topless", or "barefoot". These are not clothing items. The correct output would have null for head, neck, jacket, back, torso, footwear, socks, and underwear - with only legs having "towel wrapped around waist".
+
+### Bad Example 18: Assuming Naked Because Clothing Wasn't Explicitly Specified
+INPUT:
+"""
+Narrator: *The morning sun streamed through the kitchen window as James poured himself a cup of coffee. His wife Rachel was already at the table, reading the newspaper and eating toast. Their teenage son Tyler stomped down the stairs, still half-asleep, and grabbed an apple from the fruit bowl.*
+
+"Don't forget you have soccer practice after school," *Rachel reminded him without looking up.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "No clothing is described for any character, so I cannot make assumptions. They could be wearing anything or nothing.",
+  "outfits": [
+    {
+      "character": "James",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": null,
+        "legs": null,
+        "footwear": null,
+        "socks": null,
+        "underwear": null
+      }
+    },
+    {
+      "character": "Rachel",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": null,
+        "legs": null,
+        "footwear": null,
+        "socks": null,
+        "underwear": null
+      }
+    },
+    {
+      "character": "Tyler",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": null,
+        "legs": null,
+        "footwear": null,
+        "socks": null,
+        "underwear": null
+      }
+    }
+  ]
+}
+WHY THIS IS WRONG: This is a normal family morning scene - a father with coffee, mother reading the newspaper, teenager heading to school with soccer practice later. Just because their clothing isn't explicitly described doesn't mean they're naked! Make reasonable inferences: James would have casual morning clothes (t-shirt/henley, pajama pants or jeans, maybe slippers). Rachel reading the paper at breakfast would be similarly dressed casually. Tyler is a teenager going to school - he'd be dressed for school (t-shirt, jeans, sneakers). Returning all-null outfits implies they're naked, which is absurd for a mundane domestic scene. ALWAYS infer appropriate clothing from context - humans wear clothes!
+
+### Bad Example 19: Refusing to Infer Professional Attire
+INPUT:
+"""
+Narrator: *Dr. Martinez reviewed the patient's chart one more time before entering the exam room. Behind the reception desk, nurse practitioner Karen typed notes into the computer system. In the waiting room, Mr. Henderson flipped through a magazine, nervously bouncing his leg.*
+
+"Mr. Henderson? The doctor will see you now," *Karen called out.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "The text doesn't describe what anyone is wearing. I can only report what is explicitly stated.",
+  "outfits": [
+    {
+      "character": "Dr. Martinez",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": null,
+        "legs": null,
+        "footwear": null,
+        "socks": null,
+        "underwear": null
+      }
+    },
+    {
+      "character": "Karen",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": null,
+        "legs": null,
+        "footwear": null,
+        "socks": null,
+        "underwear": null
+      }
+    },
+    {
+      "character": "Mr. Henderson",
+      "outfit": {
+        "head": null,
+        "neck": null,
+        "jacket": null,
+        "back": null,
+        "torso": null,
+        "legs": null,
+        "footwear": null,
+        "socks": null,
+        "underwear": null
+      }
+    }
+  ]
+}
+WHY THIS IS WRONG: This is a medical office with clearly defined professional roles. Context STRONGLY implies attire: Dr. Martinez is a doctor reviewing charts - white coat over professional clothes. Karen is a nurse practitioner at the reception desk - scrubs or professional medical attire. Mr. Henderson is a patient in a waiting room - regular civilian clothes. Healthcare professionals wear recognizable professional attire. Returning null for everything implies everyone in the doctor's office is naked - completely inappropriate when context provides clear professional setting cues. INFER from context!
 `;
 
 export const initialCharacterOutfitsPrompt: PromptTemplate<ExtractedCharacterOutfits> = {

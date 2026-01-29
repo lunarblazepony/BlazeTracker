@@ -133,6 +133,54 @@ OUTPUT:
   }
 }
 WHY THIS IS WRONG: A "werewolf hunter" is Human unless stated otherwise. The name "Fang" doesn't make them a werewolf. Don't confuse occupation with species.
+
+### Example 3: Extracting a Generic Description Instead of Waiting for a Name
+INPUT:
+"""
+APPEARED CHARACTER: the bartender
+
+MESSAGES:
+Elena: *She slid onto a barstool, exhausted from the day.*
+Narrator: *A gruff man behind the counter looked up from polishing glasses.* "What'll it be?"
+Elena: "Whiskey. Neat."
+"""
+OUTPUT:
+{
+  "reasoning": "The bartender is a gruff man working at a bar.",
+  "character": "the bartender",
+  "profile": {
+    "sex": "M",
+    "species": "Human",
+    "age": 45,
+    "appearance": ["gruff", "middle-aged", "bartender attire", "working hands"],
+    "personality": ["professional", "attentive", "experienced", "no-nonsense"]
+  }
+}
+WHY THIS IS WRONG: "the bartender" is NOT a name - it's a job description. This character should NOT be tracked yet. Wait until they're given an actual name like "Mike" or "Old Pete". Tracking generic descriptions creates problems when their real name is revealed later.
+
+### Example 4: Using a Physical Description as a Name
+INPUT:
+"""
+APPEARED CHARACTER: tall man
+
+MESSAGES:
+Marcus: *He was working late when he heard footsteps in the hallway.*
+Narrator: *A tall man in a dark suit appeared in the doorway, silhouetted against the light.*
+"Mr. Chen? We need to talk about your wife's insurance policy."
+"""
+OUTPUT:
+{
+  "reasoning": "A tall man in a suit appears to discuss insurance.",
+  "character": "tall man",
+  "profile": {
+    "sex": "M",
+    "species": "Human",
+    "age": 40,
+    "appearance": ["tall", "dark suit", "professional", "imposing silhouette"],
+    "personality": ["formal", "business-like", "direct", "possibly threatening"]
+  }
+}
+WHY THIS IS WRONG: "tall man" is a physical description, NOT a name. This character has no name yet - they should NOT be extracted. In the next message, he might introduce himself as "Detective Harris" or "Agent Cole", and then he can be properly tracked. Never use physical descriptors like "tall man", "old woman", "young guy", etc. as character names.
 `;
 
 // ============================================
@@ -211,6 +259,16 @@ export const appearedCharacterProfilePrompt: PromptTemplate<ExtractedCharacterPr
 
 ## Your Task
 Create a condensed profile for the APPEARED CHARACTER based only on information in the messages. This character is likely an NPC, so you must work with limited information.
+
+## CRITICAL: Characters Must Have Proper Names
+
+A character should NOT be tracked until they have a proper name. Generic descriptors are NOT names:
+- **NOT names**: "the bartender", "a gruff man", "the waitress", "some guy", "a woman", "the stranger", "the guard"
+- **ARE names**: "Mike", "Elena", "Detective Morrison", "Dr. Patel", "Grimjaw"
+
+If a character is introduced as "a gruff man" and later revealed to be "Mike", they should only appear as "Mike" - never as "a gruff man" or "gruff man".
+
+**Why this matters**: If you track "gruff man" and then later "Mike" is revealed to be the same person, you end up with duplicate entries or a character forever labeled with a generic description instead of their actual name.
 
 ## Output Format
 Respond with a JSON object containing:
