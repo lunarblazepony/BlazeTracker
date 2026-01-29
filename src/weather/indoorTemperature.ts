@@ -194,13 +194,44 @@ export interface IndoorOutdoorResult {
 }
 
 /**
- * Determine indoor/outdoor status and calculate effective temperature
+ * Determine indoor/outdoor status and calculate effective temperature.
+ *
+ * If the location has a `locationType` field (v2), use it directly.
+ * Otherwise fall back to pattern matching (v1 compatibility).
  */
 export function calculateEffectiveTemperature(
 	outdoorTemp: number,
-	location: LocationState,
+	location: LocationState & { locationType?: string },
 	hour: number,
 ): IndoorOutdoorResult {
+	// V2: Check for explicit locationType field
+	const locationType = (location as { locationType?: string }).locationType;
+	if (locationType) {
+		// If outdoor, return outdoor temperature
+		if (locationType === 'outdoor') {
+			return {
+				isIndoors: false,
+				effectiveTemperature: outdoorTemp,
+			};
+		}
+
+		// locationType is a building type - use it directly
+		const buildingType = locationType as BuildingType;
+		const indoorTemp = calculateIndoorTemp({
+			outdoorTemp,
+			buildingType,
+			hour,
+		});
+
+		return {
+			isIndoors: true,
+			buildingType,
+			indoorTemperature: indoorTemp,
+			effectiveTemperature: indoorTemp,
+		};
+	}
+
+	// V1 fallback: Pattern matching
 	const indoors = isIndoors(location);
 
 	if (!indoors) {

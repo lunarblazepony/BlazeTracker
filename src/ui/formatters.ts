@@ -2,9 +2,19 @@
 // Shared UI Formatters
 // ============================================
 
-import type { NarrativeDateTime, LocationState, CharacterOutfit } from '../types/state';
+import type {
+	NarrativeDateTime,
+	LocationState,
+	CharacterOutfit,
+	Scene,
+	Climate,
+	ProceduralClimate,
+} from '../types/state';
 import { MONTH_NAMES } from './constants';
 import { applyTimeFormat, type TimeFormat } from '../utils/timeFormat';
+import { formatTemperature } from '../utils/temperatures';
+import { isLegacyClimate } from '../weather';
+import { getSettings } from '../settings';
 
 /**
  * Format a narrative datetime for display.
@@ -35,6 +45,7 @@ export function formatOutfit(outfit: CharacterOutfit): string {
 		outfit.neck || null,
 		outfit.jacket || null,
 		outfit.back || null,
+		outfit.socks || null,
 		outfit.footwear || null,
 	];
 	return outfitParts.filter((v: string | null) => v !== null).join(', ');
@@ -46,4 +57,70 @@ export function formatOutfit(outfit: CharacterOutfit): string {
 export function capitalize(str: string): string {
 	if (!str) return str;
 	return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Format a scene for prompt injection.
+ * @param scene - The scene to format
+ * @returns Multi-line string with topic, tone, and tension
+ */
+export function formatScene(scene: Scene): string {
+	const tensionParts = [
+		scene.tension.type,
+		scene.tension.level,
+		scene.tension.direction !== 'stable' ? scene.tension.direction : null,
+	].filter(Boolean);
+
+	return `Topic: ${scene.topic}
+Tone: ${scene.tone}
+Tension: ${tensionParts.join(', ')}`;
+}
+
+/**
+ * Format climate for prompt injection.
+ * Handles both legacy and procedural climate formats.
+ *
+ * @param climate - The climate to format
+ * @returns Formatted climate string
+ */
+export function formatClimate(climate: Climate | ProceduralClimate): string {
+	const settings = getSettings();
+
+	if (isLegacyClimate(climate)) {
+		// Legacy format: simple weather + temperature
+		return `${formatTemperature(climate.temperature, settings.temperatureUnit)}, ${climate.weather}`;
+	}
+
+	// Procedural format: more detailed
+	const parts: string[] = [];
+
+	// Temperature with feels like if significantly different
+	const tempStr = formatTemperature(climate.temperature, settings.temperatureUnit);
+	if (Math.abs(climate.feelsLike - climate.temperature) > 5) {
+		const feelsLikeStr = formatTemperature(climate.feelsLike, settings.temperatureUnit);
+		parts.push(`${tempStr} (feels like ${feelsLikeStr})`);
+	} else {
+		parts.push(tempStr);
+	}
+
+	// Conditions
+	parts.push(climate.conditions);
+
+	// Wind if notable
+	if (climate.windSpeed >= 15) {
+		parts.push(
+			`${Math.round(climate.windSpeed)} mph winds from ${climate.windDirection}`,
+		);
+	}
+
+	// Indoor note
+	if (climate.isIndoors && climate.indoorTemperature !== undefined) {
+		const outdoorStr = formatTemperature(
+			climate.outdoorTemperature,
+			settings.temperatureUnit,
+		);
+		parts.push(`(${outdoorStr} outside)`);
+	}
+
+	return parts.join(', ');
 }

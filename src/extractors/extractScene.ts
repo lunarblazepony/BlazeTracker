@@ -1,5 +1,5 @@
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asString, isObject } from '../utils/json';
 import type { Scene, Character } from '../types/state';
@@ -106,8 +106,6 @@ const SCENE_EXAMPLE = JSON.stringify(
 // Constants
 // ============================================
 
-const SYSTEM_PROMPT = 'You are a scene analysis agent for roleplay. Return only valid JSON.';
-
 const VALID_TENSION_LEVELS: readonly TensionLevel[] = [
 	'relaxed',
 	'aware',
@@ -154,15 +152,16 @@ export async function extractScene(
 
 	const schemaStr = JSON.stringify(SCENE_SCHEMA, null, 2);
 
-	const prompt = isInitial
-		? getPrompt('scene_initial')
+	const promptParts = getPromptParts(isInitial ? 'scene_initial' : 'scene_update');
+	const userPrompt = isInitial
+		? promptParts.user
 				.replace('{{userInfo}}', userInfo)
 				.replace('{{characterInfo}}', characterInfo)
 				.replace('{{charactersSummary}}', charactersSummary)
 				.replace('{{messages}}', messages)
 				.replace('{{schema}}', schemaStr)
 				.replace('{{schemaExample}}', SCENE_EXAMPLE)
-		: getPrompt('scene_update')
+		: promptParts.user
 				.replace('{{charactersSummary}}', charactersSummary)
 				.replace(
 					'{{previousState}}',
@@ -172,7 +171,7 @@ export async function extractScene(
 				.replace('{{schema}}', schemaStr)
 				.replace('{{schemaExample}}', SCENE_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	const response = await makeGeneratorRequest(llmMessages, {
 		profileId: settings.profileId,

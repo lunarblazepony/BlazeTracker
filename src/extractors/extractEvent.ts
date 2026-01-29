@@ -3,7 +3,7 @@
 // ============================================
 
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asString, asStringArray, isObject } from '../utils/json';
 import type {
@@ -12,16 +12,15 @@ import type {
 	TensionType,
 	TensionLevel,
 	RelationshipSignal,
-	MilestoneEvent,
-	MilestoneType,
 	DirectionalChange,
 	LocationState,
 	Relationship,
 	EventType,
-	Character,
+	AffectedPair,
 } from '../types/state';
 import { EVENT_TYPES } from '../types/state';
 import { sortPair } from '../state/relationships';
+import { debugWarn } from '../utils/debug';
 
 // ============================================
 // Schema & Example
@@ -211,13 +210,6 @@ const EVENT_EXAMPLES = [
 const EVENT_EXAMPLE = JSON.stringify(EVENT_EXAMPLES[0], null, 2);
 
 // ============================================
-// Constants
-// ============================================
-
-const SYSTEM_PROMPT =
-	'You are an event analysis agent for roleplay. Extract significant events and relationship changes. Return only valid JSON.';
-
-// ============================================
 // Public API
 // ============================================
 
@@ -229,7 +221,6 @@ export interface ExtractEventParams {
 	currentTensionType: TensionType;
 	currentTensionLevel: TensionLevel;
 	relationships: Relationship[];
-	characters?: Character[];
 	abortSignal?: AbortSignal;
 }
 
@@ -246,10 +237,23 @@ export interface ExtractedEventData {
 }
 
 /**
+ * Extended event extraction result including eventPairs for milestone validation.
+ */
+export interface ExtractedEventResult {
+	event: TimestampedEvent;
+	eventPairs: Record<string, EventPairValue>;
+}
+
+/**
  * Extract a significant event from the recent messages.
  * Returns null if no significant event occurred.
+ *
+ * Note: In v3 (event-sourced architecture), milestones are computed by the event store
+ * based on event types, not created inline during extraction.
  */
-export async function extractEvent(params: ExtractEventParams): Promise<TimestampedEvent | null> {
+export async function extractEvent(
+	params: ExtractEventParams,
+): Promise<ExtractedEventResult | null> {
 	const settings = getSettings();
 
 	if (!settings.trackEvents) {
@@ -262,13 +266,14 @@ export async function extractEvent(params: ExtractEventParams): Promise<Timestam
 	const schemaStr = JSON.stringify(EVENT_SCHEMA, null, 2);
 	const locationStr = `${params.currentLocation.area} - ${params.currentLocation.place}`;
 
-	const prompt = getPrompt('event_extract')
+	const promptParts = getPromptParts('event_extract');
+	const userPrompt = promptParts.user
 		.replace('{{messages}}', params.messages)
 		.replace('{{currentRelationships}}', relationshipsContext)
 		.replace('{{schema}}', schemaStr)
 		.replace('{{schemaExample}}', EVENT_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	try {
 		const response = await makeGeneratorRequest(llmMessages, {
@@ -290,74 +295,18 @@ export async function extractEvent(params: ExtractEventParams): Promise<Timestam
 			return null;
 		}
 
-		// Process relationship signals and add milestones
-		// We use the first signal as the primary one for the event (for backward compat)
+		// Convert relationship signals to simple format (no milestones)
+		// Milestones will be computed by the event store based on event types
 		let relationshipSignal: RelationshipSignal | undefined;
 
 		if (eventData.relationshipSignals && eventData.relationshipSignals.length > 0) {
-			// Process each relationship signal - infer milestones based on eventPairs
-			const processedSignals = await Promise.all(
-				eventData.relationshipSignals.map(async signal => {
-					// Find event types that apply to this pair
-					const pairKey = sortPair(signal.pair[0], signal.pair[1])
-						.join('|')
-						.toLowerCase();
-					const eventTypesForPair = eventData.eventTypes.filter(
-						et => {
-							const etPairValue =
-								eventData.eventPairs[et];
-							if (!etPairValue) return false;
-							// Normalize to array of pairs and check if any match
-							const etPairs = normalizePairs(etPairValue);
-							return etPairs.some(p => {
-								const etPairKey = sortPair(
-									p[0],
-									p[1],
-								)
-									.join('|')
-									.toLowerCase();
-								return etPairKey === pairKey;
-							});
-						},
-					);
-
-					// Infer milestones from the event types for this pair
-					const existingRelationship = findRelationshipForPair(
-						params.relationships,
-						signal.pair,
-					);
-					const milestoneTypes = inferMilestoneTypesFromEventTypes(
-						eventTypesForPair,
-						existingRelationship,
-					);
-
-					if (milestoneTypes.length > 0) {
-						const milestones =
-							await createMilestonesWithDescriptions(
-								milestoneTypes,
-								signal.pair,
-								params.messages,
-								params.currentTime,
-								params.currentLocation,
-								params.characters ?? [],
-								existingRelationship ?? undefined,
-								eventData.eventDetails ?? {},
-								params.messageId,
-								params.abortSignal,
-							);
-						return { ...signal, milestones };
-					}
-
-					return signal;
-				}),
-			);
-
 			// Use the first signal as the primary relationship signal for the event
-			relationshipSignal = processedSignals[0];
+			// Note: We no longer create milestones here - they're computed by eventStore
+			relationshipSignal = eventData.relationshipSignals[0];
 		}
 
 		// Create the timestamped event using scene's tension values
-		return {
+		const event: TimestampedEvent = {
 			timestamp: params.currentTime,
 			summary: eventData.summary,
 			eventTypes: eventData.eventTypes,
@@ -367,10 +316,67 @@ export async function extractEvent(params: ExtractEventParams): Promise<Timestam
 			location: locationStr,
 			relationshipSignal,
 		};
+
+		return {
+			event,
+			eventPairs: eventData.eventPairs,
+		};
 	} catch (error) {
-		console.warn('[BlazeTracker] Event extraction failed:', error);
+		debugWarn('Event extraction failed:', error);
 		return null;
 	}
+}
+
+/**
+ * Get affectedPairs from extracted event data for the event store.
+ * This converts relationshipSignals to the v3 AffectedPair format.
+ */
+export function getAffectedPairsFromEvent(eventData: ExtractedEventData): AffectedPair[] {
+	const pairs: AffectedPair[] = [];
+	const seenPairs = new Set<string>();
+
+	// First, collect all unique pairs from eventPairs
+	for (const eventType of eventData.eventTypes) {
+		const pairValue = eventData.eventPairs[eventType];
+		if (!pairValue) continue;
+
+		const normalizedPairs = normalizePairs(pairValue);
+		for (const pair of normalizedPairs) {
+			const sorted = sortPair(pair[0], pair[1]);
+			const key = sorted.join('|').toLowerCase();
+
+			if (!seenPairs.has(key)) {
+				seenPairs.add(key);
+				pairs.push({
+					pair: sorted,
+					// Changes will be added from relationshipSignals below
+				});
+			}
+		}
+	}
+
+	// Add changes from relationshipSignals
+	if (eventData.relationshipSignals) {
+		for (const signal of eventData.relationshipSignals) {
+			const sorted = sortPair(signal.pair[0], signal.pair[1]);
+			const key = sorted.join('|').toLowerCase();
+
+			// Find existing pair entry or create new one
+			let ap = pairs.find(p => p.pair.join('|').toLowerCase() === key);
+			if (!ap) {
+				ap = { pair: sorted };
+				pairs.push(ap);
+				seenPairs.add(key);
+			}
+
+			// Add changes
+			if (signal.changes && signal.changes.length > 0) {
+				ap.changes = signal.changes;
+			}
+		}
+	}
+
+	return pairs;
 }
 
 // ============================================
@@ -390,370 +396,10 @@ function validateEventTypes(data: unknown): EventType[] {
 	return valid.length > 0 ? valid : ['conversation'];
 }
 
-/**
- * Map event types to potential milestone types.
- */
-const EVENT_TYPE_TO_MILESTONE: Partial<Record<EventType, MilestoneType>> = {
-	// Bonding (friendly gate)
-	laugh: 'first_laugh',
-	gift: 'first_gift',
-	date: 'first_date',
-	i_love_you: 'first_i_love_you',
-	sleepover: 'first_sleepover',
-	shared_meal: 'first_shared_meal',
-	shared_activity: 'first_shared_activity',
-	compliment: 'first_compliment',
-	tease: 'first_tease',
-	helped: 'first_helped',
-	common_interest: 'first_common_interest',
-	outing: 'first_outing',
-	// Physical intimacy
-	intimate_touch: 'first_touch',
-	intimate_kiss: 'first_kiss',
-	intimate_embrace: 'first_embrace',
-	intimate_heated: 'first_heated',
-	// Sexual milestones (atomic)
-	intimate_foreplay: 'first_foreplay',
-	intimate_oral: 'first_oral',
-	intimate_manual: 'first_manual',
-	intimate_penetrative: 'first_penetrative',
-	intimate_climax: 'first_climax',
-	// Emotional (close gate mappings)
-	emotional: 'emotional_intimacy',
-	confession: 'confession',
-	secret_shared: 'secret_shared',
-	secret_revealed: 'secret_revealed',
-	supportive: 'first_support',
-	comfort: 'first_comfort',
-	forgiveness: 'reconciliation',
-	defended: 'defended',
-	crisis_together: 'crisis_together',
-	vulnerability: 'first_vulnerability',
-	entrusted: 'trusted_with_task',
-	// Commitment
-	promise: 'promise_made',
-	betrayal: 'betrayal',
-	// Life events
-	exclusivity: 'promised_exclusivity',
-	marriage: 'marriage',
-	pregnancy: 'pregnancy',
-	childbirth: 'had_child',
-	// Conflicts
-	argument: 'first_conflict',
-	combat: 'first_conflict',
-};
-
-/**
- * Infer milestone types from event types, checking against existing relationship milestones.
- * Returns all applicable milestone types that don't already exist (multiple possible from one event).
- */
-function inferMilestoneTypesFromEventTypes(
-	eventTypes: EventType[],
-	existingRelationship: Relationship | undefined,
-): MilestoneType[] {
-	const existingMilestoneTypes = new Set(
-		existingRelationship?.milestones.map(m => m.type) ?? [],
-	);
-
-	const milestoneTypes: MilestoneType[] = [];
-	const addedTypes = new Set<MilestoneType>();
-
-	// Check for first_meeting if no existing relationship
-	if (!existingRelationship && !existingMilestoneTypes.has('first_meeting')) {
-		milestoneTypes.push('first_meeting');
-		addedTypes.add('first_meeting');
-	}
-
-	// Check all event types for potential milestones
-	for (const eventType of eventTypes) {
-		const milestoneType = EVENT_TYPE_TO_MILESTONE[eventType];
-		if (!milestoneType) continue;
-
-		// Skip if already have this milestone in the relationship
-		if (existingMilestoneTypes.has(milestoneType)) continue;
-
-		// Skip if we've already added this milestone type in this batch
-		if (addedTypes.has(milestoneType)) continue;
-
-		milestoneTypes.push(milestoneType);
-		addedTypes.add(milestoneType);
-	}
-
-	return milestoneTypes;
-}
-
-/**
- * Format character info for the milestone prompt.
- */
-function formatCharacterForMilestone(char: Character): string {
-	const parts: string[] = [`${char.name}:`];
-
-	if (char.position) {
-		parts.push(`Position: ${char.position}`);
-	}
-
-	if (char.mood?.length) {
-		parts.push(`Mood: ${char.mood.join(', ')}`);
-	}
-
-	// Format outfit - only non-null slots
-	const outfitParts: string[] = [];
-	if (char.outfit) {
-		for (const [slot, item] of Object.entries(char.outfit)) {
-			if (item) {
-				outfitParts.push(`${slot}: ${item}`);
-			}
-		}
-	}
-	if (outfitParts.length > 0) {
-		parts.push(`Wearing: ${outfitParts.join(', ')}`);
-	}
-
-	return parts.join(' | ');
-}
-
-/**
- * Format relationship feelings for the milestone prompt.
- */
-function formatRelationshipForMilestone(
-	relationship: Relationship,
-	char1: string,
-	char2: string,
-): string {
-	const [a, b] = relationship.pair;
-	const parts: string[] = [`${a} & ${b} (${relationship.status}):`];
-
-	// Figure out which attitude is which
-	const aIsChar1 = a.toLowerCase() === char1.toLowerCase();
-	const aToB = relationship.aToB;
-	const bToA = relationship.bToA;
-
-	if (aIsChar1) {
-		if (aToB.feelings?.length) {
-			parts.push(`${char1} feels: ${aToB.feelings.join(', ')}`);
-		}
-		if (bToA.feelings?.length) {
-			parts.push(`${char2} feels: ${bToA.feelings.join(', ')}`);
-		}
-	} else {
-		if (bToA.feelings?.length) {
-			parts.push(`${char1} feels: ${bToA.feelings.join(', ')}`);
-		}
-		if (aToB.feelings?.length) {
-			parts.push(`${char2} feels: ${aToB.feelings.join(', ')}`);
-		}
-	}
-
-	return parts.join(' | ');
-}
-
-/**
- * Map milestone types to the event types that provide relevant details.
- */
-const MILESTONE_TO_EVENT_TYPE: Partial<Record<MilestoneType, string[]>> = {
-	// Physical intimacy
-	first_touch: ['intimate_touch'],
-	first_kiss: ['intimate_kiss'],
-	first_embrace: ['intimate_embrace'],
-	first_heated: ['intimate_heated'],
-	// Sexual milestones
-	first_foreplay: ['intimate_foreplay'],
-	first_oral: ['intimate_oral'],
-	first_manual: ['intimate_manual'],
-	first_penetrative: ['intimate_penetrative'],
-	first_climax: ['intimate_climax'],
-	// Emotional
-	confession: ['confession'],
-	emotional_intimacy: ['emotional'],
-	// Secrets
-	secret_shared: ['secret_shared'],
-	secret_revealed: ['secret_revealed'],
-	// Commitment
-	promise_made: ['promise'],
-	betrayal: ['betrayal'],
-	// Life events
-	promised_exclusivity: ['exclusivity'],
-	marriage: ['marriage'],
-	pregnancy: ['pregnancy'],
-	had_child: ['childbirth'],
-	// Conflicts
-	first_conflict: ['argument', 'combat'],
-};
-
-/**
- * Get relevant event details for a milestone type.
- */
-function getEventDetailsForMilestone(
-	milestoneType: MilestoneType,
-	eventDetails: Record<string, string>,
-): string {
-	const relevantEventTypes = MILESTONE_TO_EVENT_TYPE[milestoneType] ?? [];
-	const details: string[] = [];
-
-	for (const eventType of relevantEventTypes) {
-		if (eventDetails[eventType]) {
-			details.push(eventDetails[eventType]);
-		}
-	}
-
-	return details.length > 0 ? details.join('; ') : '';
-}
-
-/**
- * Extract a grounded description for a milestone from the messages.
- */
-async function extractMilestoneDescription(
-	milestoneType: MilestoneType,
-	characterPair: [string, string],
-	messages: string,
-	currentTime: NarrativeDateTime,
-	location: LocationState,
-	characters: Character[],
-	relationship: Relationship | undefined,
-	eventDetails: Record<string, string>,
-	abortSignal?: AbortSignal,
-): Promise<string> {
-	const settings = getSettings();
-
-	// Format time of day
-	const hour = currentTime.hour;
-	const timeOfDay =
-		hour < 6
-			? 'late night'
-			: hour < 9
-				? 'early morning'
-				: hour < 12
-					? 'morning'
-					: hour < 14
-						? 'midday'
-						: hour < 17
-							? 'afternoon'
-							: hour < 20
-								? 'evening'
-								: 'night';
-
-	// Format location
-	const locationStr = [location.area, location.place, location.position]
-		.filter(Boolean)
-		.join(' - ');
-
-	// Format props
-	const propsStr = location.props?.length ? location.props.join(', ') : 'none specified';
-
-	// Format character info for the pair
-	const [char1Name, char2Name] = characterPair;
-	const char1 = characters.find(c => c.name.toLowerCase() === char1Name.toLowerCase());
-	const char2 = characters.find(c => c.name.toLowerCase() === char2Name.toLowerCase());
-
-	const charactersStr = [
-		char1 ? formatCharacterForMilestone(char1) : `${char1Name}: (no details)`,
-		char2 ? formatCharacterForMilestone(char2) : `${char2Name}: (no details)`,
-	].join('\n');
-
-	// Format relationship feelings
-	const relationshipStr = relationship
-		? formatRelationshipForMilestone(relationship, char1Name, char2Name)
-		: `${char1Name} & ${char2Name}: no established relationship`;
-
-	// Get relevant event details for this milestone type
-	const eventDetailStr = getEventDetailsForMilestone(milestoneType, eventDetails);
-
-	const prompt = getPrompt('milestone_description')
-		.replace(/\{\{milestoneType\}\}/g, milestoneType.replace(/_/g, ' '))
-		.replace(/\{\{characterPair\}\}/g, `${characterPair[0]} and ${characterPair[1]}`)
-		.replace(/\{\{timeOfDay\}\}/g, timeOfDay)
-		.replace(/\{\{location\}\}/g, locationStr)
-		.replace(/\{\{props\}\}/g, propsStr)
-		.replace(/\{\{characters\}\}/g, charactersStr)
-		.replace(/\{\{relationship\}\}/g, relationshipStr)
-		.replace(/\{\{eventDetail\}\}/g, eventDetailStr || 'none')
-		.replace('{{messages}}', messages);
-
-	// Use messages directly without wrapping in system prompt
-	const llmMessages = buildExtractionMessages(
-		'You are extracting factual descriptions of story moments. Be concise and accurate.',
-		prompt,
-	);
-
-	try {
-		const response = await makeGeneratorRequest(llmMessages, {
-			profileId: settings.profileId,
-			maxTokens: 200, // Shorter response expected
-			temperature: getTemperature('milestone_description'),
-			abortSignal,
-		});
-
-		// Clean up the response - remove any quotes or JSON formatting
-		return response
-			.trim()
-			.replace(/^["']|["']$/g, '')
-			.replace(/^description:\s*/i, '');
-	} catch (error) {
-		console.warn('[BlazeTracker] Milestone description extraction failed:', error);
-		// Return a basic fallback description
-		return `A significant ${milestoneType.replace(/_/g, ' ')} moment between ${characterPair[0]} and ${characterPair[1]}.`;
-	}
-}
-
-/**
- * Create full milestone events with descriptions extracted from the messages.
- */
-async function createMilestonesWithDescriptions(
-	milestoneTypes: MilestoneType[],
-	characterPair: [string, string],
-	messages: string,
-	currentTime: NarrativeDateTime,
-	location: LocationState,
-	characters: Character[],
-	relationship: Relationship | undefined,
-	eventDetails: Record<string, string>,
-	messageId: number,
-	abortSignal?: AbortSignal,
-): Promise<MilestoneEvent[]> {
-	// Extract descriptions in parallel for all milestones
-	const descriptionPromises = milestoneTypes.map(type =>
-		extractMilestoneDescription(
-			type,
-			characterPair,
-			messages,
-			currentTime,
-			location,
-			characters,
-			relationship,
-			eventDetails,
-			abortSignal,
-		),
-	);
-
-	const descriptions = await Promise.all(descriptionPromises);
-
-	// Format location string for storage
-	const locationStr = [location.area, location.place].filter(Boolean).join(' - ');
-
-	return milestoneTypes.map((type, index) => ({
-		type,
-		description: descriptions[index],
-		timestamp: currentTime,
-		location: locationStr,
-		messageId,
-	}));
-}
-
-/**
- * Find an existing relationship for a pair (case-insensitive).
- */
-function findRelationshipForPair(
-	relationships: Relationship[],
-	pair: [string, string],
-): Relationship | undefined {
-	return relationships.find(
-		r =>
-			(r.pair[0].toLowerCase() === pair[0].toLowerCase() &&
-				r.pair[1].toLowerCase() === pair[1].toLowerCase()) ||
-			(r.pair[0].toLowerCase() === pair[1].toLowerCase() &&
-				r.pair[1].toLowerCase() === pair[0].toLowerCase()),
-	);
-}
+// Note: EVENT_TYPE_TO_MILESTONE mapping is now in src/types/state.ts
+// Milestone creation happens in the event store, not during extraction
+// The functions for milestone description extraction have been removed
+// as milestones are now computed by the event store from event types
 
 function validateEventDetails(data: unknown): Record<string, string> | undefined {
 	if (!data || !isObject(data)) {

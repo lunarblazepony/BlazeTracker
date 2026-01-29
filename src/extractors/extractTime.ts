@@ -1,8 +1,9 @@
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asNumber } from '../utils/json';
 import type { NarrativeDateTime } from '../types/state';
+import { DAYS_OF_WEEK, MONTH_NAMES } from '../ui/constants';
 
 // Re-export for convenience (maintains backward compatibility)
 export type { NarrativeDateTime };
@@ -93,14 +94,6 @@ const DELTA_EXAMPLE = JSON.stringify(
 );
 
 // ============================================
-// Constants
-// ============================================
-
-const SYSTEM_PROMPT = 'You are a time analysis agent. Return only valid JSON.';
-
-const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-// ============================================
 // Time Tracker State (module-level singleton)
 // ============================================
 
@@ -178,12 +171,13 @@ export async function extractDateTime(
 	abortSignal?: AbortSignal,
 ): Promise<NarrativeDateTime> {
 	const settings = getSettings();
-	const prompt = getPrompt('time_datetime')
+	const promptParts = getPromptParts('time_datetime');
+	const userPrompt = promptParts.user
 		.replace('{{messages}}', message)
 		.replace('{{schema}}', JSON.stringify(DATETIME_SCHEMA, null, 2))
 		.replace('{{schemaExample}}', DATETIME_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	const response = await makeGeneratorRequest(llmMessages, {
 		profileId,
@@ -208,13 +202,14 @@ async function extractTimeDelta(
 	const currentTimeStr = formatTimeForPrompt(timeTracker.currentDate);
 	const settings = getSettings();
 
-	const prompt = getPrompt('time_delta')
+	const promptParts = getPromptParts('time_delta');
+	const userPrompt = promptParts.user
 		.replace('{{messages}}', message)
 		.replace('{{currentTime}}', currentTimeStr)
 		.replace('{{schema}}', JSON.stringify(DELTA_SCHEMA, null, 2))
 		.replace('{{schemaExample}}', DELTA_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	const response = await makeGeneratorRequest(llmMessages, {
 		profileId,
@@ -289,26 +284,12 @@ function narrativeToDate(narrative: NarrativeDateTime): Date {
 
 function formatTimeForPrompt(date: Date): string {
 	const narrative = dateToNarrative(date);
-	const monthNames = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December',
-	];
 
 	const hour12 = narrative.hour % 12 || 12;
 	const ampm = narrative.hour < 12 ? 'AM' : 'PM';
 	const minuteStr = String(narrative.minute).padStart(2, '0');
 
-	return `${narrative.dayOfWeek}, ${monthNames[narrative.month - 1]} ${narrative.day}, ${narrative.year} at ${hour12}:${minuteStr} ${ampm}`;
+	return `${narrative.dayOfWeek}, ${MONTH_NAMES[narrative.month - 1]} ${narrative.day}, ${narrative.year} at ${hour12}:${minuteStr} ${ampm}`;
 }
 
 // ============================================

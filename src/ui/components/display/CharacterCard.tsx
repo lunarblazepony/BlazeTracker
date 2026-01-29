@@ -1,10 +1,19 @@
 import React from 'react';
-import type { Character, Relationship, RelationshipStatus } from '@/types/state';
+import type {
+	Character,
+	Relationship,
+	DerivedRelationship,
+	ProjectedRelationship,
+	RelationshipStatus,
+} from '@/types/state';
 import { formatOutfit } from '../../formatters';
+
+/** Union type for legacy, derived, and projected relationships */
+type AnyRelationship = Relationship | DerivedRelationship | ProjectedRelationship;
 
 export interface CharacterCardProps {
 	character: Character;
-	relationships?: Relationship[];
+	relationships?: AnyRelationship[];
 }
 
 const STATUS_COLORS: Record<RelationshipStatus, string> = {

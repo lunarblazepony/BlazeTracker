@@ -68,19 +68,26 @@ describe('sortPair', () => {
 
 describe('pairKey', () => {
 	it('returns deterministic key regardless of order', () => {
-		expect(pairKey('Alice', 'Bob')).toBe('Alice|Bob');
-		expect(pairKey('Bob', 'Alice')).toBe('Alice|Bob');
+		// Keys are always lowercased for case-insensitive comparison
+		expect(pairKey('Alice', 'Bob')).toBe('alice|bob');
+		expect(pairKey('Bob', 'Alice')).toBe('alice|bob');
 	});
 
 	it('handles special characters in names', () => {
-		expect(pairKey("O'Brien", 'Smith')).toBe("O'Brien|Smith");
-		expect(pairKey('Smith', "O'Brien")).toBe("O'Brien|Smith");
+		expect(pairKey("O'Brien", 'Smith')).toBe("o'brien|smith");
+		expect(pairKey('Smith', "O'Brien")).toBe("o'brien|smith");
 	});
 
 	it('handles names with pipes', () => {
 		// This is an edge case - names with pipes could cause issues
 		// but we document this as expected behavior
-		expect(pairKey('A|B', 'C')).toBe('A|B|C');
+		expect(pairKey('A|B', 'C')).toBe('a|b|c');
+	});
+
+	it('produces case-insensitive keys', () => {
+		// Different casings should produce the same key
+		expect(pairKey('Alice', 'Bob')).toBe(pairKey('ALICE', 'BOB'));
+		expect(pairKey('alice', 'bob')).toBe(pairKey('Alice', 'Bob'));
 	});
 });
 

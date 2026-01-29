@@ -1,5 +1,5 @@
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asStringOrNull, asStringArray, isObject } from '../utils/json';
 import type { Character, CharacterOutfit } from '../types/state';
@@ -154,23 +154,32 @@ const CHARACTERS_EXAMPLE = JSON.stringify(
 );
 
 // ============================================
-// Constants
-// ============================================
-
-const SYSTEM_PROMPT =
-	'You are a character state analysis agent for roleplay scenes. Return only valid JSON.';
-
-// ============================================
 // Public API
 // ============================================
 
+/**
+ * Extract initial character state from messages.
+ * This is ONLY used for the initial projection (first extraction with no prior events).
+ * For subsequent messages, use the 6 character event extractors instead:
+ * - extractCharacterPresence (appeared/departed)
+ * - extractCharacterPosition (position_changed)
+ * - extractCharacterActivity (activity_changed)
+ * - extractCharacterMood (mood_added/mood_removed)
+ * - extractCharacterOutfit (outfit_changed)
+ * - extractCharacterPhysical (physical_state_added/physical_state_removed)
+ *
+ * @param messages - The messages to analyze
+ * @param location - Current location state
+ * @param userInfo - Information about the user character
+ * @param characterInfo - Information about AI characters
+ * @param abortSignal - Optional abort signal
+ * @returns Array of characters with their initial state
+ */
 export async function extractCharacters(
-	isInitial: boolean,
 	messages: string,
 	location: LocationState,
 	userInfo: string,
 	characterInfo: string,
-	previousCharacters: Character[] | null,
 	abortSignal?: AbortSignal,
 ): Promise<Character[]> {
 	const settings = getSettings();
@@ -178,30 +187,21 @@ export async function extractCharacters(
 	const locationStr = `${location.area} - ${location.place} (${location.position})`;
 	const schemaStr = JSON.stringify(CHARACTERS_SCHEMA, null, 2);
 
-	const prompt = isInitial
-		? getPrompt('characters_initial')
-				.replace('{{userInfo}}', userInfo)
-				.replace('{{characterInfo}}', characterInfo)
-				.replace('{{location}}', locationStr)
-				.replace('{{messages}}', messages)
-				.replace('{{schema}}', schemaStr)
-				.replace('{{schemaExample}}', CHARACTERS_EXAMPLE)
-		: getPrompt('characters_update')
-				.replace('{{location}}', locationStr)
-				.replace(
-					'{{previousState}}',
-					JSON.stringify(previousCharacters, null, 2),
-				)
-				.replace('{{messages}}', messages)
-				.replace('{{schema}}', schemaStr)
-				.replace('{{schemaExample}}', CHARACTERS_EXAMPLE);
+	const promptParts = getPromptParts('characters_initial');
+	const userPrompt = promptParts.user
+		.replace('{{userInfo}}', userInfo)
+		.replace('{{characterInfo}}', characterInfo)
+		.replace('{{location}}', locationStr)
+		.replace('{{messages}}', messages)
+		.replace('{{schema}}', schemaStr)
+		.replace('{{schemaExample}}', CHARACTERS_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	const response = await makeGeneratorRequest(llmMessages, {
 		profileId: settings.profileId,
 		maxTokens: settings.maxResponseTokens,
-		temperature: getTemperature(isInitial ? 'characters_initial' : 'characters_update'),
+		temperature: getTemperature('characters_initial'),
 		abortSignal,
 	});
 

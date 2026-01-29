@@ -13,6 +13,7 @@ import type {
 } from './types';
 import type { NarrativeDateTime, Climate } from '../types/state';
 import type { LocationState } from '../extractors/extractLocation';
+import { errorLog } from '../utils/debug';
 
 import { mapLocation, addToCache as addLocationToCache } from './locationMapper';
 import { fetchClimateNormals } from './climateApi';
@@ -204,7 +205,7 @@ export async function extractProceduralClimate(
 
 	if (!hourlyWeather || !dayForecast) {
 		// This shouldn't happen if forecast generation is correct
-		console.error('[BlazeTracker] Failed to look up weather for date');
+		errorLog('Failed to look up weather for date');
 		// Return a default climate
 		return createDefaultResult(
 			currentTime,

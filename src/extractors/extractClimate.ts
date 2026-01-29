@@ -1,8 +1,13 @@
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asNumber } from '../utils/json';
-import type { NarrativeDateTime, Climate, ProceduralClimate } from '../types/state';
+import type {
+	NarrativeDateTime,
+	Climate,
+	ProceduralClimate,
+	UnifiedEventStore,
+} from '../types/state';
 import type { LocationState } from './extractLocation';
 import {
 	extractProceduralClimate,
@@ -11,6 +16,7 @@ import {
 	type ExtractClimateResult,
 } from '../weather';
 import type { ForecastCacheEntry, LocationMapping } from '../weather/types';
+import { getLatestForecastForArea } from '../state/eventStore';
 
 // ============================================
 // Types
@@ -66,8 +72,6 @@ const CLIMATE_EXAMPLE = JSON.stringify(
 // Constants
 // ============================================
 
-const SYSTEM_PROMPT =
-	'You are a climate analysis agent for roleplay scenes. Return only valid JSON.';
 const VALID_WEATHER: readonly WeatherType[] = [
 	'sunny',
 	'cloudy',
@@ -91,6 +95,8 @@ export interface ExtractClimateOptions {
 	forecastCache: ForecastCacheEntry[];
 	locationMappings: LocationMapping[];
 	abortSignal?: AbortSignal;
+	/** Optional event store for checking existing forecasts */
+	eventStore?: UnifiedEventStore;
 }
 
 /**
@@ -156,13 +162,39 @@ export async function extractClimate(
 async function extractProceduralClimateWrapper(
 	options: ExtractClimateOptions,
 ): Promise<ClimateExtractionResult> {
+	// Check event store for existing forecast first (Phase 9)
+	let forecastCache = options.forecastCache;
+	if (options.eventStore) {
+		const areaName = options.location.area;
+		const eventForecast = getLatestForecastForArea(options.eventStore, areaName);
+		if (eventForecast) {
+			// Check if this forecast is already in the cache
+			const existsInCache = forecastCache.some(
+				f => f.areaName.toLowerCase() === areaName.toLowerCase(),
+			);
+			if (!existsInCache) {
+				// Add event-based forecast to cache
+				forecastCache = [
+					...forecastCache,
+					{
+						areaName,
+						forecast: eventForecast,
+						lastAccessedDate: new Date()
+							.toISOString()
+							.split('T')[0],
+					},
+				];
+			}
+		}
+	}
+
 	const params: ExtractClimateParams = {
 		isInitial: options.isInitial,
 		currentTime: options.narrativeTime,
 		currentLocation: options.location,
 		previousClimate: options.previousClimate,
 		narrativeContext: options.messages,
-		forecastCache: options.forecastCache,
+		forecastCache,
 		locationMappings: options.locationMappings,
 		abortSignal: options.abortSignal,
 	};
@@ -196,15 +228,16 @@ async function extractLegacyClimate(
 	const locationStr = `${location.area} - ${location.place} (${location.position})`;
 	const schemaStr = JSON.stringify(CLIMATE_SCHEMA, null, 2);
 
-	const prompt = isInitial
-		? getPrompt('climate_initial')
+	const promptParts = getPromptParts(isInitial ? 'climate_initial' : 'climate_update');
+	const userPrompt = isInitial
+		? promptParts.user
 				.replace('{{narrativeTime}}', timeStr)
 				.replace('{{location}}', locationStr)
 				.replace('{{characterInfo}}', characterInfo)
 				.replace('{{messages}}', messages)
 				.replace('{{schema}}', schemaStr)
 				.replace('{{schemaExample}}', CLIMATE_EXAMPLE)
-		: getPrompt('climate_update')
+		: promptParts.user
 				.replace('{{narrativeTime}}', timeStr)
 				.replace('{{location}}', locationStr)
 				.replace(
@@ -215,7 +248,7 @@ async function extractLegacyClimate(
 				.replace('{{schema}}', schemaStr)
 				.replace('{{schemaExample}}', CLIMATE_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	const response = await makeGeneratorRequest(llmMessages, {
 		profileId: settings.profileId,

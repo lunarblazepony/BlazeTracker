@@ -1,23 +1,23 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import type {
 	TrackedState,
 	StoredStateData,
 	NarrativeState,
 	TimestampedEvent,
+	ProjectedRelationship,
+	Relationship,
+	DerivedRelationship,
 } from '../types/state';
+import { isUnifiedEventStore } from '../types/state';
 import type { STContext } from '../types/st';
 import { st_echo } from 'sillytavern-utils-lib/config';
 import { extractState, updateSubsequentMessagesEvents } from '../extractors/extractState';
 import {
 	onExtractionProgress,
-	getStepLabel,
-	type ExtractionStep,
-	type ExtractionProgress,
+	type GranularExtractionProgress,
 } from '../extractors/extractionProgress';
-import { getMessageState, setMessageState } from '../utils/messageState';
-import { openStateEditor } from './stateEditor';
-import { updateInjectionFromChat } from '../injectors/injectState';
+import { getMessageState, setMessageState, getSwipeId } from '../utils/messageState';
 import { getSettings } from '../settings';
 import { resetTimeTracker, setTimeTrackerState } from '../extractors/extractTime';
 import { EXTENSION_NAME } from '../constants';
@@ -32,6 +32,15 @@ import { EventList } from './components/EventList';
 import { NarrativeModal, type DeletedEventInfo } from './components/NarrativeModal';
 import { getNarrativeState, saveNarrativeState } from '../state/narrativeState';
 import { clearAllMilestonesForMessage, getRelationshipsAtMessage } from '../state/relationships';
+import {
+	projectStateOptimized,
+	getActiveStateEvents,
+	convertProjectionToTrackedState,
+	computeMilestonesForEvent,
+	getInitialProjection,
+	getActiveEvents,
+	getEventsUpToMessage,
+} from '../state/eventStore';
 
 // Track React roots so we can unmount/update them
 const roots = new Map<number, ReactDOM.Root>();
@@ -42,8 +51,12 @@ export const extractionInProgress = new Set<number>();
 // Track manual extraction in progress (prevents auto-extraction during manual)
 let manualExtractionInProgress = false;
 
-// Track current extraction step for UI updates
-let currentExtractionStep: ExtractionStep = 'idle';
+// Track current extraction progress for UI updates
+let currentExtractionProgress: GranularExtractionProgress = {
+	step: 'idle',
+	percentComplete: 0,
+	label: 'Ready',
+};
 let currentExtractionMessageId: number | null = null;
 
 /**
@@ -67,7 +80,7 @@ interface StateDisplayProps {
 	narrativeState: NarrativeState | null;
 	messageId: number;
 	isExtracting?: boolean;
-	extractionStep?: ExtractionStep;
+	extractionProgress?: GranularExtractionProgress;
 }
 
 function StateDisplay({
@@ -75,7 +88,7 @@ function StateDisplay({
 	narrativeState,
 	messageId,
 	isExtracting,
-	extractionStep,
+	extractionProgress,
 }: StateDisplayProps) {
 	const [showModal, setShowModal] = useState(false);
 
@@ -86,6 +99,17 @@ function StateDisplay({
 	const handleCloseModal = useCallback(() => {
 		setShowModal(false);
 	}, []);
+
+	// Compute milestones for an event from the event store
+	const handleComputeMilestonesForEvent = useCallback(
+		(eventMessageId: number) => {
+			if (!narrativeState?.eventStore) {
+				return [];
+			}
+			return computeMilestonesForEvent(narrativeState.eventStore, eventMessageId);
+		},
+		[narrativeState?.eventStore],
+	);
 
 	// Handle saving narrative state from the modal
 	const handleNarrativeSave = useCallback(
@@ -129,17 +153,41 @@ function StateDisplay({
 					setMessageState(message, msgStateData);
 				}
 
-				// If we have updated current events, update the most recent message
+				// If we have updated current events, update each message with its own events
 				if (updatedCurrentEvents && context.chat.length > 0) {
-					// Find the most recent message that has state
-					for (let i = context.chat.length - 1; i >= 0; i--) {
-						const message = context.chat[i];
+					// Group events by messageId
+					const eventsByMessage = new Map<
+						number,
+						TimestampedEvent[]
+					>();
+					for (const event of updatedCurrentEvents) {
+						const msgId =
+							event.messageId ?? context.chat.length - 1;
+						if (!eventsByMessage.has(msgId)) {
+							eventsByMessage.set(msgId, []);
+						}
+						eventsByMessage.get(msgId)!.push(event);
+					}
+
+					// Update each message with its own events
+					for (const [msgId, events] of eventsByMessage) {
+						const message = context.chat[msgId];
+						if (!message) continue;
 						const msgStateData = getMessageState(message);
 						if (msgStateData?.state) {
-							msgStateData.state.currentEvents =
-								updatedCurrentEvents;
+							msgStateData.state.currentEvents = events;
 							setMessageState(message, msgStateData);
-							break;
+						}
+					}
+
+					// Clear events from messages that no longer have any
+					for (let i = 0; i < context.chat.length; i++) {
+						if (eventsByMessage.has(i)) continue;
+						const message = context.chat[i];
+						const msgStateData = getMessageState(message);
+						if (msgStateData?.state?.currentEvents?.length) {
+							msgStateData.state.currentEvents = [];
+							setMessageState(message, msgStateData);
 						}
 					}
 				}
@@ -153,17 +201,70 @@ function StateDisplay({
 		[],
 	);
 
+	// Get event store reference for useMemo (must be before early returns)
+	const store = narrativeState?.eventStore;
+
+	// Get ALL events from the event store for NarrativeModal (not message-filtered)
+	// This hook must be called before any early returns to maintain consistent hook order
+	const allNarrativeEvents = useMemo(() => {
+		if (!store) return [];
+		return getActiveEvents(store).map(ne => ({
+			...ne,
+			// Map narrativeTimestamp to timestamp (TimestampedEvent format)
+			timestamp: ne.narrativeTimestamp,
+		}));
+	}, [store]);
+
 	// Show loading state while extracting
 	if (isExtracting) {
-		const stepLabel = extractionStep ? getStepLabel(extractionStep) : 'Extracting...';
-		return <LoadingIndicator stepLabel={stepLabel} />;
+		const stepLabel = extractionProgress?.label ?? 'Extracting...';
+		const percentComplete = extractionProgress?.percentComplete;
+		return <LoadingIndicator stepLabel={stepLabel} percentComplete={percentComplete} />;
 	}
 
 	if (!stateData) {
 		return null;
 	}
 
-	const { state } = stateData;
+	// Get state from projection if using unified event store with state events
+	let displayState: TrackedState | null = null;
+
+	// Use projection if we have state events OR an initial projection
+	const hasProjectionData =
+		isUnifiedEventStore(store) &&
+		(getActiveStateEvents(store).length > 0 || getInitialProjection(store) !== null);
+
+	if (hasProjectionData && isUnifiedEventStore(store)) {
+		// Use event-based projection (optimized with chapter snapshots)
+		const context = SillyTavern.getContext() as STContext;
+		const message = context.chat[messageId];
+		const swipeId = getSwipeId(message);
+		// Pass chat for canonical swipe filtering of previous messages
+		const projection = projectStateOptimized(store, messageId, swipeId, context.chat);
+
+		// Convert ProjectedState to TrackedState format for display
+		const projectedState = convertProjectionToTrackedState(projection);
+
+		displayState = {
+			// Projected fields (time, location, characters)
+			...projectedState,
+			// Non-projected fields from stored state (climate, scene, events, chapter info)
+			climate: stateData.state?.climate,
+			scene: stateData.state?.scene,
+			currentChapter: stateData.state?.currentChapter,
+			currentEvents: stateData.state?.currentEvents,
+			chapterEnded: stateData.state?.chapterEnded,
+		};
+	} else {
+		// Fallback to stored TrackedState for legacy chats
+		displayState = stateData.state ?? null;
+	}
+
+	if (!displayState) {
+		return null;
+	}
+
+	const state = displayState;
 	const settings = getSettings();
 
 	// Determine what to show based on settings AND data availability
@@ -190,20 +291,58 @@ function StateDisplay({
 		(showCharacters && characterCount > 0) || (showLocation && propsCount > 0);
 
 	// Get relationships for character cards, versioned to this message's time
-	const allRelationships = narrativeState?.relationships ?? [];
-	const relationships = getRelationshipsAtMessage(allRelationships, messageId);
+	// Use projected relationships when event store is available
+	let relationships: (Relationship | DerivedRelationship | ProjectedRelationship)[] = [];
+	if (hasProjectionData && isUnifiedEventStore(store)) {
+		const context = SillyTavern.getContext() as STContext;
+		const message = context.chat[messageId];
+		const swipeId = getSwipeId(message);
+		// Pass chat for canonical swipe filtering of previous messages
+		const projection = projectStateOptimized(store, messageId, swipeId, context.chat);
+		relationships = Array.from(projection.relationships.values());
+		console.log(
+			`[BlazeTracker] stateDisplay msg ${messageId}: projection.relationships.size =`,
+			projection.relationships.size,
+			'relationships:',
+			relationships.map(r => ({ pair: r.pair, status: r.status })),
+		);
+		// Also log the relationship events in store
+		const relEvents = store.stateEvents.filter(
+			e => e.kind === 'relationship' && !e.deleted,
+		);
+		console.log(
+			`[BlazeTracker] stateDisplay: ${relEvents.length} relationship events in store`,
+		);
+	} else {
+		// Fallback to legacy relationships
+		const allRelationships = narrativeState?.relationships ?? [];
+		relationships = getRelationshipsAtMessage(allRelationships, messageId);
+	}
 
-	// Get current events for display
-	const currentEvents = state.currentEvents ?? [];
+	// Get current events for display (events up to this message)
+	// Use eventStore as single source of truth when available
+	let currentEvents: TimestampedEvent[] = [];
+	if (hasProjectionData && isUnifiedEventStore(store)) {
+		// Project events from eventStore up to this message
+		currentEvents = getEventsUpToMessage(store, messageId).map(ne => ({
+			...ne,
+			timestamp: ne.narrativeTimestamp,
+		}));
+	} else {
+		// Fallback to legacy per-message state
+		currentEvents = state.currentEvents ?? [];
+	}
 	const showEvents = currentEvents.length > 0;
 
 	// Get present character names for context
 	const presentCharacters = state.characters?.map(c => c.name) ?? [];
 
-	// Check if narrative modal should be available (has chapters or relationships)
+	// Check if narrative modal should be available (has chapters, relationships, or events)
 	const hasNarrativeContent =
 		narrativeState &&
-		(narrativeState.chapters.length > 0 || narrativeState.relationships.length > 0);
+		(narrativeState.chapters.length > 0 ||
+			narrativeState.relationships.length > 0 ||
+			allNarrativeEvents.length > 0);
 
 	return (
 		<div className="bt-state-container">
@@ -292,6 +431,9 @@ function StateDisplay({
 						events={currentEvents.slice(-3)}
 						presentCharacters={presentCharacters}
 						maxEvents={3}
+						computeMilestonesForEvent={
+							handleComputeMilestonesForEvent
+						}
 					/>
 					{currentEvents.length > 3 && hasNarrativeContent && (
 						<button
@@ -378,13 +520,19 @@ function StateDisplay({
 			{showModal && narrativeState && (
 				<NarrativeModal
 					narrativeState={narrativeState}
-					currentEvents={currentEvents}
+					currentEvents={allNarrativeEvents}
 					presentCharacters={presentCharacters}
 					onClose={handleCloseModal}
 					onSave={handleNarrativeSave}
 					initialTab={
-						currentEvents.length > 3 ? 'events' : 'chapters'
+						allNarrativeEvents.length > 3
+							? 'events'
+							: 'chapters'
 					}
+					chatLength={
+						(SillyTavern.getContext() as STContext).chat.length
+					}
+					chat={(SillyTavern.getContext() as STContext).chat}
 				/>
 			)}
 		</div>
@@ -435,13 +583,12 @@ export async function doExtractState(
 	const mesBlock = messageElement?.querySelector('.mes_block');
 
 	if (messageElement && mesBlock) {
-		updateMenuButtonState(messageId, true);
 		renderMessageStateInternal(
 			messageId,
 			messageElement,
 			null,
 			true,
-			currentExtractionStep,
+			currentExtractionProgress,
 		);
 	}
 
@@ -516,63 +663,6 @@ export async function doExtractState(
 		if (options.isManual) {
 			setManualExtractionInProgress(false);
 		}
-		updateMenuButtonState(messageId, false);
-	}
-}
-
-// --- Menu Button ---
-
-function updateMenuButtonState(messageId: number, isLoading: boolean) {
-	const messageElement = document.querySelector(`[mesid="${messageId}"]`);
-	const btn = messageElement?.querySelector('.bt-extract-btn') as HTMLElement;
-	if (btn) {
-		btn.classList.toggle('bt-loading', isLoading);
-		const icon = btn.querySelector('i');
-		if (icon) {
-			icon.className = isLoading
-				? 'fa-solid fa-spinner fa-spin'
-				: 'fa-solid fa-fire';
-		}
-	}
-}
-
-function addMenuButton(messageId: number, messageElement: Element) {
-	const extraButtons = messageElement.querySelector('.extraMesButtons');
-	if (!extraButtons) return;
-
-	if (!extraButtons.querySelector('.bt-extract-btn')) {
-		const extractBtn = document.createElement('div');
-		extractBtn.className = 'bt-extract-btn mes_button';
-		extractBtn.title = 'Extract scene state (BlazeTracker)';
-		extractBtn.innerHTML = '<i class="fa-solid fa-fire"></i>';
-
-		extractBtn.addEventListener('click', async e => {
-			e.preventDefault();
-			e.stopPropagation();
-			await doExtractState(messageId, { isManual: true });
-		});
-
-		extraButtons.insertBefore(extractBtn, extraButtons.firstChild);
-	}
-
-	if (!extraButtons.querySelector('.bt-edit-btn')) {
-		const editBtn = document.createElement('div');
-		editBtn.className = 'bt-edit-btn mes_button';
-		editBtn.title = 'Edit scene state (BlazeTracker)';
-		editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
-
-		editBtn.addEventListener('click', async e => {
-			e.preventDefault();
-			e.stopPropagation();
-			await editMessageState(messageId);
-		});
-
-		const extractBtn = extraButtons.querySelector('.bt-extract-btn');
-		if (extractBtn) {
-			extractBtn.after(editBtn);
-		} else {
-			extraButtons.insertBefore(editBtn, extraButtons.firstChild);
-		}
 	}
 }
 
@@ -583,10 +673,8 @@ function renderMessageStateInternal(
 	messageElement: Element,
 	stateData: StoredStateData | null,
 	isExtracting: boolean,
-	extractionStep?: ExtractionStep,
+	extractionProgress?: GranularExtractionProgress,
 ) {
-	addMenuButton(messageId, messageElement);
-
 	const settings = getSettings();
 	const isAbove = settings.displayPosition === 'above';
 
@@ -634,7 +722,7 @@ function renderMessageStateInternal(
 			narrativeState={narrativeState}
 			messageId={messageId}
 			isExtracting={isExtracting}
-			extractionStep={extractionStep}
+			extractionProgress={extractionProgress}
 		/>,
 	);
 
@@ -727,40 +815,12 @@ export function renderAllStates() {
 	}
 }
 
-async function editMessageState(messageId: number): Promise<void> {
-	const context = SillyTavern.getContext() as STContext;
-	const message = context.chat[messageId];
-
-	if (!message) {
-		st_echo?.('error', 'Message not found');
-		return;
-	}
-
-	const currentStateData = getMessageState(message);
-	const currentState = currentStateData?.state || null;
-
-	const _saved = await openStateEditor(currentState, async (newState: TrackedState) => {
-		const stateData = {
-			state: newState,
-			extractedAt: new Date().toISOString(),
-		};
-
-		setMessageState(message, stateData);
-		await context.saveChat();
-
-		renderMessageState(messageId, stateData);
-		updateInjectionFromChat();
-
-		st_echo?.('success', '🔥 State updated');
-	});
-}
-
 export function initStateDisplay() {
 	const context = SillyTavern.getContext();
 
 	// Wire up extraction progress updates
-	onExtractionProgress((progress: ExtractionProgress) => {
-		currentExtractionStep = progress.step;
+	onExtractionProgress((progress: GranularExtractionProgress) => {
+		currentExtractionProgress = progress;
 
 		// Re-render the extracting message to show updated step
 		if (
@@ -776,7 +836,7 @@ export function initStateDisplay() {
 					messageElement,
 					null,
 					true,
-					progress.step,
+					progress,
 				);
 			}
 		}
@@ -790,11 +850,39 @@ export function initStateDisplay() {
 }
 
 export function injectStyles() {
-	if (document.getElementById('blazetracker-styles')) return;
+	// Load stateDisplay.css
+	if (!document.getElementById('blazetracker-styles')) {
+		const link = document.createElement('link');
+		link.id = 'blazetracker-styles';
+		link.rel = 'stylesheet';
+		link.href = new URL('./stateDisplay.css', import.meta.url).href;
+		document.head.appendChild(link);
+	}
 
-	const link = document.createElement('link');
-	link.id = 'blazetracker-styles';
-	link.rel = 'stylesheet';
-	link.href = new URL('./stateDisplay.css', import.meta.url).href;
-	document.head.appendChild(link);
+	// Load stateEditor.css (for inline components like NarrativeModal split-pane)
+	if (!document.getElementById('blazetracker-editor-styles')) {
+		const editorLink = document.createElement('link');
+		editorLink.id = 'blazetracker-editor-styles';
+		editorLink.rel = 'stylesheet';
+		editorLink.href = new URL('./stateEditor.css', import.meta.url).href;
+		document.head.appendChild(editorLink);
+	}
+
+	// Load cardDefaults.css (for character card defaults modal)
+	if (!document.getElementById('blazetracker-card-defaults-styles')) {
+		const cardDefaultsLink = document.createElement('link');
+		cardDefaultsLink.id = 'blazetracker-card-defaults-styles';
+		cardDefaultsLink.rel = 'stylesheet';
+		cardDefaultsLink.href = new URL('./cardDefaults.css', import.meta.url).href;
+		document.head.appendChild(cardDefaultsLink);
+	}
+
+	// Load V2NarrativeModal.css (for V2 narrative modal)
+	if (!document.getElementById('blazetracker-v2-narrative-styles')) {
+		const v2NarrativeLink = document.createElement('link');
+		v2NarrativeLink.id = 'blazetracker-v2-narrative-styles';
+		v2NarrativeLink.rel = 'stylesheet';
+		v2NarrativeLink.href = new URL('../v2/ui/V2NarrativeModal.css', import.meta.url).href;
+		document.head.appendChild(v2NarrativeLink);
+	}
 }

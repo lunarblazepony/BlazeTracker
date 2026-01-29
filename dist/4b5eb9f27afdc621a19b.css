@@ -1,0 +1,410 @@
+/* ============================================
+   BlazeTracker Settings UI Styles
+   ============================================ */
+
+/* Prompts Section */
+.bt-prompts-section {
+	margin-top: 10px;
+}
+
+.bt-prompts-header {
+	cursor: pointer;
+	padding: 8px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+	border-radius: 4px;
+	margin-bottom: 8px;
+}
+
+.bt-prompts-header:hover {
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+}
+
+.bt-prompts-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.bt-prompts-title i {
+	width: 12px;
+	text-align: center;
+}
+
+.bt-prompts-count {
+	font-size: 0.85em;
+	opacity: 0.7;
+	font-weight: normal;
+}
+
+.bt-prompts-header small {
+	display: block;
+	margin-top: 4px;
+	margin-left: 20px;
+	opacity: 0.7;
+}
+
+/* Prompts List */
+.bt-prompts-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 4px;
+}
+
+/* Individual Prompt Item (collapsed view) */
+.bt-prompt-item {
+	padding: 10px 12px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.bt-prompt-item:hover {
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.25));
+}
+
+.bt-prompt-item-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.bt-prompt-name {
+	font-weight: 500;
+}
+
+.bt-prompt-customized {
+	color: var(--SmartThemeFavColor, #ffaa00);
+	font-size: 0.85em;
+}
+
+.bt-prompt-item .bt-prompt-description {
+	display: block;
+	margin-top: 4px;
+	opacity: 0.7;
+}
+
+/* Prompt Editor (expanded view) */
+.bt-prompt-editor {
+	padding: 12px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+	border-radius: 4px;
+	border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+}
+
+.bt-prompt-editor-header {
+	margin-bottom: 12px;
+}
+
+.bt-prompt-editor-header strong {
+	display: block;
+	font-size: 1.1em;
+	margin-bottom: 4px;
+}
+
+.bt-prompt-editor-header .bt-prompt-description {
+	opacity: 0.7;
+}
+
+/* Placeholder Documentation */
+.bt-prompt-placeholders {
+	margin-bottom: 12px;
+	padding: 10px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.bt-prompt-placeholders strong {
+	display: block;
+	margin-bottom: 6px;
+}
+
+.bt-prompt-placeholders ul {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.bt-prompt-placeholders li {
+	margin: 4px 0;
+}
+
+.bt-prompt-placeholders code {
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+	padding: 1px 5px;
+	border-radius: 3px;
+	font-family: monospace;
+	font-size: 0.95em;
+	color: var(--SmartThemeFavColor, #ffaa00);
+}
+
+/* Prompt Textarea */
+.bt-prompt-textarea {
+	width: 100%;
+	min-height: 300px;
+	font-family: monospace;
+	font-size: 0.9em;
+	line-height: 1.4;
+	resize: vertical;
+	margin-bottom: 12px;
+}
+
+/* Action Buttons */
+.bt-prompt-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.bt-prompt-actions .menu_button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Temperature Control */
+.bt-temperature-control {
+	margin-bottom: 12px;
+	padding: 10px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
+	border-radius: 4px;
+}
+
+.bt-temperature-label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.bt-temperature-label>span:first-child {
+	font-weight: 500;
+	min-width: 90px;
+}
+
+.bt-temperature-slider {
+	flex: 1;
+	min-width: 100px;
+	max-width: 200px;
+	height: 6px;
+	-webkit-appearance: none;
+	appearance: none;
+	background: var(--SmartThemeBlurTintColor, rgba(255, 255, 255, 0.2));
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.bt-temperature-slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 16px;
+	height: 16px;
+	background: var(--SmartThemeFavColor, #ffaa00);
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.bt-temperature-slider::-moz-range-thumb {
+	width: 16px;
+	height: 16px;
+	background: var(--SmartThemeFavColor, #ffaa00);
+	border-radius: 50%;
+	cursor: pointer;
+	border: none;
+}
+
+.bt-temperature-input {
+	width: 60px;
+	padding: 4px 8px;
+	font-size: 0.9em;
+	text-align: center;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+	border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+	border-radius: 4px;
+	color: inherit;
+}
+
+.bt-temperature-input:focus {
+	outline: none;
+	border-color: var(--SmartThemeFavColor, #ffaa00);
+}
+
+.bt-temperature-default {
+	font-size: 0.85em;
+	opacity: 0.6;
+}
+
+/* Prompt badges in collapsed view */
+.bt-prompt-badges {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.bt-prompt-temperature-badge {
+	font-size: 0.85em;
+	padding: 2px 6px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+	border-radius: 3px;
+	color: var(--SmartThemeFavColor, #ffaa00);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+	.bt-prompt-actions {
+		flex-direction: column;
+	}
+
+	.bt-prompt-actions .menu_button {
+		width: 100%;
+		justify-content: center;
+	}
+}
+
+/* ============================================
+   V2 Settings UI Styles
+   ============================================ */
+
+/* Section Headers */
+.bt-section-header {
+	margin-bottom: 10px;
+}
+
+.bt-section-header strong {
+	display: block;
+	margin-bottom: 4px;
+}
+
+.bt-section-header small {
+	display: block;
+	opacity: 0.7;
+}
+
+/* Warning Box */
+.bt-warning-box {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px;
+	margin-top: 8px;
+	background: rgba(245, 158, 11, 0.15);
+	border: 1px solid rgba(245, 158, 11, 0.3);
+	border-radius: 4px;
+	color: #f59e0b;
+}
+
+.bt-warning-box i {
+	font-size: 1.2em;
+}
+
+/* Track Toggles */
+.bt-track-toggles {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.bt-track-toggle {
+	padding: 6px 0;
+}
+
+.bt-track-toggle.bt-track-disabled {
+	opacity: 0.5;
+}
+
+.bt-track-toggle .checkbox_label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.bt-track-toggle small {
+	display: block;
+	margin-top: 2px;
+	margin-left: 24px;
+	opacity: 0.7;
+}
+
+.bt-dependency-warning {
+	margin-left: 4px;
+	color: var(--SmartThemeFavColor, #ffaa00);
+}
+
+/* Temperature Grid */
+.bt-temperature-section {
+	margin-bottom: 16px;
+}
+
+.bt-temperature-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.bt-temperature-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.bt-temperature-row-label {
+	min-width: 100px;
+	font-weight: 500;
+}
+
+.bt-temperature-reset {
+	padding: 4px 8px;
+	background: transparent;
+	border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+	opacity: 0.7;
+}
+
+.bt-temperature-reset:hover {
+	opacity: 1;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+}
+
+/* Advanced Content */
+.bt-advanced-content {
+	padding: 10px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
+	border-radius: 4px;
+}
+
+/* Custom Prompts Section */
+.bt-custom-prompts-section {
+	margin-top: 10px;
+}
+
+.bt-no-custom-prompts {
+	opacity: 0.7;
+	font-style: italic;
+	padding: 10px;
+}
+
+.bt-add-prompt-btn {
+	margin-top: 10px;
+}
+
+.bt-prompt-section {
+	margin-bottom: 12px;
+}
+
+.bt-prompt-section label {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 500;
+}
+
+/* Settings Loading */
+.bt-settings-loading {
+	padding: 20px;
+	text-align: center;
+	opacity: 0.7;
+}

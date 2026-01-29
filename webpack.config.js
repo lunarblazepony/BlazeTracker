@@ -17,9 +17,20 @@ module.exports = {
     },
     externalsType: 'module',
     externals: [
-        function ({ request }, callback) {
+        function ({ context, request }, callback) {
+            // Only externalize paths that go OUTSIDE the extension directory
+            // (i.e., paths to SillyTavern core files)
             if (request.includes('../../..')) {
-                return callback(null, `module ${request}`);
+                // Resolve the full path to check if it's outside our extension
+                const resolved = path.resolve(context, request);
+                const extensionRoot = path.resolve(__dirname, 'src');
+                const nodeModulesRoot = path.resolve(__dirname, 'node_modules');
+
+                // If the resolved path is NOT inside our src directory AND
+                // NOT inside our node_modules directory, it's external
+                if (!resolved.startsWith(extensionRoot) && !resolved.startsWith(nodeModulesRoot)) {
+                    return callback(null, `module ${request}`);
+                }
             }
             callback();
         },
@@ -43,7 +54,8 @@ module.exports = {
         new CopyPlugin({
             patterns: [
                 { from: 'src/ui/stateDisplay.css', to: 'stateDisplay.css' },
-                { from: 'src/ui/stateEditor.css', to: 'stateEditor.css' },  // Add this
+                { from: 'src/ui/stateEditor.css', to: 'stateEditor.css' },
+                { from: 'src/ui/cardDefaults.css', to: 'cardDefaults.css' },
             ]
         }),
     ],

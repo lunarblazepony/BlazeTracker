@@ -10,6 +10,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
+		"test:e2e": "playwright test -c playwright-ct.config.ts",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint src/",
 		"lint:fix": "eslint src/ --fix",
@@ -18,6 +19,11 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.18.0",
+		"@playwright/experimental-ct-react": "^1.58.0",
+		"@playwright/test": "^1.58.0",
+		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/react": "^16.3.2",
+		"@testing-library/user-event": "^14.6.1",
 		"@types/react": "^19.2.8",
 		"@types/react-dom": "^19.2.3",
 		"@types/seedrandom": "^3.0.8",
@@ -28,6 +34,7 @@
 		"eslint-plugin-react": "^7.37.4",
 		"eslint-plugin-react-hooks": "^5.1.0",
 		"eslint-plugin-unused-imports": "^4.1.4",
+		"jsdom": "^27.4.0",
 		"prettier": "^3.4.2",
 		"ts-loader": "^9.5.0",
 		"typescript": "^5.7.0",
@@ -37,6 +44,8 @@
 		"webpack-cli": "^6.0.0"
 	},
 	"dependencies": {
+		"moment": "^2.30.1",
+		"recharts": "^3.7.0",
 		"seedrandom": "^3.0.5",
 		"sillytavern-utils-lib": "^1.0.0"
 	}

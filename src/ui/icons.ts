@@ -96,6 +96,42 @@ export function getConditionIcon(condition: WeatherCondition): string {
 }
 
 /**
+ * Night-time variants of condition icons.
+ * Used for forecast display when hour is after sunset or before sunrise.
+ */
+export const CONDITION_ICONS_NIGHT: Record<WeatherCondition, string> = {
+	clear: 'fa-moon',
+	sunny: 'fa-moon', // Sunny at night = clear/moon
+	partly_cloudy: 'fa-cloud-moon',
+	overcast: 'fa-cloud',
+	foggy: 'fa-smog',
+	drizzle: 'fa-cloud-moon-rain',
+	rain: 'fa-cloud-showers-heavy',
+	heavy_rain: 'fa-cloud-showers-water',
+	thunderstorm: 'fa-cloud-bolt',
+	sleet: 'fa-cloud-meatball',
+	snow: 'fa-snowflake',
+	heavy_snow: 'fa-snowflake',
+	blizzard: 'fa-icicles',
+	windy: 'fa-wind',
+	hot: 'fa-temperature-high',
+	cold: 'fa-temperature-low',
+	humid: 'fa-droplet',
+};
+
+/**
+ * Get the icon for a weather condition with day/night awareness.
+ * @param condition - The weather condition
+ * @param isNight - Whether it's nighttime
+ */
+export function getConditionIconDayNight(condition: WeatherCondition, isNight: boolean): string {
+	if (isNight) {
+		return CONDITION_ICONS_NIGHT[condition] ?? 'fa-question';
+	}
+	return CONDITION_ICONS[condition] ?? 'fa-question';
+}
+
+/**
  * Colors for tension types.
  */
 export const TENSION_TYPE_COLORS: Record<TensionType, string> = {
@@ -190,6 +226,7 @@ export const EVENT_TYPE_ICONS: Record<EventType, string> = {
 
 	// Emotional
 	emotional: 'fa-face-smile-beam',
+	emotionally_intimate: 'fa-heart-circle-check',
 	supportive: 'fa-hand-holding-heart',
 	rejection: 'fa-hand',
 	comfort: 'fa-hands-holding',
@@ -249,6 +286,7 @@ export const EVENT_TYPE_ICONS: Record<EventType, string> = {
 	defended: 'fa-shield-halved',
 	crisis_together: 'fa-person-shelter',
 	vulnerability: 'fa-heart-crack',
+	shared_vulnerability: 'fa-hand-holding-heart',
 	entrusted: 'fa-key',
 };
 
@@ -269,6 +307,7 @@ export const EVENT_TYPE_COLORS: Record<EventType, string> = {
 
 	// Emotional - cyans
 	emotional: '#06b6d4',
+	emotionally_intimate: '#ec4899', // pink-500 - milestone-worthy
 	supportive: '#22d3ee',
 	rejection: '#f43f5e',
 	comfort: '#14b8a6', // teal-500
@@ -328,6 +367,7 @@ export const EVENT_TYPE_COLORS: Record<EventType, string> = {
 	defended: '#6366f1', // indigo-500
 	crisis_together: '#ef4444', // red-500
 	vulnerability: '#a855f7', // purple-500
+	shared_vulnerability: '#d946ef', // fuchsia-500 - milestone-worthy
 	entrusted: '#f59e0b', // amber-500
 };
 
@@ -361,6 +401,8 @@ export const EVENT_TYPE_PRIORITY: readonly EventType[] = [
 	'confession',
 	'argument',
 	// Then emotional/discovery
+	'emotionally_intimate',
+	'shared_vulnerability',
 	'emotional',
 	'comfort',
 	'apology',
@@ -385,7 +427,7 @@ export const EVENT_TYPE_PRIORITY: readonly EventType[] = [
 	'shared_activity',
 	// Then social/support
 	'supportive',
-	'vulnerability',
+	'vulnerability', // General vulnerability (not milestone)
 	'entrusted',
 	'helped',
 	'common_interest',
@@ -420,4 +462,127 @@ export function getEventTypeIcon(type: EventType): string {
  */
 export function getEventTypeColor(type: EventType): string {
 	return EVENT_TYPE_COLORS[type] || '#6b7280';
+}
+
+// ============================================
+// State Event Icons and Colors (Phase 2)
+// ============================================
+
+import type { CharacterEventSubkind, RelationshipEventSubkind } from '../types/state';
+
+/**
+ * Font Awesome icons for character event subkinds.
+ */
+export const CHARACTER_SUBKIND_ICONS: Record<CharacterEventSubkind, string> = {
+	appeared: 'fa-user-plus',
+	departed: 'fa-user-minus',
+	mood_added: 'fa-face-smile',
+	mood_removed: 'fa-face-meh',
+	outfit_changed: 'fa-shirt',
+	position_changed: 'fa-arrows-up-down-left-right',
+	activity_changed: 'fa-person-running',
+	physical_state_added: 'fa-heart-pulse',
+	physical_state_removed: 'fa-heart',
+};
+
+/**
+ * Font Awesome icons for state event kinds.
+ */
+export const STATE_EVENT_KIND_ICONS: Record<string, string> = {
+	time: 'fa-clock',
+	time_initial: 'fa-hourglass-start',
+	location: 'fa-location-dot',
+	location_prop: 'fa-couch',
+	character: 'fa-user',
+	relationship: 'fa-heart-circle-check',
+};
+
+/**
+ * Colors by operation type for state events.
+ */
+export const STATE_EVENT_COLORS = {
+	add: '#22c55e', // green - appeared, mood_added, physical_state_added
+	remove: '#ef4444', // red - departed, mood_removed, physical_state_removed
+	change: '#3b82f6', // blue - position, activity, outfit changes
+	time: '#8b5cf6', // purple
+	location: '#f59e0b', // amber
+};
+
+/**
+ * Get the color for a character event subkind.
+ */
+export function getCharacterEventColor(subkind: CharacterEventSubkind): string {
+	if (['appeared', 'mood_added', 'physical_state_added'].includes(subkind)) {
+		return STATE_EVENT_COLORS.add;
+	}
+	if (['departed', 'mood_removed', 'physical_state_removed'].includes(subkind)) {
+		return STATE_EVENT_COLORS.remove;
+	}
+	return STATE_EVENT_COLORS.change;
+}
+
+/**
+ * Get the icon for a character event subkind.
+ */
+export function getCharacterSubkindIcon(subkind: CharacterEventSubkind): string {
+	return `fa-solid ${CHARACTER_SUBKIND_ICONS[subkind] || 'fa-circle'}`;
+}
+
+/**
+ * Get the icon for a state event kind.
+ */
+export function getStateEventKindIcon(kind: string): string {
+	return `fa-solid ${STATE_EVENT_KIND_ICONS[kind] || 'fa-circle'}`;
+}
+
+/**
+ * Format a subkind label for display.
+ * Converts "mood_added" to "Mood Added".
+ */
+export function formatSubkindLabel(subkind: string): string {
+	return subkind.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ============================================
+// Relationship Event Icons and Colors
+// ============================================
+
+/**
+ * Font Awesome icons for relationship event subkinds.
+ */
+export const RELATIONSHIP_SUBKIND_ICONS: Record<RelationshipEventSubkind, string> = {
+	feeling_added: 'fa-heart-circle-plus',
+	feeling_removed: 'fa-heart-circle-minus',
+	secret_added: 'fa-user-secret',
+	secret_removed: 'fa-mask',
+	want_added: 'fa-star',
+	want_removed: 'fa-star-half-stroke',
+	status_changed: 'fa-people-arrows',
+};
+
+/**
+ * Colors for relationship event subkinds.
+ */
+export const RELATIONSHIP_SUBKIND_COLORS: Record<RelationshipEventSubkind, string> = {
+	feeling_added: '#ec4899', // pink-500
+	feeling_removed: '#f472b6', // pink-400
+	secret_added: '#8b5cf6', // violet-500
+	secret_removed: '#a78bfa', // violet-400
+	want_added: '#f59e0b', // amber-500
+	want_removed: '#fbbf24', // amber-400
+	status_changed: '#3b82f6', // blue-500
+};
+
+/**
+ * Get the icon for a relationship event subkind.
+ */
+export function getRelationshipSubkindIcon(subkind: RelationshipEventSubkind): string {
+	return `fa-solid ${RELATIONSHIP_SUBKIND_ICONS[subkind] || 'fa-circle'}`;
+}
+
+/**
+ * Get the color for a relationship event subkind.
+ */
+export function getRelationshipEventColor(subkind: RelationshipEventSubkind): string {
+	return RELATIONSHIP_SUBKIND_COLORS[subkind] || '#6b7280';
 }

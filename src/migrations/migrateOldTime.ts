@@ -5,8 +5,8 @@ import type { TrackedState, NarrativeDateTime } from '../types/state';
 import { getMessageState, setMessageState } from '../utils/messageState';
 import { extractDateTime } from '../extractors/extractTime';
 import { st_echo } from 'sillytavern-utils-lib/config';
-
-const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+import { DAYS_OF_WEEK } from '../ui/constants';
+import { errorLog } from '../utils/debug';
 
 interface OldTimeFormat {
 	hour: number;
@@ -19,7 +19,7 @@ function isOldTimeFormat(time: any): time is OldTimeFormat {
 }
 
 function getDayIndex(dayName: string): number {
-	return DAYS_OF_WEEK.indexOf(dayName);
+	return DAYS_OF_WEEK.indexOf(dayName as (typeof DAYS_OF_WEEK)[number]);
 }
 
 function daysBetween(fromDay: string, toDay: string): number {
@@ -96,7 +96,7 @@ export async function migrateOldTimeFormats(
 	try {
 		baselineTime = await extractDateTime(contextMessages, profileId);
 	} catch (e) {
-		console.error('[BlazeTracker] Failed to infer baseline date, using defaults:', e);
+		errorLog('Failed to infer baseline date, using defaults:', e);
 		baselineTime = {
 			year: new Date().getFullYear(),
 			month: 6,

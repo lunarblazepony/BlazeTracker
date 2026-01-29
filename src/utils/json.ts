@@ -336,3 +336,15 @@ export function asStringArray(value: unknown, maxItems?: number): string[] {
 export function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+/**
+ * Parse a JSON response, returning null on failure instead of throwing.
+ * Useful for prompt parseResponse functions.
+ */
+export function parseJSON<T = unknown>(response: string, options: ParseOptions = {}): T | null {
+	try {
+		return parseJsonResponse<T>(response, options);
+	} catch {
+		return null;
+	}
+}

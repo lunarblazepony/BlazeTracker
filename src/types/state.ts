@@ -178,6 +178,7 @@ export type EventType =
 
 	// Emotional
 	| 'emotional' // Emotional vulnerability, comfort
+	| 'emotionally_intimate' // Deep emotional CONNECTION - heart-to-heart sharing, mutual vulnerability
 	| 'supportive' // Providing emotional support
 	| 'rejection' // Rejecting someone's advances/request
 	| 'comfort' // Comforting someone in distress
@@ -236,7 +237,8 @@ export type EventType =
 	| 'outing' // Went somewhere together casually
 	| 'defended' // Defended or stood up for them
 	| 'crisis_together' // Went through danger together
-	| 'vulnerability' // Showed weakness/vulnerability
+	| 'vulnerability' // Showed weakness/vulnerability (general)
+	| 'shared_vulnerability' // Showed emotional weakness TO someone in a trust-building moment
 	| 'entrusted'; // Entrusted with something important
 
 export const EVENT_TYPES: readonly EventType[] = [
@@ -248,6 +250,7 @@ export const EVENT_TYPES: readonly EventType[] = [
 	'secret_shared',
 	'secret_revealed',
 	'emotional',
+	'emotionally_intimate',
 	'supportive',
 	'rejection',
 	'comfort',
@@ -291,6 +294,7 @@ export const EVENT_TYPES: readonly EventType[] = [
 	'defended',
 	'crisis_together',
 	'vulnerability',
+	'shared_vulnerability',
 	'entrusted',
 ];
 
@@ -300,7 +304,15 @@ export const EVENT_TYPES: readonly EventType[] = [
 export const EVENT_TYPE_GROUPS = {
 	conversation: ['conversation', 'confession', 'argument', 'negotiation'],
 	discovery: ['discovery', 'secret_shared', 'secret_revealed'],
-	emotional: ['emotional', 'supportive', 'rejection', 'comfort', 'apology', 'forgiveness'],
+	emotional: [
+		'emotional',
+		'emotionally_intimate',
+		'supportive',
+		'rejection',
+		'comfort',
+		'apology',
+		'forgiveness',
+	],
 	bonding: [
 		'laugh',
 		'gift',
@@ -337,6 +349,7 @@ export const EVENT_TYPE_GROUPS = {
 		'defended',
 		'crisis_together',
 		'vulnerability',
+		'shared_vulnerability',
 		'entrusted',
 	],
 } as const;
@@ -404,6 +417,22 @@ export interface MilestoneEvent {
 	messageId?: number;
 }
 
+/**
+ * Result from the milestone confirmation prompt (4-way classification).
+ */
+export interface MilestoneConfirmResult {
+	/** Validation result */
+	result: 'accept' | 'wrong_event' | 'wrong_pair' | 'reject';
+	/** Required if result is 'wrong_event'. The actual event type that occurred. */
+	correctEvent?: EventType;
+	/** Required if result is 'wrong_pair'. The actual character pair. */
+	correctPair?: [string, string];
+	/** For 'accept' and corrections: Brief description of what happened */
+	description?: string;
+	/** Explanation of why this classification was chosen */
+	reasoning: string;
+}
+
 export type MilestoneType =
 	// Relationship firsts
 	| 'first_meeting'
@@ -424,6 +453,7 @@ export type MilestoneType =
 	| 'first_shared_activity' // First activity done together
 	| 'first_compliment' // First sincere compliment
 	| 'first_tease' // First playful teasing
+	| 'first_flirt' // First flirtatious interaction
 	| 'first_helped' // First time helping
 	| 'first_common_interest' // First shared interest discovered
 	| 'first_outing' // First casual outing together
@@ -585,14 +615,28 @@ export interface RelationshipSnapshot {
 /**
  * Chat-level narrative state stored in message 0.
  * Contains information that spans the entire chat.
+ *
+ * Version 3: Event-sourced architecture (Phase 1)
+ * - Events stored in central eventStore (single source of truth)
+ * - Chapters reference events by ID
+ * - Milestones derived from event.affectedPairs[].firstFor
+ *
+ * Version 4: Full state event-sourcing (Phase 2)
+ * - All state (time, location, characters) stored as events
+ * - State projected from events instead of stored per-message
+ * - UnifiedEventStore replaces EventStore
  */
 export interface NarrativeState {
 	/** Schema version for migrations */
 	version: number;
-	/** Completed chapters */
-	chapters: Chapter[];
-	/** All tracked relationships */
-	relationships: Relationship[];
+	/** Central event store (v3: EventStore, v4+: UnifiedEventStore) */
+	eventStore?: EventStore | UnifiedEventStore;
+	/** Completed chapters (v3+: DerivedChapter with eventIds) */
+	chapters: (Chapter | DerivedChapter)[];
+	/** All tracked relationships (v3+: may be DerivedRelationship) */
+	relationships: (Relationship | DerivedRelationship)[];
+	/** Snapshots at chapter boundaries for projection performance (v3+) */
+	chapterSnapshots?: ChapterSnapshot[];
 	/** Cached weather forecasts by location */
 	forecastCache: ForecastCacheEntry[];
 	/** Fantasy location → real-world climate mappings */
@@ -632,10 +676,525 @@ export interface StoredStateData {
 }
 
 // ============================================
+// Event Store Types (Phase 1: Event-Sourced Architecture)
+// ============================================
+
+/**
+ * Central event store in NarrativeState.
+ * Single source of truth for all narrative events.
+ */
+export interface EventStore {
+	events: NarrativeEvent[];
+	version: number;
+}
+
+/**
+ * Canonical narrative event stored in the event store.
+ */
+export interface NarrativeEvent {
+	/** UUID for this event */
+	id: string;
+	/** Message ID that generated this event */
+	messageId: number;
+	/** Swipe ID within the message */
+	swipeId: number;
+	/** Real-world extraction timestamp */
+	timestamp: number;
+	/** Soft delete flag */
+	deleted?: boolean;
+
+	// Content
+	/** Brief summary of what happened (1-2 sentences) */
+	summary: string;
+	/** Event type flags - multiple can apply */
+	eventTypes: EventType[];
+	/** Tension level at the moment of this event */
+	tensionLevel: TensionLevel;
+	/** Tension type at the moment of this event */
+	tensionType: TensionType;
+	/** Characters who witnessed/participated in this event */
+	witnesses: string[];
+	/** Location summary where event occurred */
+	location: string;
+	/** Narrative timestamp when the event occurred */
+	narrativeTimestamp: NarrativeDateTime;
+	/** Chapter index assigned when chapter closes */
+	chapterIndex?: number;
+
+	// Relationship effects
+	/** Relationship effects for character pairs */
+	affectedPairs: AffectedPair[];
+}
+
+/**
+ * Relationship effect for a character pair within an event.
+ */
+export interface AffectedPair {
+	/** The two characters involved (alphabetically sorted) */
+	pair: [string, string];
+	/** Directional attitude changes */
+	changes?: DirectionalChange[];
+	/** This event is "first" for these milestone types (computed, not extracted) */
+	firstFor?: MilestoneType[];
+	/** LLM-generated milestone descriptions, cached */
+	milestoneDescriptions?: Partial<Record<MilestoneType, string>>;
+}
+
+/**
+ * Chapter that references events by ID instead of embedding them.
+ */
+export interface DerivedChapter {
+	/** 0-based chapter index */
+	index: number;
+	/** AI-generated chapter title */
+	title: string;
+	/** Brief summary of what happened */
+	summary: string;
+	/** Outcomes extracted when chapter closed */
+	outcomes: ChapterOutcomes;
+	/** Event IDs that belong to this chapter */
+	eventIds: string[];
+	/** Message ID where chapter boundary was detected */
+	boundaryMessageId: number;
+	/** Time range of the chapter */
+	timeRange: {
+		start: NarrativeDateTime;
+		end: NarrativeDateTime;
+	};
+	/** Location where most of the chapter took place */
+	primaryLocation: string;
+	/** Flag indicating chapter summary needs regeneration */
+	needsRegeneration?: boolean;
+}
+
+/**
+ * Relationship projected from events.
+ */
+export interface DerivedRelationship {
+	/** Sorted pair of character names */
+	pair: [string, string];
+	/** Current relationship status */
+	status: RelationshipStatus;
+	/** How A feels about B */
+	aToB: RelationshipAttitude;
+	/** How B feels about A */
+	bToA: RelationshipAttitude;
+	/** Event IDs that contain firstFor entries for this pair */
+	milestoneEventIds: string[];
+	/** Historical snapshots at chapter boundaries */
+	history: RelationshipSnapshot[];
+}
+
+/**
+ * Snapshot of relationships at a chapter boundary for projection performance.
+ */
+export interface ChapterSnapshot {
+	chapterIndex: number;
+	boundaryMessageId: number;
+	relationships: DerivedRelationship[];
+}
+
+// ============================================
+// Phase 2: State Events (Full Event-Sourcing)
+// ============================================
+
+/**
+ * Outfit slot names for character events.
+ */
+export type OutfitSlot = keyof CharacterOutfit;
+
+export const OUTFIT_SLOTS: readonly OutfitSlot[] = [
+	'head',
+	'neck',
+	'jacket',
+	'back',
+	'torso',
+	'legs',
+	'footwear',
+	'socks',
+	'underwear',
+];
+
+/**
+ * Base interface for all state events.
+ */
+export interface BaseStateEvent {
+	/** UUID for this event */
+	id: string;
+	/** Message ID that generated this event */
+	messageId: number;
+	/** Swipe ID within the message */
+	swipeId: number;
+	/** Real-world extraction timestamp */
+	timestamp: number;
+	/** Soft delete flag */
+	deleted?: boolean;
+}
+
+/**
+ * Event representing the initial time (first message only).
+ * Sets the absolute time from which all deltas are calculated.
+ */
+export interface InitialTimeEvent extends BaseStateEvent {
+	kind: 'time_initial';
+	/** Absolute narrative time from initial extraction */
+	initialTime: NarrativeDateTime;
+}
+
+/**
+ * Event representing a time change (all subsequent messages).
+ * Stores ONLY the delta - current time is calculated by projection (summing all deltas from initial time).
+ * This ensures edits to prior TimeEvents automatically propagate correctly.
+ */
+export interface TimeEvent extends BaseStateEvent {
+	kind: 'time';
+	/** Time delta from previous state - ONLY stores the delta, not calculated time */
+	delta: {
+		days: number;
+		hours: number;
+		minutes: number;
+	};
+}
+
+/**
+ * Event representing a location change.
+ */
+/**
+ * Location event subkinds for fine-grained state tracking.
+ */
+export type LocationEventSubkind = 'moved' | 'prop_added' | 'prop_removed';
+
+/**
+ * Event representing a location move (area/place/position change).
+ */
+export interface LocationMovedEvent extends BaseStateEvent {
+	kind: 'location';
+	subkind: 'moved';
+	newArea: string;
+	newPlace: string;
+	newPosition: string;
+	previousArea?: string;
+	previousPlace?: string;
+	previousPosition?: string;
+}
+
+/**
+ * Event representing a prop change in the location.
+ * Props are added when items are placed in the environment (e.g., clothes removed and dropped).
+ * Props are removed when items are picked up or moved out of the scene.
+ */
+export interface LocationPropEvent extends BaseStateEvent {
+	kind: 'location';
+	subkind: 'prop_added' | 'prop_removed';
+	/** The prop being added or removed */
+	prop: string;
+}
+
+/**
+ * Union type for all location events.
+ */
+export type LocationEvent = LocationMovedEvent | LocationPropEvent;
+
+/**
+ * Character event subkinds for fine-grained state tracking.
+ */
+export type CharacterEventSubkind =
+	| 'appeared'
+	| 'departed'
+	| 'mood_added'
+	| 'mood_removed'
+	| 'outfit_changed'
+	| 'position_changed'
+	| 'activity_changed'
+	| 'physical_state_added'
+	| 'physical_state_removed';
+
+/**
+ * Event representing a character state change.
+ */
+export interface CharacterEvent extends BaseStateEvent {
+	kind: 'character';
+	/** The specific type of character change */
+	subkind: CharacterEventSubkind;
+	/** Character this event applies to */
+	character: string;
+	/** Outfit slot (for outfit_changed) */
+	slot?: OutfitSlot;
+	/** New value (for position_changed, activity_changed, outfit_changed) */
+	newValue?: string | null;
+	/** Previous value (for changes) */
+	previousValue?: string | null;
+	/** Mood (for mood_added, mood_removed) */
+	mood?: string;
+	/** Physical state (for physical_state_added, physical_state_removed) */
+	physicalState?: string;
+	/** Initial position (for appeared) */
+	initialPosition?: string;
+	/** Initial activity (for appeared) */
+	initialActivity?: string;
+}
+
+/**
+ * Location prop event subkind type (for backwards compatibility).
+ * @deprecated Use LocationEventSubkind instead
+ */
+export type LocationPropSubkind = 'prop_added' | 'prop_removed';
+
+/**
+ * Event representing a weather forecast being generated.
+ * Forecasts are generated once per area and cached.
+ */
+export interface ForecastGeneratedEvent extends BaseStateEvent {
+	kind: 'forecast_generated';
+	/** The area name for this forecast */
+	areaName: string;
+	/** The 28-day forecast data */
+	forecast: LocationForecast;
+}
+
+/**
+ * Relationship event subkinds for attitude tracking (directional).
+ * These events have fromCharacter and towardCharacter - pair is derived.
+ */
+export type DirectionalRelationshipSubkind =
+	| 'feeling_added'
+	| 'feeling_removed'
+	| 'secret_added'
+	| 'secret_removed'
+	| 'want_added'
+	| 'want_removed';
+
+/**
+ * All relationship event subkinds.
+ */
+export type RelationshipEventSubkind = DirectionalRelationshipSubkind | 'status_changed';
+
+/**
+ * Directional relationship event - tracks attitude changes from one character toward another.
+ * The pair is derived from fromCharacter/towardCharacter using derivePair().
+ */
+export interface DirectionalRelationshipEvent extends BaseStateEvent {
+	kind: 'relationship';
+	subkind: DirectionalRelationshipSubkind;
+	/** Character whose attitude is changing (required) */
+	fromCharacter: string;
+	/** Character they feel differently about (required) */
+	towardCharacter: string;
+	/** The feeling/secret/want value */
+	value: string;
+}
+
+/**
+ * Status change event - tracks overall relationship status changes.
+ * Requires explicit pair since there's no directional component.
+ */
+export interface StatusChangedEvent extends BaseStateEvent {
+	kind: 'relationship';
+	subkind: 'status_changed';
+	/** Character pair (alphabetically sorted) - required for status events */
+	pair: [string, string];
+	/** New status */
+	newStatus: RelationshipStatus;
+	/** Previous status */
+	previousStatus?: RelationshipStatus;
+}
+
+/**
+ * Union type for all relationship events.
+ * Directional events derive pair from fromCharacter/towardCharacter.
+ * Status events have explicit pair.
+ */
+export type RelationshipEvent = DirectionalRelationshipEvent | StatusChangedEvent;
+
+/**
+ * Union type for all state events.
+ * Note: Climate is derived from time + location + forecastCache, not stored as events.
+ */
+export type StateEvent =
+	| InitialTimeEvent
+	| TimeEvent
+	| LocationEvent
+	| CharacterEvent
+	| ForecastGeneratedEvent
+	| RelationshipEvent;
+
+/**
+ * Type guard for InitialTimeEvent.
+ */
+export function isInitialTimeEvent(event: StateEvent): event is InitialTimeEvent {
+	return event.kind === 'time_initial';
+}
+
+/**
+ * Type guard for TimeEvent (delta).
+ */
+export function isTimeEvent(event: StateEvent): event is TimeEvent {
+	return event.kind === 'time';
+}
+
+/**
+ * Type guard for LocationEvent.
+ */
+export function isLocationEvent(event: StateEvent): event is LocationEvent {
+	return event.kind === 'location';
+}
+
+/**
+ * Type guard for CharacterEvent.
+ */
+export function isCharacterEvent(event: StateEvent): event is CharacterEvent {
+	return event.kind === 'character';
+}
+
+/**
+ * Type guard for LocationMovedEvent.
+ */
+export function isLocationMovedEvent(event: StateEvent): event is LocationMovedEvent {
+	return event.kind === 'location' && (event as LocationMovedEvent).subkind === 'moved';
+}
+
+/**
+ * Type guard for LocationPropEvent.
+ */
+export function isLocationPropEvent(event: StateEvent): event is LocationPropEvent {
+	return (
+		event.kind === 'location' &&
+		((event as LocationPropEvent).subkind === 'prop_added' ||
+			(event as LocationPropEvent).subkind === 'prop_removed')
+	);
+}
+
+/**
+ * Type guard for ForecastGeneratedEvent.
+ */
+export function isForecastGeneratedEvent(event: StateEvent): event is ForecastGeneratedEvent {
+	return event.kind === 'forecast_generated';
+}
+
+/**
+ * Type guard for RelationshipEvent (any type).
+ */
+export function isRelationshipEvent(event: StateEvent): event is RelationshipEvent {
+	return event.kind === 'relationship';
+}
+
+/**
+ * Type guard for DirectionalRelationshipEvent.
+ * Directional events have fromCharacter and towardCharacter.
+ */
+export function isDirectionalRelationshipEvent(
+	event: StateEvent | RelationshipEvent,
+): event is DirectionalRelationshipEvent {
+	if (event.kind !== 'relationship') return false;
+	const subkind = (event as RelationshipEvent).subkind;
+	return subkind !== 'status_changed';
+}
+
+/**
+ * Type guard for StatusChangedEvent.
+ * Status events have explicit pair and subkind === 'status_changed'.
+ */
+export function isStatusChangedEvent(
+	event: StateEvent | RelationshipEvent,
+): event is StatusChangedEvent {
+	return (
+		event.kind === 'relationship' &&
+		(event as StatusChangedEvent).subkind === 'status_changed'
+	);
+}
+
+/**
+ * A snapshot of projected state at a chapter boundary.
+ * Used to avoid replaying all events when projecting state at a message.
+ */
+export interface StateProjectionSnapshot {
+	/** Chapter index this snapshot is for */
+	chapterIndex: number;
+	/** Message ID at the end of the chapter */
+	messageId: number;
+	/** Swipe ID at the snapshot point */
+	swipeId: number;
+	/** Serializable projection state */
+	projection: SerializableProjectedState;
+}
+
+/**
+ * Projected relationship state from events.
+ */
+export interface ProjectedRelationship {
+	pair: [string, string];
+	status: RelationshipStatus;
+	aToB: RelationshipAttitude;
+	bToA: RelationshipAttitude;
+}
+
+/**
+ * Serializable version of ProjectedState (uses object instead of Map).
+ */
+export interface SerializableProjectedState {
+	time: NarrativeDateTime | null;
+	location: LocationState | null;
+	characters: Record<string, ProjectedCharacter>;
+	relationships: Record<string, ProjectedRelationship>;
+}
+
+/**
+ * Unified event store that holds both narrative events and state events.
+ */
+export interface UnifiedEventStore {
+	/** Narrative events (Phase 1) */
+	narrativeEvents: NarrativeEvent[];
+	/** State events (Phase 2) - time, location, character changes */
+	stateEvents: StateEvent[];
+	/** Store version */
+	version: number;
+	/** Initial projection snapshot (first extraction with no prior events) */
+	initialProjection?: SerializableProjectedState;
+	/** Chapter snapshots for projection performance */
+	chapterSnapshots?: StateProjectionSnapshot[];
+	/** Cached projection invalidation marker - projections from this messageId onward need recalculation */
+	projectionInvalidFrom?: number;
+}
+
+/**
+ * Projected character state from events.
+ */
+export interface ProjectedCharacter {
+	name: string;
+	position: string;
+	activity?: string;
+	mood: string[];
+	physicalState: string[];
+	outfit: CharacterOutfit;
+}
+
+/**
+ * Projected state at a specific message.
+ * Computed by folding events onto a snapshot.
+ */
+export interface ProjectedState {
+	time: NarrativeDateTime | null;
+	location: LocationState | null;
+	// Note: climate is derived from time + location + forecastCache, not stored
+	characters: Map<string, ProjectedCharacter>;
+	relationships: Map<string, ProjectedRelationship>;
+}
+
+/**
+ * Per-message data in Phase 2 (minimal, events are in central store).
+ */
+export interface PerMessageEventData {
+	/** Event IDs generated from this message */
+	eventIds: string[];
+	/** When extraction happened */
+	extractedAt: string;
+}
+
+// ============================================
 // Constants
 // ============================================
 
-export const NARRATIVE_STATE_VERSION = 2;
+export const NARRATIVE_STATE_VERSION = 4;
 
 export const TENSION_LEVELS: readonly TensionLevel[] = [
 	'relaxed',
@@ -686,6 +1245,7 @@ export const MILESTONE_TYPES: readonly MilestoneType[] = [
 	'first_shared_activity',
 	'first_compliment',
 	'first_tease',
+	'first_flirt',
 	'first_helped',
 	'first_common_interest',
 	'first_outing',
@@ -724,3 +1284,125 @@ export const MILESTONE_TYPES: readonly MilestoneType[] = [
 	'major_argument',
 	'major_reconciliation',
 ];
+
+// ============================================
+// Type Guards
+// ============================================
+
+/**
+ * Check if a chapter is a DerivedChapter (v3 format with eventIds).
+ */
+export function isDerivedChapter(chapter: Chapter | DerivedChapter): chapter is DerivedChapter {
+	return 'eventIds' in chapter && Array.isArray((chapter as DerivedChapter).eventIds);
+}
+
+/**
+ * Check if a chapter is a legacy Chapter (v2 format with embedded events).
+ */
+export function isLegacyChapter(chapter: Chapter | DerivedChapter): chapter is Chapter {
+	return 'events' in chapter && Array.isArray((chapter as Chapter).events);
+}
+
+/**
+ * Check if a relationship is a DerivedRelationship (v3 format).
+ */
+export function isDerivedRelationship(
+	relationship: Relationship | DerivedRelationship,
+): relationship is DerivedRelationship {
+	return 'milestoneEventIds' in relationship;
+}
+
+/**
+ * Check if a relationship is a legacy Relationship (v2 format with embedded milestones).
+ */
+export function isLegacyRelationship(
+	relationship: Relationship | DerivedRelationship | ProjectedRelationship,
+): relationship is Relationship {
+	return (
+		'milestones' in relationship &&
+		Array.isArray((relationship as Relationship).milestones)
+	);
+}
+
+/**
+ * Check if a relationship is a ProjectedRelationship (projected from events).
+ * ProjectedRelationship has no milestones or milestoneEventIds - milestones are computed separately.
+ */
+export function isProjectedRelationship(
+	relationship: Relationship | DerivedRelationship | ProjectedRelationship,
+): relationship is ProjectedRelationship {
+	return !('milestones' in relationship) && !('milestoneEventIds' in relationship);
+}
+
+/**
+ * Type guard for UnifiedEventStore (v4+).
+ */
+export function isUnifiedEventStore(
+	store: EventStore | UnifiedEventStore | undefined,
+): store is UnifiedEventStore {
+	return store !== undefined && 'stateEvents' in store;
+}
+
+/**
+ * Type guard for legacy EventStore (v3).
+ */
+export function isLegacyEventStore(
+	store: EventStore | UnifiedEventStore | undefined,
+): store is EventStore {
+	return store !== undefined && 'events' in store && !('stateEvents' in store);
+}
+
+/**
+ * Mapping from event types to potential milestone types.
+ * Used by the event store to compute firstFor designations.
+ */
+export const EVENT_TYPE_TO_MILESTONE: Partial<Record<EventType, MilestoneType>> = {
+	// Bonding (friendly gate)
+	laugh: 'first_laugh',
+	gift: 'first_gift',
+	date: 'first_date',
+	i_love_you: 'first_i_love_you',
+	sleepover: 'first_sleepover',
+	shared_meal: 'first_shared_meal',
+	shared_activity: 'first_shared_activity',
+	compliment: 'first_compliment',
+	tease: 'first_tease',
+	flirt: 'first_flirt',
+	helped: 'first_helped',
+	common_interest: 'first_common_interest',
+	outing: 'first_outing',
+	// Physical intimacy
+	intimate_touch: 'first_touch',
+	intimate_kiss: 'first_kiss',
+	intimate_embrace: 'first_embrace',
+	intimate_heated: 'first_heated',
+	// Sexual milestones (atomic)
+	intimate_foreplay: 'first_foreplay',
+	intimate_oral: 'first_oral',
+	intimate_manual: 'first_manual',
+	intimate_penetrative: 'first_penetrative',
+	intimate_climax: 'first_climax',
+	// Emotional (close gate mappings)
+	emotionally_intimate: 'emotional_intimacy',
+	confession: 'confession',
+	secret_shared: 'secret_shared',
+	secret_revealed: 'secret_revealed',
+	supportive: 'first_support',
+	comfort: 'first_comfort',
+	forgiveness: 'reconciliation',
+	defended: 'defended',
+	crisis_together: 'crisis_together',
+	shared_vulnerability: 'first_vulnerability',
+	entrusted: 'trusted_with_task',
+	// Commitment
+	promise: 'promise_made',
+	betrayal: 'betrayal',
+	// Life events
+	exclusivity: 'promised_exclusivity',
+	marriage: 'marriage',
+	pregnancy: 'pregnancy',
+	childbirth: 'had_child',
+	// Conflicts
+	argument: 'first_conflict',
+	combat: 'first_conflict',
+};

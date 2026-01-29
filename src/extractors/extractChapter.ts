@@ -3,7 +3,7 @@
 // ============================================
 
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asString, asStringArray, asBoolean, isObject } from '../utils/json';
 import type {
@@ -16,6 +16,7 @@ import type {
 import { createEmptyChapter, createEmptyOutcomes, finalizeChapter } from '../state/chapters';
 import { formatEventsForInjection } from '../state/events';
 import { formatRelationshipsForPrompt } from '../state/relationships';
+import { debugWarn } from '../utils/debug';
 
 // ============================================
 // Schema & Example
@@ -80,13 +81,6 @@ const CHAPTER_EXAMPLE = JSON.stringify(
 );
 
 // ============================================
-// Constants
-// ============================================
-
-const SYSTEM_PROMPT =
-	'You are a narrative analysis agent for roleplay. Analyze chapter boundaries and summarize story progression. Return only valid JSON.';
-
-// ============================================
 // Public API
 // ============================================
 
@@ -120,13 +114,14 @@ export async function extractChapterBoundary(
 	const eventsStr = formatEventsForInjection(params.events);
 	const relationshipsStr = formatRelationshipsForPrompt(params.narrativeState.relationships);
 
-	const prompt = getPrompt('chapter_boundary')
+	const promptParts = getPromptParts('chapter_boundary');
+	const userPrompt = promptParts.user
 		.replace('{{currentEvents}}', eventsStr)
 		.replace('{{currentRelationships}}', relationshipsStr)
 		.replace('{{schema}}', schemaStr)
 		.replace('{{schemaExample}}', CHAPTER_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	try {
 		const response = await makeGeneratorRequest(llmMessages, {
@@ -168,7 +163,7 @@ export async function extractChapterBoundary(
 			chapter: finalizedChapter,
 		};
 	} catch (error) {
-		console.warn('[BlazeTracker] Chapter extraction failed:', error);
+		debugWarn('Chapter extraction failed:', error);
 		// On error, assume it's not a chapter boundary
 		return { isChapterBoundary: false };
 	}
@@ -218,4 +213,105 @@ function validateOutcomes(data: unknown): ChapterOutcomes {
 		secretsRevealed: asStringArray(data.secretsRevealed),
 		newComplications: asStringArray(data.newComplications),
 	};
+}
+
+// ============================================
+// Chapter Summary Regeneration
+// ============================================
+
+/** Minimal event info needed for chapter regeneration */
+export interface ChapterEventSummary {
+	summary: string;
+	tensionLevel: string;
+	tensionType: string;
+	witnesses?: string[];
+}
+
+export interface RegenerateChapterSummaryParams {
+	chapter: Chapter;
+	/** Event summaries for the chapter */
+	eventSummaries: ChapterEventSummary[];
+	narrativeState: NarrativeState;
+	abortSignal?: AbortSignal;
+}
+
+export interface RegeneratedChapterSummary {
+	title: string;
+	summary: string;
+	outcomes: ChapterOutcomes;
+}
+
+/**
+ * Format event summaries for chapter regeneration prompt.
+ */
+function formatEventSummaries(events: ChapterEventSummary[]): string {
+	if (events.length === 0) {
+		return 'No events in this chapter.';
+	}
+
+	return events
+		.map((event, i) => {
+			const lines: string[] = [];
+			lines.push(`[Event ${i + 1}]`);
+			lines.push(event.summary);
+			lines.push(`Tension: ${event.tensionLevel} ${event.tensionType}`);
+			if (event.witnesses && event.witnesses.length > 0) {
+				lines.push(`Witnesses: ${event.witnesses.join(', ')}`);
+			}
+			return lines.join('\n');
+		})
+		.join('\n\n');
+}
+
+/**
+ * Regenerate a chapter's summary based on updated events.
+ * Used when events in a completed chapter are edited.
+ */
+export async function regenerateChapterSummary(
+	params: RegenerateChapterSummaryParams,
+): Promise<RegeneratedChapterSummary> {
+	const settings = getSettings();
+
+	const schemaStr = JSON.stringify(CHAPTER_BOUNDARY_SCHEMA, null, 2);
+	const eventsStr = formatEventSummaries(params.eventSummaries);
+	const relationshipsStr = formatRelationshipsForPrompt(params.narrativeState.relationships);
+
+	const promptParts = getPromptParts('chapter_boundary');
+	const userPrompt = promptParts.user
+		.replace('{{currentEvents}}', eventsStr)
+		.replace('{{currentRelationships}}', relationshipsStr)
+		.replace('{{schema}}', schemaStr)
+		.replace('{{schemaExample}}', CHAPTER_EXAMPLE);
+
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
+
+	try {
+		const response = await makeGeneratorRequest(llmMessages, {
+			profileId: settings.profileId,
+			maxTokens: settings.maxResponseTokens,
+			temperature: getTemperature('chapter_boundary'),
+			abortSignal: params.abortSignal,
+		});
+
+		const parsed = parseJsonResponse(response, {
+			shape: 'object',
+			moduleName: 'BlazeTracker/ChapterRegen',
+		});
+
+		const result = validateChapterData(parsed);
+
+		return {
+			title: result.title || params.chapter.title,
+			summary: result.summary || params.chapter.summary,
+			outcomes: result.outcomes,
+		};
+	} catch (error) {
+		debugWarn('Chapter summary regeneration failed:', error);
+		// Return existing values on error
+		return {
+			title: params.chapter.title,
+			summary: params.chapter.summary,
+			outcomes: params.chapter.outcomes || createEmptyOutcomes(),
+		};
+	}
 }

@@ -31,6 +31,25 @@ import {
 	countExtractedMessages,
 	getLastExtractedMessageId,
 } from './helpers';
+import {
+	clearV2EventStore,
+	runV2ExtractionAll,
+	runV2Extraction,
+	getV2EventStore,
+	hasV2InitialSnapshot,
+	getExtractionAbortController,
+	resetAbortController,
+	getV2EventStoreForEditor,
+	buildSwipeContext,
+	abortExtraction,
+} from '../v2Bridge';
+import {
+	unmountAllV2ProjectionDisplays,
+	mountV2ProjectionDisplay,
+	setV2ExtractionInProgress,
+	updateV2ExtractionProgress,
+} from '../v2/ui/mountV2Display';
+import { openEventStoreModal } from './eventStoreModal';
 
 // Slash command types are retrieved from SillyTavern context at registration time
 
@@ -58,10 +77,80 @@ function getDefaultTime(): NarrativeDateTime {
 }
 
 // ============================================
-// Command: /bt-extract
+// Command: /bt-extract (V2)
 // ============================================
 
-async function extractCommand(args: Record<string, string>, _value: string): Promise<string> {
+async function extractCommand(args: Record<string, unknown>, _value: string): Promise<string> {
+	const context = SillyTavern.getContext() as STContext;
+
+	// Link ST's abort controller to BlazeTracker's internal abort
+	// Note: ST's SlashCommandAbortController fires 'abort' on the controller itself, not on signal
+	const stAbortController = args._abortController as
+		| { addEventListener: (type: string, listener: () => void) => void }
+		| undefined;
+	if (stAbortController) {
+		stAbortController.addEventListener('abort', () => {
+			abortExtraction();
+		});
+	}
+
+	// Parse message ID from args or use most recent
+	let messageId: number;
+	const idArg = args.id as string | undefined;
+	if (idArg !== undefined && idArg !== '') {
+		messageId = parseInt(idArg, 10);
+		if (isNaN(messageId) || messageId < 0 || messageId >= context.chat.length) {
+			return `Error: Invalid message ID "${idArg}". Valid range: 0-${context.chat.length - 1}`;
+		}
+	} else {
+		messageId = getMostRecentMessageId(context);
+	}
+
+	if (messageId <= 0) {
+		return 'Error: No messages to extract (chat is empty or only has system message)';
+	}
+
+	log('Slash command: V2 extracting state for message', messageId);
+
+	// Mark extraction in progress and mount display to show loading
+	setV2ExtractionInProgress(messageId, true);
+	mountV2ProjectionDisplay(messageId);
+
+	// Set batch flag to prevent GENERATION_ENDED handler from interfering
+	setBatchExtractionInProgress(true);
+
+	try {
+		const result = await runV2Extraction(messageId, {
+			onProgress: updateV2ExtractionProgress,
+			isManual: true,
+		});
+
+		if (result) {
+			mountV2ProjectionDisplay(messageId);
+			return `Successfully extracted state for message ${messageId}`;
+		} else {
+			return `Extraction returned no result for message ${messageId} (may have been aborted or already in progress)`;
+		}
+	} catch (e: any) {
+		log('Extraction error:', e);
+		return `Error extracting state: ${e.message}`;
+	} finally {
+		setV2ExtractionInProgress(messageId, false);
+		mountV2ProjectionDisplay(messageId);
+		resetAbortController();
+		// Delay clearing batch flag to ensure GENERATION_ENDED handler sees it
+		setTimeout(() => setBatchExtractionInProgress(false), 100);
+	}
+}
+
+// ============================================
+// Command: /bt-deprecated-extract (V1)
+// ============================================
+
+async function deprecatedExtractCommand(
+	args: Record<string, string>,
+	_value: string,
+): Promise<string> {
 	const context = SillyTavern.getContext() as STContext;
 
 	// Parse message ID from args or use most recent
@@ -100,10 +189,13 @@ async function extractCommand(args: Record<string, string>, _value: string): Pro
 }
 
 // ============================================
-// Command: /bt-chapter
+// Command: /bt-deprecated-chapter (V1)
 // ============================================
 
-async function chapterCommand(args: Record<string, string>, _value: string): Promise<string> {
+async function deprecatedChapterCommand(
+	args: Record<string, string>,
+	_value: string,
+): Promise<string> {
 	const context = SillyTavern.getContext() as STContext;
 	const lastMessageId = getMostRecentMessageId(context);
 
@@ -206,10 +298,13 @@ async function chapterCommand(args: Record<string, string>, _value: string): Pro
 }
 
 // ============================================
-// Command: /bt-extract-all
+// Command: /bt-deprecated-extract-all (V1)
 // ============================================
 
-async function extractAllCommand(_args: Record<string, string>, _value: string): Promise<string> {
+async function deprecatedExtractAllCommand(
+	_args: Record<string, string>,
+	_value: string,
+): Promise<string> {
 	const context = SillyTavern.getContext() as STContext;
 
 	const totalMessages = context.chat.length;
@@ -356,10 +451,13 @@ export async function runExtractAll(): Promise<{ extracted: number; failed: numb
 }
 
 // ============================================
-// Command: /bt-catchup
+// Command: /bt-deprecated-extract-remaining (V1)
 // ============================================
 
-async function catchupCommand(_args: Record<string, string>, _value: string): Promise<string> {
+async function deprecatedCatchupCommand(
+	_args: Record<string, string>,
+	_value: string,
+): Promise<string> {
 	const context = SillyTavern.getContext() as STContext;
 
 	const totalMessages = context.chat.length;
@@ -426,6 +524,248 @@ async function catchupCommand(_args: Record<string, string>, _value: string): Pr
 
 	const startInfo = lastExtractedId === -1 ? 'from start' : `from message ${startId}`;
 	return `Catchup complete (${startInfo}): ${results.join(', ')}`;
+}
+
+// ============================================
+// Command: /bt-extract-all (V2)
+// ============================================
+
+async function extractAllCommand(args: Record<string, unknown>, _value: string): Promise<string> {
+	const context = SillyTavern.getContext() as STContext;
+
+	// Link ST's abort controller to BlazeTracker's internal abort
+	// Note: ST's SlashCommandAbortController fires 'abort' on the controller itself, not on signal
+	const stAbortController = args._abortController as
+		| { addEventListener: (type: string, listener: () => void) => void }
+		| undefined;
+	if (stAbortController) {
+		stAbortController.addEventListener('abort', () => {
+			abortExtraction();
+		});
+	}
+
+	const totalMessages = context.chat.length;
+
+	if (totalMessages <= 1) {
+		return 'Error: No messages to extract (chat is empty or only has system message)';
+	}
+
+	// Show confirmation popup
+	const confirmMessage =
+		`This will run extraction on all messages.\n\n` +
+		`This will clear any existing state data.\n\n` +
+		`Messages: ${totalMessages - 1}\n\n` +
+		`Continue?`;
+
+	const confirmed =
+		(await (context as any).callGenericPopup?.(confirmMessage, 1 /* CONFIRM */)) ??
+		window.confirm(confirmMessage);
+
+	if (!confirmed) {
+		return 'Extraction cancelled.';
+	}
+
+	log('Slash command: running extraction on all messages');
+
+	// Clear existing v2 state
+	await clearV2EventStore();
+
+	// Clear v1 state from all messages and unmount v1 displays
+	unmountAllRoots();
+	for (let i = 1; i < totalMessages; i++) {
+		const message = context.chat[i];
+		if (message.extra && message.extra[EXTENSION_KEY]) {
+			delete message.extra[EXTENSION_KEY];
+		}
+	}
+
+	// Clear v1 narrative state
+	const freshNarrativeState = initializeNarrativeState();
+	setNarrativeState(freshNarrativeState);
+
+	// Save the cleared state
+	await context.saveChat();
+
+	// Unmount any existing v2 displays
+	unmountAllV2ProjectionDisplays();
+
+	let extracted = 0;
+	let failed = 0;
+	let aborted = false;
+
+	// Get abort controller for this extraction run
+	const abortController = getExtractionAbortController();
+
+	// Set batch flag to prevent GENERATION_ENDED handler from interfering
+	setBatchExtractionInProgress(true);
+
+	try {
+		const result = await runV2ExtractionAll(1, {
+			onProgress: progress => {
+				// Update the extraction progress display
+				updateV2ExtractionProgress(progress);
+			},
+			onMessageStart: (messageId: number) => {
+				// Set extraction state and mount the loading display
+				setV2ExtractionInProgress(messageId, true);
+				mountV2ProjectionDisplay(messageId);
+			},
+			onMessageEnd: (messageId: number) => {
+				// Clear extraction state and re-mount with the result
+				setV2ExtractionInProgress(messageId, false);
+				mountV2ProjectionDisplay(messageId);
+			},
+		});
+
+		extracted = result.extracted;
+		failed = result.failed;
+
+		// Check if aborted
+		if (abortController.signal.aborted) {
+			aborted = true;
+		}
+	} catch (e: any) {
+		if (e.name === 'AbortError' || abortController.signal.aborted) {
+			aborted = true;
+		} else {
+			log('Extraction error:', e);
+			return `Error during extraction: ${e.message}`;
+		}
+	} finally {
+		resetAbortController();
+		// Delay clearing batch flag to ensure GENERATION_ENDED handler sees it
+		setTimeout(() => setBatchExtractionInProgress(false), 100);
+	}
+
+	const results: string[] = [];
+	if (extracted > 0) results.push(`${extracted} extracted`);
+	if (failed > 0) results.push(`${failed} failed`);
+	if (aborted) results.push('aborted');
+
+	return `Extraction complete: ${results.join(', ')}`;
+}
+
+// ============================================
+// Command: /bt-extract-remaining (V2)
+// ============================================
+
+async function extractRemainingCommand(
+	args: Record<string, unknown>,
+	_value: string,
+): Promise<string> {
+	const context = SillyTavern.getContext() as STContext;
+
+	// Link ST's abort controller to BlazeTracker's internal abort
+	// Note: ST's SlashCommandAbortController fires 'abort' on the controller itself, not on signal
+	const stAbortController = args._abortController as
+		| { addEventListener: (type: string, listener: () => void) => void }
+		| undefined;
+	if (stAbortController) {
+		stAbortController.addEventListener('abort', () => {
+			abortExtraction();
+		});
+	}
+
+	const totalMessages = context.chat.length;
+
+	if (totalMessages <= 1) {
+		return 'Error: No messages to extract (chat is empty or only has system message)';
+	}
+
+	// Find the last message with v2 events
+	const store = getV2EventStore();
+	let lastExtractedId = -1;
+
+	if (hasV2InitialSnapshot()) {
+		// Find the highest message ID with events
+		const messageIds = store.getMessageIdsWithEvents();
+		if (messageIds.length > 0) {
+			lastExtractedId = messageIds[messageIds.length - 1];
+		}
+	}
+
+	// Determine starting point
+	const startId = lastExtractedId === -1 ? 1 : lastExtractedId + 1;
+
+	// Check if there's anything to extract
+	if (startId >= totalMessages) {
+		return 'Already caught up! All messages have been extracted.';
+	}
+
+	log('Slash command: extracting remaining messages from', startId);
+
+	let extracted = 0;
+	let failed = 0;
+	let aborted = false;
+
+	// Get abort controller for this extraction run
+	const abortController = getExtractionAbortController();
+
+	// Set batch flag to prevent GENERATION_ENDED handler from interfering
+	setBatchExtractionInProgress(true);
+
+	try {
+		const result = await runV2ExtractionAll(startId, {
+			onProgress: progress => {
+				updateV2ExtractionProgress(progress);
+			},
+			onMessageStart: (messageId: number) => {
+				setV2ExtractionInProgress(messageId, true);
+				mountV2ProjectionDisplay(messageId);
+			},
+			onMessageEnd: (messageId: number) => {
+				setV2ExtractionInProgress(messageId, false);
+				mountV2ProjectionDisplay(messageId);
+			},
+		});
+
+		extracted = result.extracted;
+		failed = result.failed;
+
+		// Check if aborted
+		if (abortController.signal.aborted) {
+			aborted = true;
+		}
+	} catch (e: any) {
+		if (e.name === 'AbortError' || abortController.signal.aborted) {
+			aborted = true;
+		} else {
+			log('Extraction error:', e);
+			return `Error during extraction: ${e.message}`;
+		}
+	} finally {
+		resetAbortController();
+		// Delay clearing batch flag to ensure GENERATION_ENDED handler sees it
+		setTimeout(() => setBatchExtractionInProgress(false), 100);
+	}
+
+	const results: string[] = [];
+	if (extracted > 0) results.push(`${extracted} extracted`);
+	if (failed > 0) results.push(`${failed} failed`);
+	if (aborted) results.push('aborted');
+
+	const startInfo = lastExtractedId === -1 ? 'from start' : `from message ${startId}`;
+	return `Extraction complete (${startInfo}): ${results.join(', ')}`;
+}
+
+// ============================================
+// Command: /bt-event-store
+// ============================================
+
+async function eventStoreCommand(_args: Record<string, string>, _value: string): Promise<string> {
+	const store = getV2EventStoreForEditor();
+
+	if (!store) {
+		return 'Error: No event store available. Run /bt-extract-all first.';
+	}
+
+	const context = SillyTavern.getContext() as STContext;
+	const swipeContext = buildSwipeContext(context);
+
+	// Open the event store modal
+	openEventStoreModal(store, swipeContext);
+
+	return '';
 }
 
 // ============================================
@@ -514,7 +854,11 @@ export function registerSlashCommands(): void {
 			return;
 		}
 
-		// /bt-extract - Extract state for a message
+		// ========================================
+		// V2 Commands (Current)
+		// ========================================
+
+		// /bt-extract - Extract state for a message (V2)
 		SlashCommandParser.addCommandObject(
 			SlashCommand.fromProps({
 				name: 'bt-extract',
@@ -543,38 +887,7 @@ export function registerSlashCommands(): void {
 			}),
 		);
 
-		// /bt-chapter - Force chapter break
-		SlashCommandParser.addCommandObject(
-			SlashCommand.fromProps({
-				name: 'bt-chapter',
-				callback: chapterCommand,
-				namedArgumentList: [
-					SlashCommandNamedArgument.fromProps({
-						name: 'title',
-						description:
-							'Override the auto-generated chapter title',
-						typeList: [ARGUMENT_TYPE.STRING],
-						isRequired: false,
-					}),
-				],
-				helpString: `
-				<div>
-					Force a chapter break at the current point in the narrative.
-					<br><br>
-					<strong>Usage:</strong>
-					<ul>
-						<li><code>/bt-chapter</code> - Create chapter with auto-generated title</li>
-						<li><code>/bt-chapter title="The Great Escape"</code> - Create chapter with custom title</li>
-					</ul>
-					<br>
-					Requires extracted state with at least one event. Run /bt-extract first if needed.
-				</div>
-			`,
-				returns: ARGUMENT_TYPE.STRING,
-			}),
-		);
-
-		// /bt-extract-all - Extract all messages (full reset)
+		// /bt-extract-all - Extract all messages (V2)
 		SlashCommandParser.addCommandObject(
 			SlashCommand.fromProps({
 				name: 'bt-extract-all',
@@ -584,25 +897,25 @@ export function registerSlashCommands(): void {
 					Extract BlazeTracker state for all messages in the chat.
 					<br><br>
 					<strong>WARNING:</strong> This command clears ALL existing BlazeTracker data
-					(relationships, chapters, events, per-message state) before starting fresh extraction.
+					before starting fresh extraction.
 					<br><br>
 					<strong>Usage:</strong>
 					<ul>
 						<li><code>/bt-extract-all</code> - Clear all state and re-extract everything</li>
 					</ul>
 					<br>
-					<em>Note: This can take a while for long chats as it makes multiple API calls.</em>
+					<em>Note: Click the stop button to abort extraction at any time.</em>
 				</div>
 			`,
 				returns: ARGUMENT_TYPE.STRING,
 			}),
 		);
 
-		// /bt-extract-remaining - Continue extraction from last extracted message
+		// /bt-extract-remaining - Continue extraction from last extracted message (V2)
 		SlashCommandParser.addCommandObject(
 			SlashCommand.fromProps({
 				name: 'bt-extract-remaining',
-				callback: catchupCommand,
+				callback: extractRemainingCommand,
 				helpString: `
 				<div>
 					Continue extracting from where you left off.
@@ -616,6 +929,32 @@ export function registerSlashCommands(): void {
 					</ul>
 					<br>
 					<em>Useful after importing a chat or if extraction was interrupted.</em>
+				</div>
+			`,
+				returns: ARGUMENT_TYPE.STRING,
+			}),
+		);
+
+		// /bt-event-store - View and navigate the event store
+		SlashCommandParser.addCommandObject(
+			SlashCommand.fromProps({
+				name: 'bt-event-store',
+				callback: eventStoreCommand,
+				helpString: `
+				<div>
+					Open the Event Store viewer to browse all events.
+					<br><br>
+					Shows all events in the event store with their status:
+					<ul>
+						<li>Canonical events (on the current swipe path)</li>
+						<li>Non-canonical events (from alternate swipes)</li>
+						<li>Deleted events</li>
+					</ul>
+					<br>
+					<strong>Usage:</strong>
+					<ul>
+						<li><code>/bt-event-store</code> - Open the event store viewer</li>
+					</ul>
 				</div>
 			`,
 				returns: ARGUMENT_TYPE.STRING,
@@ -644,8 +983,94 @@ export function registerSlashCommands(): void {
 			}),
 		);
 
+		// ========================================
+		// Deprecated V1 Commands
+		// ========================================
+
+		// /bt-deprecated-extract - V1 extraction
+		SlashCommandParser.addCommandObject(
+			SlashCommand.fromProps({
+				name: 'bt-deprecated-extract',
+				callback: deprecatedExtractCommand,
+				namedArgumentList: [
+					SlashCommandNamedArgument.fromProps({
+						name: 'id',
+						description:
+							'Message ID to extract (defaults to most recent)',
+						typeList: [ARGUMENT_TYPE.NUMBER],
+						isRequired: false,
+					}),
+				],
+				helpString: `
+				<div>
+					<strong>DEPRECATED:</strong> Use /bt-extract instead.
+					<br><br>
+					V1 extraction for backwards compatibility.
+				</div>
+			`,
+				returns: ARGUMENT_TYPE.STRING,
+			}),
+		);
+
+		// /bt-deprecated-chapter - V1 chapter command
+		SlashCommandParser.addCommandObject(
+			SlashCommand.fromProps({
+				name: 'bt-deprecated-chapter',
+				callback: deprecatedChapterCommand,
+				namedArgumentList: [
+					SlashCommandNamedArgument.fromProps({
+						name: 'title',
+						description:
+							'Override the auto-generated chapter title',
+						typeList: [ARGUMENT_TYPE.STRING],
+						isRequired: false,
+					}),
+				],
+				helpString: `
+				<div>
+					<strong>DEPRECATED:</strong> Chapter breaks are now automatic in V2.
+					<br><br>
+					V1 chapter command for backwards compatibility.
+				</div>
+			`,
+				returns: ARGUMENT_TYPE.STRING,
+			}),
+		);
+
+		// /bt-deprecated-extract-all - V1 extract all
+		SlashCommandParser.addCommandObject(
+			SlashCommand.fromProps({
+				name: 'bt-deprecated-extract-all',
+				callback: deprecatedExtractAllCommand,
+				helpString: `
+				<div>
+					<strong>DEPRECATED:</strong> Use /bt-extract-all instead.
+					<br><br>
+					V1 extract all for backwards compatibility.
+				</div>
+			`,
+				returns: ARGUMENT_TYPE.STRING,
+			}),
+		);
+
+		// /bt-deprecated-extract-remaining - V1 catchup
+		SlashCommandParser.addCommandObject(
+			SlashCommand.fromProps({
+				name: 'bt-deprecated-extract-remaining',
+				callback: deprecatedCatchupCommand,
+				helpString: `
+				<div>
+					<strong>DEPRECATED:</strong> Use /bt-extract-remaining instead.
+					<br><br>
+					V1 catchup command for backwards compatibility.
+				</div>
+			`,
+				returns: ARGUMENT_TYPE.STRING,
+			}),
+		);
+
 		log(
-			'Slash commands registered: /bt-extract, /bt-chapter, /bt-extract-all, /bt-extract-remaining, /bt-status',
+			'Slash commands registered: /bt-extract, /bt-extract-all, /bt-extract-remaining, /bt-event-store, /bt-status',
 		);
 	} catch (e) {
 		console.error(`[${EXTENSION_NAME}] Failed to register slash commands:`, e);

@@ -4,6 +4,8 @@
 
 import type {
 	Relationship,
+	DerivedRelationship,
+	ProjectedRelationship,
 	RelationshipAttitude,
 	RelationshipStatus,
 	RelationshipVersion,
@@ -11,6 +13,10 @@ import type {
 	MilestoneType,
 	NarrativeDateTime,
 } from '../types/state';
+import { isLegacyRelationship } from '../types/state';
+
+/** Union type for legacy, derived, and projected relationships */
+export type AnyRelationship = Relationship | DerivedRelationship | ProjectedRelationship;
 
 // ============================================
 // Pair Management
@@ -25,19 +31,34 @@ export function sortPair(char1: string, char2: string): [string, string] {
 }
 
 /**
+ * Derive a sorted pair from fromCharacter and towardCharacter.
+ * Returns null if either character is missing or empty.
+ * Used for directional relationship events where pair should be derived
+ * from the character names rather than stored explicitly.
+ */
+export function derivePair(
+	fromCharacter: string | undefined,
+	towardCharacter: string | undefined,
+): [string, string] | null {
+	if (!fromCharacter || !towardCharacter) return null;
+	return sortPair(fromCharacter, towardCharacter);
+}
+
+/**
  * Generate a deterministic key for a character pair.
  * The key is the same regardless of argument order.
+ * Always lowercased for case-insensitive comparison.
  */
 export function pairKey(char1: string, char2: string): string {
 	const [a, b] = sortPair(char1, char2);
-	return `${a}|${b}`;
+	return `${a}|${b}`.toLowerCase();
 }
 
 /**
  * Check if a relationship has a specific milestone type.
  */
 export function hasMilestone(relationship: Relationship, type: MilestoneType): boolean {
-	return relationship.milestones.some(m => m.type === type);
+	return (relationship.milestones ?? []).some(m => m.type === type);
 }
 
 /**
@@ -46,7 +67,7 @@ export function hasMilestone(relationship: Relationship, type: MilestoneType): b
  */
 export function findUnestablishedPairs(
 	characters: string[],
-	relationships: Relationship[],
+	relationships: AnyRelationship[],
 ): [string, string][] {
 	if (characters.length < 2) {
 		return [];
@@ -78,7 +99,7 @@ export function findUnestablishedPairs(
  * @param includeSecrets Whether to include secret knowledge (for dramatic irony)
  */
 export function formatRelationshipsForPrompt(
-	relationships: Relationship[],
+	relationships: AnyRelationship[],
 	presentCharacters?: string[],
 	includeSecrets: boolean = true,
 ): string {
@@ -86,13 +107,13 @@ export function formatRelationshipsForPrompt(
 		return 'No established relationships.';
 	}
 
-	// Filter to relationships involving present characters if specified
+	// Filter to relationships where BOTH characters are present
 	let relevantRelationships = relationships;
 	if (presentCharacters && presentCharacters.length > 0) {
 		const presentSet = new Set(presentCharacters.map(c => c.toLowerCase()));
 		relevantRelationships = relationships.filter(
 			r =>
-				presentSet.has(r.pair[0].toLowerCase()) ||
+				presentSet.has(r.pair[0].toLowerCase()) &&
 				presentSet.has(r.pair[1].toLowerCase()),
 		);
 	}
@@ -108,7 +129,7 @@ export function formatRelationshipsForPrompt(
  * Format a single relationship for display.
  */
 export function formatRelationship(
-	relationship: Relationship,
+	relationship: AnyRelationship,
 	includeSecrets: boolean = true,
 ): string {
 	const [charA, charB] = relationship.pair;
@@ -140,10 +161,14 @@ export function formatRelationship(
 		);
 	}
 
-	// Milestones
-	if (relationship.milestones.length > 0) {
+	// Milestones (only for legacy relationships)
+	if (
+		isLegacyRelationship(relationship) &&
+		relationship.milestones &&
+		relationship.milestones.length > 0
+	) {
 		lines.push(
-			`Milestones: ${relationship.milestones.map(m => m.type.replace(/_/g, ' ')).join(', ')}`,
+			`Milestones: ${relationship.milestones.map((m: MilestoneEvent) => m.type.replace(/_/g, ' ')).join(', ')}`,
 		);
 	}
 
@@ -200,6 +225,10 @@ export function createRelationship(
  * Add a milestone to a relationship (avoids duplicates).
  */
 export function addMilestone(relationship: Relationship, milestone: MilestoneEvent): void {
+	// Ensure milestones array exists
+	if (!relationship.milestones) {
+		relationship.milestones = [];
+	}
 	// Check if we already have this milestone type
 	if (!hasMilestone(relationship, milestone.type)) {
 		relationship.milestones.push(milestone);
@@ -289,6 +318,9 @@ export function clearMilestonesSince(
 	relationship: Relationship,
 	sinceTime: NarrativeDateTime,
 ): number {
+	if (!relationship.milestones) {
+		return 0;
+	}
 	const originalCount = relationship.milestones.length;
 	relationship.milestones = relationship.milestones.filter(
 		m => !isDateTimeOnOrAfter(m.timestamp, sinceTime),
@@ -316,6 +348,9 @@ export function clearAllMilestonesSince(
  * Returns the number of milestones removed.
  */
 export function clearMilestonesForMessage(relationship: Relationship, messageId: number): number {
+	if (!relationship.milestones) {
+		return 0;
+	}
 	const originalCount = relationship.milestones.length;
 	relationship.milestones = relationship.milestones.filter(m => m.messageId !== messageId);
 	return originalCount - relationship.milestones.length;
@@ -323,15 +358,19 @@ export function clearMilestonesForMessage(relationship: Relationship, messageId:
 
 /**
  * Remove milestones from all relationships that were created by a specific message.
+ * Only affects legacy relationships (DerivedRelationships have milestones in event store).
  * Returns the total number of milestones removed.
  */
 export function clearAllMilestonesForMessage(
-	relationships: Relationship[],
+	relationships: AnyRelationship[],
 	messageId: number,
 ): number {
 	let totalRemoved = 0;
 	for (const rel of relationships) {
-		totalRemoved += clearMilestonesForMessage(rel, messageId);
+		// Only legacy relationships have milestones array
+		if (isLegacyRelationship(rel)) {
+			totalRemoved += clearMilestonesForMessage(rel, messageId);
+		}
 	}
 	return totalRemoved;
 }
@@ -363,7 +402,7 @@ export function addRelationshipVersion(relationship: Relationship, messageId: nu
 			secrets: [...relationship.bToA.secrets],
 			wants: [...relationship.bToA.wants],
 		},
-		milestones: [...relationship.milestones],
+		milestones: [...(relationship.milestones ?? [])],
 	};
 
 	relationship.versions.push(version);
@@ -398,7 +437,7 @@ export function popVersionForMessage(relationship: Relationship, messageId: numb
 				secrets: [...previousVersion.bToA.secrets],
 				wants: [...previousVersion.bToA.wants],
 			};
-			relationship.milestones = [...previousVersion.milestones];
+			relationship.milestones = [...(previousVersion.milestones ?? [])];
 		}
 
 		return true;
@@ -442,28 +481,34 @@ export function getRelationshipAtMessage(
 
 /**
  * Get all relationships with their state as of a specific messageId.
- * Returns relationships with status/attitudes from the appropriate version.
- * Relationships without a version at or before the messageId are filtered out.
+ * For legacy relationships: returns with status/attitudes from the appropriate version.
+ * For derived relationships: returns as-is (they are always current).
+ * Legacy relationships without a version at or before the messageId are filtered out.
  */
 export function getRelationshipsAtMessage(
-	relationships: Relationship[],
+	relationships: AnyRelationship[],
 	messageId: number,
-): Relationship[] {
-	const result: Relationship[] = [];
+): AnyRelationship[] {
+	const result: AnyRelationship[] = [];
 
 	for (const rel of relationships) {
-		const version = getRelationshipAtMessage(rel, messageId);
-		if (version) {
-			// Return a relationship with the versioned state
-			result.push({
-				...rel,
-				status: version.status,
-				aToB: version.aToB,
-				bToA: version.bToA,
-				milestones: version.milestones,
-			});
+		if (isLegacyRelationship(rel)) {
+			const version = getRelationshipAtMessage(rel, messageId);
+			if (version) {
+				// Return a relationship with the versioned state
+				result.push({
+					...rel,
+					status: version.status,
+					aToB: version.aToB,
+					bToA: version.bToA,
+					milestones: version.milestones,
+				});
+			}
+			// No version found - skip this legacy relationship
+		} else {
+			// DerivedRelationships don't have versions, include as-is
+			result.push(rel);
 		}
-		// No version found - skip this relationship
 	}
 
 	return result;

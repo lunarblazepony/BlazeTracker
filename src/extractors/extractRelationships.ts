@@ -3,7 +3,7 @@
 // ============================================
 
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asStringArray, isObject } from '../utils/json';
 import type {
@@ -11,7 +11,6 @@ import type {
 	RelationshipStatus,
 	RelationshipAttitude,
 	RelationshipSignal,
-	TimestampedEvent,
 	NarrativeDateTime,
 } from '../types/state';
 import { RELATIONSHIP_STATUSES } from '../types/state';
@@ -22,8 +21,8 @@ import {
 	addRelationshipVersion,
 	addMilestone,
 } from '../state/relationships';
-import { formatEventsForInjection } from '../state/events';
 import type { LocationState } from './extractLocation';
+import { debugWarn } from '../utils/debug';
 
 // ============================================
 // Schema & Examples
@@ -140,11 +139,8 @@ function createRelationshipExample(char1: string, char2: string): string {
 }
 
 // ============================================
-// Constants
+// Helpers
 // ============================================
-
-const SYSTEM_PROMPT =
-	'You are a relationship analysis agent for roleplay. Extract and track character relationships with attention to asymmetry. Return only valid JSON.';
 
 /**
  * Get a descriptive time of day phrase from hour.
@@ -171,15 +167,6 @@ export interface ExtractInitialRelationshipParams {
 	abortSignal?: AbortSignal;
 }
 
-export interface UpdateRelationshipParams {
-	relationship: Relationship;
-	events: TimestampedEvent[];
-	messages: string;
-	messageId?: number;
-	isChapterBoundary?: boolean;
-	abortSignal?: AbortSignal;
-}
-
 /**
  * Extract the initial relationship state between two characters.
  */
@@ -192,13 +179,14 @@ export async function extractInitialRelationship(
 	const schemaStr = JSON.stringify(RELATIONSHIP_SCHEMA, null, 2);
 	const exampleStr = createRelationshipExample(pair[0], pair[1]);
 
-	const prompt = getPrompt('relationship_initial')
+	const promptParts = getPromptParts('relationship_initial');
+	const userPrompt = promptParts.user
 		.replace('{{messages}}', params.messages)
 		.replace('{{characterInfo}}', params.characterInfo)
 		.replace('{{schema}}', schemaStr)
 		.replace('{{schemaExample}}', exampleStr);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	try {
 		const response = await makeGeneratorRequest(llmMessages, {
@@ -242,64 +230,7 @@ export async function extractInitialRelationship(
 
 		return relationship;
 	} catch (error) {
-		console.warn('[BlazeTracker] Initial relationship extraction failed:', error);
-		return null;
-	}
-}
-
-/**
- * Update a relationship based on recent events.
- */
-export async function refreshRelationship(
-	params: UpdateRelationshipParams,
-): Promise<Relationship | null> {
-	const settings = getSettings();
-
-	const pair = params.relationship.pair;
-	const schemaStr = JSON.stringify(RELATIONSHIP_SCHEMA, null, 2);
-	const exampleStr = createRelationshipExample(pair[0], pair[1]);
-	const eventsStr = formatEventsForInjection(params.events);
-	const previousStr = formatPreviousRelationship(params.relationship);
-
-	const prompt = getPrompt('relationship_update')
-		.replace('{{previousState}}', previousStr)
-		.replace('{{currentEvents}}', eventsStr)
-		.replace('{{messages}}', params.messages)
-		.replace('{{schema}}', schemaStr)
-		.replace('{{schemaExample}}', exampleStr);
-
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
-
-	try {
-		const response = await makeGeneratorRequest(llmMessages, {
-			profileId: settings.profileId,
-			maxTokens: settings.maxResponseTokens,
-			temperature: getTemperature('relationship_update'),
-			abortSignal: params.abortSignal,
-		});
-
-		const parsed = parseJsonResponse(response, {
-			shape: 'object',
-			moduleName: 'BlazeTracker/Relationship',
-		});
-
-		// Build updated relationship, preserving history
-		const updated = buildRelationship(
-			pair,
-			parsed,
-			params.relationship,
-			params.messageId,
-		);
-
-		// If this is a chapter boundary, add a history snapshot
-		if (params.isChapterBoundary && updated) {
-			// Note: Chapter index should be provided by caller if needed
-			// For now we skip the snapshot creation here
-		}
-
-		return updated;
-	} catch (error) {
-		console.warn('[BlazeTracker] Relationship refresh failed:', error);
+		debugWarn('Initial relationship extraction failed:', error);
 		return null;
 	}
 }
@@ -317,7 +248,7 @@ export function updateRelationshipFromSignal(
 	const updated = { ...relationship };
 	updated.aToB = { ...updated.aToB };
 	updated.bToA = { ...updated.bToA };
-	updated.milestones = [...updated.milestones];
+	updated.milestones = [...(updated.milestones ?? [])];
 
 	const [charA, charB] = updated.pair;
 
@@ -413,39 +344,6 @@ export function updateRelationshipFromSignal(
 	}
 
 	return updated;
-}
-
-// ============================================
-// Helpers
-// ============================================
-
-function formatPreviousRelationship(relationship: Relationship): string {
-	const [charA, charB] = relationship.pair;
-
-	const lines = [
-		`Characters: ${charA} & ${charB}`,
-		`Status: ${relationship.status}`,
-		'',
-		`${charA}'s attitude toward ${charB}:`,
-		`  Feelings: ${relationship.aToB.feelings.join(', ') || 'none'}`,
-		`  Secrets: ${relationship.aToB.secrets.join('; ') || 'none'}`,
-		`  Wants: ${relationship.aToB.wants.join(', ') || 'none'}`,
-		'',
-		`${charB}'s attitude toward ${charA}:`,
-		`  Feelings: ${relationship.bToA.feelings.join(', ') || 'none'}`,
-		`  Secrets: ${relationship.bToA.secrets.join('; ') || 'none'}`,
-		`  Wants: ${relationship.bToA.wants.join(', ') || 'none'}`,
-	];
-
-	if (relationship.milestones.length > 0) {
-		lines.push('');
-		lines.push('Milestones:');
-		for (const m of relationship.milestones) {
-			lines.push(`  - ${m.type}: ${m.description}`);
-		}
-	}
-
-	return lines.join('\n');
 }
 
 /**
@@ -693,7 +591,7 @@ function buildRelationship(
 	// Apply maximum cap based on milestones (only for positive statuses)
 	// This prevents relationships from jumping too high without the requisite milestones
 	if (existing && currentRank > 0) {
-		const maxStatus = inferMaximumStatus(existing.milestones);
+		const maxStatus = inferMaximumStatus(existing.milestones ?? []);
 		const maxRank = getStatusRank(maxStatus);
 		if (currentRank > maxRank) {
 			currentRank = maxRank;

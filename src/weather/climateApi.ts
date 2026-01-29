@@ -7,6 +7,7 @@
 
 import type { ClimateNormals } from './types';
 import { getClimateNormalsFromFallback } from './fallbackProfiles';
+import { debugWarn, errorLog } from '../utils/debug';
 
 // ============================================
 // Constants
@@ -66,9 +67,7 @@ export async function geocodeLocation(
 		});
 
 		if (!response.ok) {
-			console.warn(
-				`[BlazeTracker] Geocoding failed for "${placeName}": ${response.status}`,
-			);
+			debugWarn(`Geocoding failed for "${placeName}": ${response.status}`);
 			geocodeCache.set(cacheKey, null);
 			return null;
 		}
@@ -76,7 +75,7 @@ export async function geocodeLocation(
 		const data = await response.json();
 
 		if (!Array.isArray(data) || data.length === 0) {
-			console.warn(`[BlazeTracker] No geocoding results for "${placeName}"`);
+			debugWarn(`No geocoding results for "${placeName}"`);
 			geocodeCache.set(cacheKey, null);
 			return null;
 		}
@@ -89,7 +88,7 @@ export async function geocodeLocation(
 		geocodeCache.set(cacheKey, result);
 		return result;
 	} catch (error) {
-		console.error(`[BlazeTracker] Geocoding error for "${placeName}":`, error);
+		errorLog(`Geocoding error for "${placeName}":`, error);
 		geocodeCache.set(cacheKey, null);
 		return null;
 	}
@@ -132,7 +131,7 @@ export async function fetchClimateNormals(
 		const validData = allData.filter(d => d !== null) as MonthData[];
 
 		if (validData.length === 0) {
-			console.warn(`[BlazeTracker] No climate data available, using fallback`);
+			debugWarn(`No climate data available, using fallback`);
 			return getFallbackNormals(latitude, longitude, month, fallbackClimateType);
 		}
 
@@ -141,7 +140,7 @@ export async function fetchClimateNormals(
 		climateCache.set(cacheKey, normals);
 		return normals;
 	} catch (error) {
-		console.error(`[BlazeTracker] Climate API error:`, error);
+		errorLog(`Climate API error:`, error);
 		return getFallbackNormals(latitude, longitude, month, fallbackClimateType);
 	}
 }

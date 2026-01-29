@@ -75,22 +75,41 @@ export const defaultSettings: BlazeTrackerSettings = {
 
 // Default temperatures for each extractor prompt
 export const defaultTemperatures: Record<string, number> = {
+	// Time
 	time_datetime: 0.3,
 	time_delta: 0.3,
+	// Location
 	location_initial: 0.5,
 	location_update: 0.5,
+	location_props: 0.5,
+	// Climate
 	climate_initial: 0.3,
 	climate_update: 0.3,
-	climate_location_map: 0.4,
+	// Characters (granular extractors)
 	characters_initial: 0.7,
-	characters_update: 0.7,
+	characters_presence: 0.5,
+	characters_position: 0.5,
+	characters_activity: 0.6,
+	characters_mood: 0.6,
+	characters_outfit: 0.5,
+	characters_physical: 0.5,
+	// Scene
 	scene_initial: 0.6,
 	scene_update: 0.6,
+	// Event
 	event_extract: 0.4,
+	// Chapter
 	chapter_boundary: 0.5,
+	// Relationship
 	relationship_initial: 0.6,
-	relationship_update: 0.6,
+	// Relationship attitudes (event-sourced)
+	relationship_feelings: 0.4,
+	relationship_secrets: 0.4,
+	relationship_wants: 0.4,
+	relationship_status: 0.3,
+	// Milestones
 	milestone_description: 0.7,
+	milestone_confirm: 0.2,
 };
 
 /**

@@ -1,5 +1,5 @@
 import { getSettings, getTemperature } from '../settings';
-import { getPrompt } from './prompts';
+import { getPromptParts } from '../prompts';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse, asString, asStringArray } from '../utils/json';
 import type { LocationState } from '../types/state';
@@ -56,13 +56,6 @@ const LOCATION_EXAMPLE = JSON.stringify(
 );
 
 // ============================================
-// Constants
-// ============================================
-
-const SYSTEM_PROMPT =
-	'You are a location analysis agent for roleplay scenes. Return only valid JSON.';
-
-// ============================================
 // Public API
 // ============================================
 
@@ -76,13 +69,14 @@ export async function extractLocation(
 	const settings = getSettings();
 	const schemaStr = JSON.stringify(LOCATION_SCHEMA, null, 2);
 
-	const prompt = isInitial
-		? getPrompt('location_initial')
+	const promptParts = getPromptParts(isInitial ? 'location_initial' : 'location_update');
+	const userPrompt = isInitial
+		? promptParts.user
 				.replace('{{characterInfo}}', characterInfo)
 				.replace('{{messages}}', messages)
 				.replace('{{schema}}', schemaStr)
 				.replace('{{schemaExample}}', LOCATION_EXAMPLE)
-		: getPrompt('location_update')
+		: promptParts.user
 				.replace(
 					'{{previousState}}',
 					JSON.stringify(previousLocation, null, 2),
@@ -91,7 +85,7 @@ export async function extractLocation(
 				.replace('{{schema}}', schemaStr)
 				.replace('{{schemaExample}}', LOCATION_EXAMPLE);
 
-	const llmMessages = buildExtractionMessages(SYSTEM_PROMPT, prompt);
+	const llmMessages = buildExtractionMessages(promptParts.system, userPrompt);
 
 	const response = await makeGeneratorRequest(llmMessages, {
 		profileId: settings.profileId,

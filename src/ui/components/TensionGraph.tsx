@@ -1,9 +1,17 @@
 // ============================================
-// Tension Graph Component
+// Tension Graph Component (using Recharts)
 // ============================================
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo } from 'react';
+import {
+	LineChart,
+	Line,
+	XAxis,
+	YAxis,
+	Tooltip,
+	ResponsiveContainer,
+	ReferenceLine,
+} from 'recharts';
 import type { TimestampedEvent, TensionLevel } from '../../types/state';
 import { getTensionColor, getTensionValue, getTensionLevelIcon } from '../icons';
 
@@ -15,22 +23,23 @@ interface TensionGraphProps {
 	events: TimestampedEvent[];
 	/** If not provided, graph will fill its container */
 	width?: number;
-	/** If not provided, defaults to 250 or fills container */
+	/** If not provided, defaults to 250 */
 	height?: number;
 }
 
-interface TooltipState {
-	visible: boolean;
-	x: number;
-	y: number;
-	event: TimestampedEvent | null;
+interface DataPoint {
+	time: number; // minutes from epoch for X axis
+	tension: number; // 1-7 for Y axis
+	tensionLevel: TensionLevel;
+	tensionType?: string;
+	summary: string;
+	displayTime: string;
 }
 
 // ============================================
 // Constants
 // ============================================
 
-const PADDING = { top: 25, right: 20, bottom: 30, left: 50 };
 const TENSION_LEVELS: TensionLevel[] = [
 	'relaxed',
 	'aware',
@@ -46,329 +55,198 @@ const TENSION_LEVELS: TensionLevel[] = [
 // ============================================
 
 /**
- * Calculate the time span in minutes between first and last event.
+ * Convert a timestamp to total minutes for X-axis positioning.
  */
-function getTimeSpanMinutes(events: TimestampedEvent[]): number {
-	if (events.length < 2) return 0;
-	const first = events[0].timestamp;
-	const last = events[events.length - 1].timestamp;
-
-	// Convert to minutes since midnight for comparison
-	const firstMinutes = first.hour * 60 + first.minute;
-	const lastMinutes = last.hour * 60 + last.minute;
-
-	// Handle day boundaries (simple approach - assume same day or next day)
-	let diff = lastMinutes - firstMinutes;
-	if (diff < 0) diff += 24 * 60; // Crossed midnight
-
-	return diff;
+function timestampToMinutes(ts: TimestampedEvent['timestamp']): number {
+	const day = ts.day ?? 1;
+	return day * 24 * 60 + ts.hour * 60 + ts.minute;
 }
 
 /**
- * Format time based on span - show minutes if the span is short.
+ * Format minutes to display time string.
  */
-function formatTimeForSpan(event: TimestampedEvent, spanMinutes: number): string {
-	const dt = event.timestamp;
-	const hour12 = dt.hour % 12 || 12;
-	const ampm = dt.hour < 12 ? 'a' : 'p';
-	const minute = dt.minute.toString().padStart(2, '0');
+function formatTime(minutes: number): string {
+	const minutesInDay = minutes % (24 * 60);
+	const hour = Math.floor(minutesInDay / 60) % 24;
+	const minute = Math.floor(minutesInDay % 60);
+	const hour12 = hour % 12 || 12;
+	const ampm = hour < 12 ? 'AM' : 'PM';
+	return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
+}
 
-	// If span is less than 2 hours, show minutes
-	if (spanMinutes < 120) {
-		return `${hour12}:${minute}${ampm}`;
-	}
-	// If span is less than 6 hours, show minutes on the hour boundaries
-	if (spanMinutes < 360) {
-		return dt.minute === 0 ? `${hour12}${ampm}` : `${hour12}:${minute}${ampm}`;
-	}
-	// Otherwise just show hour
-	return `${hour12}${ampm}`;
+/**
+ * Custom Y-axis tick with tension icon.
+ */
+function CustomYAxisTick(props: {
+	x?: string | number;
+	y?: string | number;
+	payload?: { value: number };
+}) {
+	const { x, y, payload } = props;
+	if (x === undefined || y === undefined || !payload) return null;
+
+	const level = TENSION_LEVELS[payload.value - 1];
+	if (!level) return null;
+	const iconClass = getTensionLevelIcon(level);
+	const color = getTensionColor(level);
+
+	return (
+		<g transform={`translate(${x},${y})`}>
+			<foreignObject x={-30} y={-10} width={25} height={20}>
+				<i
+					className={iconClass}
+					style={{ color, fontSize: '14px' }}
+					title={level}
+				/>
+			</foreignObject>
+		</g>
+	);
+}
+
+/**
+ * Custom tooltip content.
+ */
+function CustomTooltip({
+	active,
+	payload,
+}: {
+	active?: boolean;
+	payload?: Array<{ payload: DataPoint }>;
+}) {
+	if (!active || !payload || !payload[0]) return null;
+
+	const data = payload[0].payload;
+	const color = getTensionColor(data.tensionLevel);
+
+	return (
+		<div
+			className="bt-graph-tooltip"
+			style={{ position: 'relative', transform: 'none' }}
+		>
+			<div className="bt-tooltip-level" style={{ color }}>
+				{data.tensionLevel} {data.tensionType && `(${data.tensionType})`}
+			</div>
+			<div className="bt-tooltip-time">{data.displayTime}</div>
+			<div className="bt-tooltip-summary">{data.summary}</div>
+		</div>
+	);
+}
+
+/**
+ * Custom dot renderer with tension-based colors.
+ */
+function CustomDot(props: { cx?: number; cy?: number; payload?: DataPoint }) {
+	const { cx, cy, payload } = props;
+	if (cx === undefined || cy === undefined || !payload) return null;
+
+	return (
+		<circle
+			cx={cx}
+			cy={cy}
+			r={6}
+			fill={getTensionColor(payload.tensionLevel)}
+			stroke="#fff"
+			strokeWidth={2}
+			className="bt-graph-point"
+		/>
+	);
 }
 
 // ============================================
 // Component
 // ============================================
 
-export function TensionGraph({ events, width: propWidth, height: propHeight }: TensionGraphProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const [dimensions, setDimensions] = useState({
-		width: propWidth ?? 400,
-		height: propHeight ?? 250,
-	});
-	const [tooltip, setTooltip] = useState<TooltipState>({
-		visible: false,
-		x: 0,
-		y: 0,
-		event: null,
-	});
+export function TensionGraph({ events, width, height = 250 }: TensionGraphProps) {
+	// Convert events to chart data
+	const data = useMemo<DataPoint[]>(() => {
+		return events.map(event => ({
+			time: timestampToMinutes(event.timestamp),
+			tension: getTensionValue(event.tensionLevel),
+			tensionLevel: event.tensionLevel,
+			tensionType: event.tensionType,
+			summary: event.summary,
+			displayTime: formatTime(timestampToMinutes(event.timestamp)),
+		}));
+	}, [events]);
 
-	// Use ResizeObserver to track container size when no fixed dimensions provided
-	useEffect(() => {
-		if (propWidth && propHeight) {
-			setDimensions({ width: propWidth, height: propHeight });
-			return;
-		}
-
-		const container = containerRef.current;
-		if (!container) return;
-
-		const observer = new ResizeObserver(entries => {
-			for (const entry of entries) {
-				const { width, height } = entry.contentRect;
-				if (width > 0 && height > 0) {
-					setDimensions({
-						width: propWidth ?? width,
-						height: propHeight ?? Math.max(250, height),
-					});
-				}
-			}
-		});
-
-		observer.observe(container);
-		return () => observer.disconnect();
-	}, [propWidth, propHeight]);
-
-	const width = dimensions.width;
-	const height = dimensions.height;
-
-	// Calculate dimensions
-	const graphWidth = width - PADDING.left - PADDING.right;
-	const graphHeight = height - PADDING.top - PADDING.bottom;
-
-	// Calculate time span for smart formatting
-	const timeSpanMinutes = useMemo(() => getTimeSpanMinutes(events), [events]);
-
-	// Generate points for the line
-	const points = useMemo(() => {
-		if (events.length === 0) return [];
-
-		return events.map((event, index) => {
-			const x =
-				PADDING.left +
-				(index / Math.max(events.length - 1, 1)) * graphWidth;
-			const tensionValue = getTensionValue(event.tensionLevel);
-			const y =
-				PADDING.top + graphHeight - ((tensionValue - 1) / 6) * graphHeight;
-			return { x, y, event };
-		});
-	}, [events, graphWidth, graphHeight]);
-
-	// Generate path for the line
-	const linePath = useMemo(() => {
-		if (points.length === 0) return '';
-		if (points.length === 1) return '';
-
-		return points
-			.map((point, i) => {
-				return `${i === 0 ? 'M' : 'L'} ${point.x} ${point.y}`;
-			})
-			.join(' ');
-	}, [points]);
-
-	// Handle mouse events - use viewport coordinates for portal positioning
-	const handlePointEnter = (point: (typeof points)[0], e: React.MouseEvent) => {
-		setTooltip({
-			visible: true,
-			x: e.clientX,
-			y: e.clientY - 10,
-			event: point.event,
-		});
-	};
-
-	const handlePointLeave = () => {
-		setTooltip(prev => ({ ...prev, visible: false }));
-	};
+	// Calculate time domain
+	const timeDomain = useMemo(() => {
+		if (data.length === 0) return [0, 1];
+		const times = data.map(d => d.time);
+		const min = Math.min(...times);
+		const max = Math.max(...times);
+		// Add small padding if all events at same time
+		if (min === max) return [min - 30, max + 30];
+		return [min, max];
+	}, [data]);
 
 	if (events.length === 0) {
 		return (
-			<div className="bt-tension-graph bt-empty" ref={containerRef}>
+			<div className="bt-tension-graph bt-empty">
 				<p>No events to graph.</p>
 			</div>
 		);
 	}
 
+	const chart = (
+		<LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+			{/* Grid lines for each tension level */}
+			{TENSION_LEVELS.map((_, i) => (
+				<ReferenceLine
+					key={i}
+					y={i + 1}
+					stroke="#333"
+					strokeDasharray="2 2"
+				/>
+			))}
+
+			<XAxis
+				dataKey="time"
+				type="number"
+				domain={timeDomain}
+				tickFormatter={formatTime}
+				stroke="#666"
+				tick={{ fill: '#999', fontSize: 10 }}
+				tickLine={{ stroke: '#666' }}
+			/>
+
+			<YAxis
+				domain={[1, 7]}
+				ticks={[1, 2, 3, 4, 5, 6, 7]}
+				tick={CustomYAxisTick}
+				stroke="#666"
+				tickLine={{ stroke: '#666' }}
+				width={40}
+			/>
+
+			<Tooltip content={<CustomTooltip />} />
+
+			<Line
+				type="linear"
+				dataKey="tension"
+				stroke="#888"
+				strokeWidth={2}
+				dot={<CustomDot />}
+				activeDot={{ r: 8, stroke: '#fff', strokeWidth: 2 }}
+				isAnimationActive={false}
+			/>
+		</LineChart>
+	);
+
+	// Use ResponsiveContainer if no fixed width
+	if (width) {
+		return (
+			<div className="bt-tension-graph" style={{ width, height }}>
+				{React.cloneElement(chart, { width, height })}
+			</div>
+		);
+	}
+
 	return (
-		<div className="bt-tension-graph" ref={containerRef}>
-			<svg width={width} height={height} className="bt-tension-svg">
-				{/* Y-axis labels with icons */}
-				{TENSION_LEVELS.map((level, i) => {
-					const y = PADDING.top + graphHeight - (i / 6) * graphHeight;
-					const iconClass = getTensionLevelIcon(level);
-					const color = getTensionColor(level);
-					return (
-						<g key={level}>
-							<line
-								x1={PADDING.left - 5}
-								y1={y}
-								x2={PADDING.left}
-								y2={y}
-								stroke="#666"
-								strokeWidth={1}
-							/>
-							{/* Use foreignObject to render HTML icon */}
-							<foreignObject
-								x={PADDING.left - 40}
-								y={y - 10}
-								width={35}
-								height={20}
-							>
-								<i
-									className={iconClass}
-									style={{
-										color,
-										fontSize: '14px',
-										display: 'block',
-									}}
-									title={level}
-								/>
-							</foreignObject>
-							{/* Grid line */}
-							<line
-								x1={PADDING.left}
-								y1={y}
-								x2={width - PADDING.right}
-								y2={y}
-								stroke="#333"
-								strokeWidth={1}
-								strokeDasharray="2,2"
-							/>
-						</g>
-					);
-				})}
-
-				{/* X-axis */}
-				<line
-					x1={PADDING.left}
-					y1={height - PADDING.bottom}
-					x2={width - PADDING.right}
-					y2={height - PADDING.bottom}
-					stroke="#666"
-					strokeWidth={1}
-				/>
-
-				{/* Y-axis */}
-				<line
-					x1={PADDING.left}
-					y1={PADDING.top}
-					x2={PADDING.left}
-					y2={height - PADDING.bottom}
-					stroke="#666"
-					strokeWidth={1}
-				/>
-
-				{/* Line path */}
-				{linePath && (
-					<path
-						d={linePath}
-						fill="none"
-						stroke="#888"
-						strokeWidth={2}
-						strokeLinejoin="round"
-						strokeLinecap="round"
-					/>
-				)}
-
-				{/* Data points */}
-				{points.map((point, i) => (
-					<circle
-						key={i}
-						cx={point.x}
-						cy={point.y}
-						r={6}
-						fill={getTensionColor(point.event.tensionLevel)}
-						stroke="#fff"
-						strokeWidth={2}
-						className="bt-graph-point"
-						onMouseEnter={e => handlePointEnter(point, e)}
-						onMouseLeave={handlePointLeave}
-					/>
-				))}
-
-				{/* X-axis time labels (show first, middle, last) */}
-				{events.length > 0 && (
-					<>
-						<text
-							x={PADDING.left}
-							y={height - PADDING.bottom + 15}
-							textAnchor="start"
-							className="bt-graph-label"
-							fontSize={10}
-							fill="#999"
-						>
-							{formatTimeForSpan(
-								events[0],
-								timeSpanMinutes,
-							)}
-						</text>
-						{events.length > 2 && (
-							<text
-								x={PADDING.left + graphWidth / 2}
-								y={height - PADDING.bottom + 15}
-								textAnchor="middle"
-								className="bt-graph-label"
-								fontSize={10}
-								fill="#999"
-							>
-								{formatTimeForSpan(
-									events[
-										Math.floor(
-											events.length /
-												2,
-										)
-									],
-									timeSpanMinutes,
-								)}
-							</text>
-						)}
-						{events.length > 1 && (
-							<text
-								x={width - PADDING.right}
-								y={height - PADDING.bottom + 15}
-								textAnchor="end"
-								className="bt-graph-label"
-								fontSize={10}
-								fill="#999"
-							>
-								{formatTimeForSpan(
-									events[events.length - 1],
-									timeSpanMinutes,
-								)}
-							</text>
-						)}
-					</>
-				)}
-			</svg>
-
-			{/* Tooltip - rendered via portal to escape overflow clipping */}
-			{tooltip.visible &&
-				tooltip.event &&
-				createPortal(
-					<div
-						className="bt-graph-tooltip"
-						style={{
-							position: 'fixed',
-							left: tooltip.x,
-							top: tooltip.y,
-							transform: 'translate(-50%, -100%)',
-						}}
-					>
-						<div
-							className="bt-tooltip-level"
-							style={{
-								color: getTensionColor(
-									tooltip.event.tensionLevel,
-								),
-							}}
-						>
-							{tooltip.event.tensionLevel}{' '}
-							{tooltip.event.tensionType}
-						</div>
-						<div className="bt-tooltip-summary">
-							{tooltip.event.summary}
-						</div>
-					</div>,
-					document.body,
-				)}
+		<div className="bt-tension-graph">
+			<ResponsiveContainer width="100%" height={height}>
+				{chart}
+			</ResponsiveContainer>
 		</div>
 	);
 }

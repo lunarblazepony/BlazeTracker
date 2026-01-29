@@ -1,0 +1,501 @@
+/* BlazeTracker Card Defaults Modal */
+
+/* Modal overlay */
+.bt-card-defaults-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.7);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Modal container */
+.bt-card-defaults-modal {
+	background: var(--SmartThemeBotMesBlurTintColor, #1a1a1a);
+	border-radius: 8px;
+	width: 90%;
+	max-width: 600px;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Modal header */
+.bt-card-defaults-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	background: rgba(0, 0, 0, 0.2);
+}
+
+.bt-card-defaults-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 1.1em;
+	font-weight: 600;
+	color: var(--SmartThemeQuoteColor, #f80);
+}
+
+.bt-card-defaults-title i {
+	font-size: 1.2em;
+}
+
+.bt-card-defaults-close {
+	background: none;
+	border: none;
+	color: var(--SmartThemeBodyColor, #aaa);
+	font-size: 1.3em;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: background 0.2s, color 0.2s;
+}
+
+.bt-card-defaults-close:hover {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+}
+
+/* Modal body - scrollable */
+.bt-card-defaults-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px 20px;
+}
+
+/* Save indicator */
+.bt-card-defaults-save-indicator {
+	padding: 4px 8px;
+	font-size: 0.8em;
+	opacity: 0.7;
+	color: var(--SmartThemeEmColor, #8af);
+}
+
+.bt-card-defaults-save-indicator.saving {
+	color: var(--SmartThemeQuoteColor, #f80);
+}
+
+/* Section (collapsible drawer) */
+.bt-defaults-section {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	margin-bottom: 12px;
+	background: rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+}
+
+.bt-defaults-section:last-child {
+	margin-bottom: 0;
+}
+
+/* Section header */
+.bt-defaults-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 14px;
+	cursor: pointer;
+	background: rgba(0, 0, 0, 0.1);
+	user-select: none;
+	transition: background 0.2s;
+}
+
+.bt-defaults-section-header:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.bt-defaults-section-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 500;
+}
+
+.bt-defaults-section-title i {
+	color: var(--SmartThemeQuoteColor, #f80);
+	width: 18px;
+	text-align: center;
+}
+
+.bt-defaults-section-toggle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.bt-defaults-section-arrow {
+	color: var(--SmartThemeBodyColor, #888);
+	transition: transform 0.2s;
+}
+
+.bt-defaults-section.expanded .bt-defaults-section-arrow {
+	transform: rotate(180deg);
+}
+
+/* Enable checkbox */
+.bt-defaults-enable-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.85em;
+	color: var(--SmartThemeBodyColor, #aaa);
+	cursor: pointer;
+}
+
+.bt-defaults-enable-label input[type='checkbox'] {
+	accent-color: var(--SmartThemeQuoteColor, #f80);
+}
+
+/* Section content */
+.bt-defaults-section-content {
+	padding: 0 14px;
+	max-height: 0;
+	overflow: hidden;
+	transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.bt-defaults-section.expanded .bt-defaults-section-content {
+	padding: 14px;
+	max-height: 2000px;
+}
+
+/* Section content when disabled */
+.bt-defaults-section-content.disabled {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Form fields */
+.bt-defaults-field {
+	margin-bottom: 14px;
+}
+
+.bt-defaults-field:last-child {
+	margin-bottom: 0;
+}
+
+.bt-defaults-field > label {
+	display: block;
+	font-size: 0.85em;
+	color: var(--SmartThemeBodyColor, #aaa);
+	margin-bottom: 5px;
+}
+
+.bt-defaults-field input[type='text'],
+.bt-defaults-field input[type='datetime-local'],
+.bt-defaults-field select,
+.bt-defaults-field textarea {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.3);
+	color: var(--SmartThemeBodyColor, #e0e0e0);
+	font-size: 0.95em;
+}
+
+.bt-defaults-field input:focus,
+.bt-defaults-field select:focus,
+.bt-defaults-field textarea:focus {
+	outline: none;
+	border-color: var(--SmartThemeQuoteColor, #f80);
+}
+
+.bt-defaults-field input::placeholder {
+	color: var(--SmartThemeBodyColor, #666);
+	opacity: 0.6;
+}
+
+/* Select dropdown */
+.bt-defaults-field select {
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	padding-right: 30px;
+}
+
+/* Row layout for two fields */
+.bt-defaults-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+/* Outfit slot row */
+.bt-defaults-outfit-slot {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.bt-defaults-outfit-slot:last-child {
+	margin-bottom: 0;
+}
+
+.bt-defaults-outfit-slot > label {
+	width: 80px;
+	font-size: 0.85em;
+	color: var(--SmartThemeBodyColor, #aaa);
+	text-transform: capitalize;
+}
+
+.bt-defaults-outfit-slot > input[type='text'] {
+	flex: 1;
+	padding: 6px 8px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.3);
+	color: var(--SmartThemeBodyColor, #e0e0e0);
+	font-size: 0.9em;
+}
+
+.bt-defaults-outfit-slot > input[type='text']:focus {
+	outline: none;
+	border-color: var(--SmartThemeQuoteColor, #f80);
+}
+
+.bt-defaults-outfit-slot > input[type='text']:disabled {
+	opacity: 0.4;
+}
+
+.bt-defaults-outfit-nothing {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.8em;
+	color: var(--SmartThemeBodyColor, #888);
+	white-space: nowrap;
+}
+
+.bt-defaults-outfit-nothing input[type='checkbox'] {
+	accent-color: var(--SmartThemeQuoteColor, #f80);
+}
+
+/* Relationship card */
+.bt-defaults-relationship {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	padding: 12px;
+	margin-bottom: 12px;
+	background: rgba(0, 0, 0, 0.15);
+}
+
+.bt-defaults-relationship-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.bt-defaults-relationship-target {
+	flex: 1;
+}
+
+.bt-defaults-relationship-remove {
+	background: none;
+	border: none;
+	color: var(--SmartThemeBodyColor, #888);
+	cursor: pointer;
+	padding: 4px 8px;
+	font-size: 1em;
+	transition: color 0.2s;
+}
+
+.bt-defaults-relationship-remove:hover {
+	color: #f44;
+}
+
+/* Attitude section */
+.bt-defaults-attitude {
+	margin-top: 10px;
+	padding: 10px;
+	background: rgba(0, 0, 0, 0.1);
+	border-radius: 4px;
+}
+
+.bt-defaults-attitude-title {
+	font-size: 0.85em;
+	color: var(--SmartThemeEmColor, #8af);
+	margin-bottom: 8px;
+}
+
+/* Pill input for feelings/secrets/wants */
+.bt-defaults-pill-input {
+	margin-bottom: 10px;
+}
+
+.bt-defaults-pill-input:last-child {
+	margin-bottom: 0;
+}
+
+.bt-defaults-pill-label {
+	font-size: 0.8em;
+	color: var(--SmartThemeBodyColor, #aaa);
+	margin-bottom: 4px;
+}
+
+.bt-defaults-pills-container {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.2);
+	min-height: 36px;
+}
+
+.bt-defaults-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	background: var(--SmartThemeQuoteColor, #f80);
+	color: #000;
+	border-radius: 12px;
+	font-size: 0.8em;
+}
+
+.bt-defaults-pill-remove {
+	background: none;
+	border: none;
+	color: rgba(0, 0, 0, 0.6);
+	cursor: pointer;
+	padding: 0;
+	font-size: 0.9em;
+	line-height: 1;
+}
+
+.bt-defaults-pill-remove:hover {
+	color: #000;
+}
+
+.bt-defaults-pill-input-field {
+	flex: 1;
+	min-width: 100px;
+	border: none;
+	background: transparent;
+	color: var(--SmartThemeBodyColor, #e0e0e0);
+	font-size: 0.85em;
+	outline: none;
+}
+
+/* Add relationship button */
+.bt-defaults-add-relationship {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 10px;
+	border: 1px dashed rgba(255, 255, 255, 0.2);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--SmartThemeBodyColor, #aaa);
+	cursor: pointer;
+	width: 100%;
+	font-size: 0.9em;
+	transition: border-color 0.2s, color 0.2s;
+}
+
+.bt-defaults-add-relationship:hover {
+	border-color: var(--SmartThemeQuoteColor, #f80);
+	color: var(--SmartThemeQuoteColor, #f80);
+}
+
+/* Milestone checkboxes */
+.bt-defaults-milestones {
+	margin-top: 10px;
+}
+
+.bt-defaults-milestones-title {
+	font-size: 0.8em;
+	color: var(--SmartThemeBodyColor, #aaa);
+	margin-bottom: 6px;
+}
+
+.bt-defaults-milestones-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 6px;
+}
+
+.bt-defaults-milestone-check {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.8em;
+	color: var(--SmartThemeBodyColor, #ccc);
+}
+
+.bt-defaults-milestone-check input[type='checkbox'] {
+	accent-color: var(--SmartThemeQuoteColor, #f80);
+}
+
+/* Help text */
+.bt-defaults-help {
+	font-size: 0.8em;
+	color: var(--SmartThemeBodyColor, #888);
+	margin-top: 4px;
+	font-style: italic;
+}
+
+/* Disabled pills container */
+.bt-defaults-pills-container.disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.bt-defaults-pills-container.disabled .bt-defaults-pill-input-field {
+	cursor: not-allowed;
+}
+
+/* Number input */
+.bt-defaults-field input[type='number'] {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.3);
+	color: var(--SmartThemeBodyColor, #e0e0e0);
+	font-size: 0.95em;
+}
+
+.bt-defaults-field input[type='number']:focus {
+	outline: none;
+	border-color: var(--SmartThemeQuoteColor, #f80);
+}
+
+.bt-defaults-field input[type='number']:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ============================================
+ * Persona Defaults Button
+ * ============================================ */
+
+.bt-persona-defaults-btn {
+	cursor: pointer;
+	opacity: 0.7;
+	transition: opacity 0.2s;
+}
+
+.bt-persona-defaults-btn:hover {
+	opacity: 1;
+}
+
+.bt-persona-defaults-btn i {
+	color: var(--SmartThemeQuoteColor, #f80);
+}

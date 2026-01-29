@@ -262,3 +262,317 @@
 		justify-content: center;
 	}
 }
+
+/* ============================================
+   V2 Settings UI Styles
+   ============================================ */
+
+/* Section Headers */
+.bt-section-header {
+	margin-bottom: 10px;
+}
+
+.bt-section-header strong {
+	display: block;
+	margin-bottom: 4px;
+}
+
+.bt-section-header small {
+	display: block;
+	opacity: 0.7;
+}
+
+/* Warning Box */
+.bt-warning-box {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px;
+	margin-top: 8px;
+	background: rgba(245, 158, 11, 0.15);
+	border: 1px solid rgba(245, 158, 11, 0.3);
+	border-radius: 4px;
+	color: #f59e0b;
+}
+
+.bt-warning-box i {
+	font-size: 1.2em;
+}
+
+/* Track Toggles */
+.bt-track-toggles {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.bt-track-toggle {
+	padding: 6px 0;
+}
+
+.bt-track-toggle.bt-track-disabled {
+	opacity: 0.5;
+}
+
+.bt-track-toggle .checkbox_label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.bt-track-toggle small {
+	display: block;
+	margin-top: 2px;
+	margin-left: 24px;
+	opacity: 0.7;
+}
+
+.bt-dependency-warning {
+	margin-left: 4px;
+	color: var(--SmartThemeFavColor, #ffaa00);
+}
+
+/* Temperature Grid */
+.bt-temperature-section {
+	margin-bottom: 16px;
+}
+
+.bt-temperature-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.bt-temperature-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.bt-temperature-row-label {
+	min-width: 100px;
+	font-weight: 500;
+}
+
+.bt-temperature-reset {
+	padding: 4px 8px;
+	background: transparent;
+	border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+	border-radius: 4px;
+	cursor: pointer;
+	color: inherit;
+	opacity: 0.7;
+}
+
+.bt-temperature-reset:hover {
+	opacity: 1;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+}
+
+/* Advanced Content */
+.bt-advanced-content {
+	padding: 10px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
+	border-radius: 4px;
+}
+
+/* Custom Prompts Section */
+.bt-custom-prompts-section {
+	margin-top: 10px;
+}
+
+.bt-no-custom-prompts {
+	opacity: 0.7;
+	font-style: italic;
+	padding: 10px;
+}
+
+.bt-add-prompt-btn {
+	margin-top: 10px;
+}
+
+.bt-prompt-section {
+	margin-bottom: 12px;
+}
+
+.bt-prompt-section label {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 500;
+}
+
+.bt-prompt-section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 4px;
+}
+
+.bt-prompt-section-header label {
+	margin-bottom: 0;
+}
+
+/* Settings Loading */
+.bt-settings-loading {
+	padding: 20px;
+	text-align: center;
+	opacity: 0.7;
+}
+
+/* ============================================
+   Expandable Field & Modal Styles
+   ============================================ */
+
+/* Expandable Field Layout */
+.bt-expandable-field {
+	display: flex;
+	gap: 4px;
+}
+
+.bt-expandable-field textarea {
+	flex: 1;
+}
+
+.bt-expand-button {
+	align-self: flex-start;
+	padding: 4px 8px !important;
+	min-width: auto !important;
+}
+
+/* Expandable Modal Overlay */
+.bt-expandable-modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.7);
+	z-index: 9999;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+}
+
+/* Expandable Modal Container */
+.bt-expandable-modal {
+	width: 90vw;
+	max-width: 1200px;
+	height: 90vh;
+	background: var(--SmartThemeBlurTintColor, #1a1a1a);
+	border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+	border-radius: 8px;
+	display: flex;
+	flex-direction: column;
+	padding: 16px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Expandable Modal Header */
+.bt-expandable-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+}
+
+.bt-expandable-modal-header h3 {
+	margin: 0;
+	font-size: 1.2em;
+}
+
+/* Expandable Modal Textarea */
+.bt-expandable-textarea {
+	flex: 1;
+	resize: none;
+	font-family: monospace;
+	font-size: 0.95em;
+	line-height: 1.5;
+	min-height: 0;
+}
+
+/* Modified Indicator */
+.bt-modified-indicator {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--SmartThemeFavColor, #ffaa00);
+	margin-top: 4px;
+}
+
+/* Prompt Item Badges */
+.bt-prompt-item-badges {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.bt-prompt-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.85em;
+	padding: 2px 6px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+	border-radius: 3px;
+}
+
+.bt-prompt-temp-badge {
+	color: var(--SmartThemeFavColor, #ffaa00);
+}
+
+/* Prompt Temperature Section */
+.bt-prompt-temperature-section {
+	margin-bottom: 12px;
+	padding: 10px;
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
+	border-radius: 4px;
+}
+
+.bt-prompt-temperature-section label {
+	margin-bottom: 8px;
+}
+
+/* Placeholder List in Prompt Editor */
+.bt-placeholder-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.bt-placeholder-item {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.bt-placeholder-item code {
+	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+	padding: 1px 5px;
+	border-radius: 3px;
+	font-family: monospace;
+	font-size: 0.9em;
+	color: var(--SmartThemeFavColor, #ffaa00);
+	white-space: nowrap;
+}
+
+.bt-placeholder-item span {
+	opacity: 0.8;
+	font-size: 0.9em;
+}
+
+/* Prompt Item Title */
+.bt-prompt-item-title {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.bt-prompt-key {
+	font-size: 0.85em;
+	opacity: 0.6;
+	font-family: monospace;
+}

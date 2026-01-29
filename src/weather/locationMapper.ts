@@ -10,6 +10,7 @@ import { geocodeLocation } from './climateApi';
 import { getSettings, getTemperature } from '../settings';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse } from '../utils/json';
+import { debugWarn, errorLog } from '../utils/debug';
 
 // ============================================
 // Constants
@@ -169,9 +170,7 @@ export async function mapLocation(
 			};
 		}
 		// Geocoding failed - treat as fantasy and re-analyze
-		console.warn(
-			`[BlazeTracker] Geocoding failed for "${location}", treating as fantasy`,
-		);
+		debugWarn(`Geocoding failed for "${location}", treating as fantasy`);
 	}
 
 	// Handle fantasy with real-world analog
@@ -188,9 +187,7 @@ export async function mapLocation(
 			};
 		}
 		// Analog geocoding failed - fall through to base climate type
-		console.warn(
-			`[BlazeTracker] Geocoding failed for analog "${analysis.realWorldAnalog}"`,
-		);
+		debugWarn(`Geocoding failed for analog "${analysis.realWorldAnalog}"`);
 	}
 
 	// Fall back to base climate type
@@ -277,7 +274,7 @@ async function analyzeLocation(
 
 		return validateAnalysisResult(parsed);
 	} catch (error) {
-		console.error('[BlazeTracker] Location analysis failed:', error);
+		errorLog('Location analysis failed:', error);
 		// Return safe default
 		return {
 			isFantasy: true,

@@ -1,22 +1,25 @@
 import type {
-	CharacterOutfit,
 	TrackedState,
-	Scene,
-	NarrativeDateTime,
 	NarrativeState,
 	TimestampedEvent,
-	Climate,
-	ProceduralClimate,
+	UnifiedEventStore,
 } from '../types/state';
+import { isUnifiedEventStore } from '../types/state';
 import type { STContext } from '../types/st';
 import { getMessageState } from '../utils/messageState';
 import { getSettings } from '../settings';
-import { formatTemperature } from '../utils/temperatures';
 import { getNarrativeState } from '../state/narrativeState';
 import { formatChaptersForInjection } from '../state/chapters';
 import { formatEventsForInjection } from '../state/events';
 import { formatRelationshipsForPrompt } from '../state/relationships';
-import { isLegacyClimate } from '../weather';
+import {
+	projectCurrentState,
+	convertProjectionToTrackedState,
+	getActiveStateEvents,
+	getInitialProjection,
+} from '../state/eventStore';
+import { formatNarrativeDateTime } from '../utils/dateFormat';
+import { formatOutfit, formatScene, formatClimate } from '../ui/formatters';
 
 // ============================================
 // Helper Functions for Knowledge Gaps
@@ -25,14 +28,22 @@ import { isLegacyClimate } from '../weather';
 /**
  * Build knowledge gaps - events that present characters missed.
  * Returns formatted strings describing what each present character doesn't know.
+ * Only considers events where at least one witness is currently present
+ * (events with no present witnesses are irrelevant to the current scene).
  */
 function buildKnowledgeGaps(events: TimestampedEvent[], presentCharacters: string[]): string[] {
 	const gaps = new Map<string, string[]>();
+	const presentSet = new Set(presentCharacters.map(c => c.toLowerCase()));
+
+	// Filter to events where at least one witness is currently present
+	const relevantEvents = events.filter(event =>
+		event.witnesses.some(w => presentSet.has(w.toLowerCase())),
+	);
 
 	// For each present character, find events they weren't witnesses to
 	for (const character of presentCharacters) {
 		const charLower = character.toLowerCase();
-		for (const event of events) {
+		for (const event of relevantEvents) {
 			const witnessLower = event.witnesses.map(w => w.toLowerCase());
 			if (!witnessLower.includes(charLower)) {
 				if (!gaps.has(character)) {
@@ -56,116 +67,12 @@ function buildKnowledgeGaps(events: TimestampedEvent[], presentCharacters: strin
 
 const EXTENSION_KEY = 'blazetracker';
 
-const MONTH_NAMES = [
-	'January',
-	'February',
-	'March',
-	'April',
-	'May',
-	'June',
-	'July',
-	'August',
-	'September',
-	'October',
-	'November',
-	'December',
-];
-
-function formatOutfit(outfit: CharacterOutfit): string {
-	const outfitParts = [
-		outfit.torso || 'topless',
-		outfit.legs || 'bottomless',
-		outfit.underwear || 'no underwear',
-		outfit.head || null,
-		outfit.jacket || null,
-		outfit.socks || null,
-		outfit.footwear || null,
-	];
-
-	return outfitParts.filter((v: string | null) => v !== null).join(', ');
-}
-
-function formatClimate(climate: Climate | ProceduralClimate): string {
-	const settings = getSettings();
-
-	if (isLegacyClimate(climate)) {
-		// Legacy format: simple weather + temperature
-		return `${formatTemperature(climate.temperature, settings.temperatureUnit)}, ${climate.weather}`;
-	}
-
-	// Procedural format: more detailed
-	const parts: string[] = [];
-
-	// Temperature with feels like if significantly different
-	const tempStr = formatTemperature(climate.temperature, settings.temperatureUnit);
-	if (Math.abs(climate.feelsLike - climate.temperature) > 5) {
-		const feelsLikeStr = formatTemperature(climate.feelsLike, settings.temperatureUnit);
-		parts.push(`${tempStr} (feels like ${feelsLikeStr})`);
-	} else {
-		parts.push(tempStr);
-	}
-
-	// Conditions
-	parts.push(climate.conditions);
-
-	// Wind if notable
-	if (climate.windSpeed >= 15) {
-		parts.push(
-			`${Math.round(climate.windSpeed)} mph winds from ${climate.windDirection}`,
-		);
-	}
-
-	// Indoor note
-	if (climate.isIndoors && climate.indoorTemperature !== undefined) {
-		const outdoorStr = formatTemperature(
-			climate.outdoorTemperature,
-			settings.temperatureUnit,
-		);
-		parts.push(`(${outdoorStr} outside)`);
-	}
-
-	return parts.join(', ');
-}
-
-function formatScene(scene: Scene): string {
-	const tensionParts = [
-		scene.tension.type,
-		scene.tension.level,
-		scene.tension.direction !== 'stable' ? scene.tension.direction : null,
-	].filter(Boolean);
-
-	return `Topic: ${scene.topic}
-Tone: ${scene.tone}
-Tension: ${tensionParts.join(', ')}`;
-}
-
-function formatNarrativeDateTime(time: NarrativeDateTime): string {
-	const hour12 = time.hour % 12 || 12;
-	const ampm = time.hour < 12 ? 'AM' : 'PM';
-	const minuteStr = String(time.minute).padStart(2, '0');
-
-	// "Monday, June 15th, 2024 at 2:30 PM"
-	const dayOrdinal = getDayOrdinal(time.day);
-
-	return `${time.dayOfWeek}, ${MONTH_NAMES[time.month - 1]} ${time.day}${dayOrdinal}, ${time.year} at ${hour12}:${minuteStr} ${ampm}`;
-}
-
-function getDayOrdinal(day: number): string {
-	if (day >= 11 && day <= 13) return 'th';
-	switch (day % 10) {
-		case 1:
-			return 'st';
-		case 2:
-			return 'nd';
-		case 3:
-			return 'rd';
-		default:
-			return 'th';
-	}
-}
+import type { ProjectedRelationship } from '../types/state';
 
 export interface InjectionOptions {
 	weatherTransition?: string;
+	/** Projected relationships from event store (takes precedence over narrativeState.relationships) */
+	projectedRelationships?: ProjectedRelationship[];
 }
 
 export function formatStateForInjection(
@@ -188,10 +95,11 @@ export function formatStateForInjection(
 		settings.trackEvents !== false &&
 		state.currentEvents &&
 		state.currentEvents.length > 0;
+	// Use projected relationships if available, otherwise fall back to narrativeState
+	const relationshipsToUse =
+		options?.projectedRelationships ?? narrativeState?.relationships ?? [];
 	const hasRelationships =
-		settings.trackRelationships !== false &&
-		narrativeState &&
-		narrativeState.relationships.length > 0;
+		settings.trackRelationships !== false && relationshipsToUse.length > 0;
 	const hasChapters = narrativeState && narrativeState.chapters.length > 0;
 
 	// If nothing is tracked/available, return empty
@@ -322,14 +230,14 @@ export function formatStateForInjection(
 	// ========================================
 	// Relationships (filtered for present characters)
 	// ========================================
-	if (hasRelationships && narrativeState) {
+	if (hasRelationships) {
 		const presentCharacters =
 			hasCharacters && state.characters
 				? state.characters.map(c => c.name)
 				: undefined;
 
 		const relationshipsStr = formatRelationshipsForPrompt(
-			narrativeState.relationships,
+			relationshipsToUse,
 			presentCharacters,
 			settings.includeRelationshipSecrets ?? true,
 		);
@@ -378,8 +286,53 @@ export function updateInjectionFromChat() {
 
 	// Get narrative state
 	const narrativeState = getNarrativeState();
+	const store = narrativeState?.eventStore as UnifiedEventStore | undefined;
 
-	// Find most recent tracked state
+	// Check if we have projection data from event store
+	const hasProjectionData =
+		isUnifiedEventStore(store) &&
+		(getActiveStateEvents(store).length > 0 || getInitialProjection(store) !== null);
+
+	if (hasProjectionData && isUnifiedEventStore(store)) {
+		// Use event-based projection for current state
+		const projection = projectCurrentState(store, context.chat);
+
+		// Convert ProjectedState to TrackedState format
+		const projectedState = convertProjectionToTrackedState(projection);
+
+		// Find most recent message with non-projected state data (climate, scene, events)
+		let nonProjectedState: Partial<TrackedState> = {};
+		for (let i = context.chat.length - 1; i >= 0; i--) {
+			const message = context.chat[i];
+			const stateData = getMessageState(message) as
+				| { state?: TrackedState }
+				| undefined;
+			if (stateData?.state) {
+				// Get non-projected fields from stored state
+				nonProjectedState = {
+					climate: stateData.state.climate,
+					scene: stateData.state.scene,
+					currentChapter: stateData.state.currentChapter,
+					currentEvents: stateData.state.currentEvents,
+				};
+				break;
+			}
+		}
+
+		// Merge projected and non-projected state
+		const combinedState: TrackedState = {
+			...projectedState,
+			...nonProjectedState,
+		};
+
+		// Get projected relationships from the projection
+		const projectedRelationships = Array.from(projection.relationships.values());
+
+		injectState(combinedState, narrativeState, { projectedRelationships });
+		return;
+	}
+
+	// Fallback: Find most recent tracked state (legacy behavior)
 	for (let i = context.chat.length - 1; i >= 0; i--) {
 		const message = context.chat[i];
 		const stateData = getMessageState(message) as { state?: TrackedState } | undefined;

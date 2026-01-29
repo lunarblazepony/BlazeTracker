@@ -3,28 +3,57 @@
 // ============================================
 
 import React, { useState } from 'react';
-import type { Chapter, NarrativeDateTime, TimestampedEvent } from '../../types/state';
+import type {
+	Chapter,
+	DerivedChapter,
+	NarrativeDateTime,
+	TimestampedEvent,
+	NarrativeEvent,
+} from '../../types/state';
+import { isLegacyChapter, isDerivedChapter } from '../../types/state';
 import { EventList } from './EventList';
+import { NarrativeEventCard } from './NarrativeEventCard';
+
+/** Union type for both legacy and derived chapters */
+type AnyChapter = Chapter | DerivedChapter;
 
 // ============================================
 // Types
 // ============================================
 
 interface ChapterHistoryProps {
-	chapters: Chapter[];
+	chapters: AnyChapter[];
 	editMode?: boolean;
-	onUpdate?: (chapters: Chapter[]) => void;
+	onUpdate?: (chapters: AnyChapter[]) => void;
+	/** Whether the narrative state has an event store */
+	hasEventStore?: boolean;
+	/** Get narrative events for a chapter index */
+	getEventsForChapter?: (chapterIndex: number) => NarrativeEvent[];
+	/** Update a narrative event */
+	onEventUpdate?: (eventId: string, updates: Partial<NarrativeEvent>) => void;
+	/** Delete a narrative event */
+	onEventDelete?: (eventId: string) => void;
+	/** Chapters that need summary regeneration on save */
+	chaptersNeedingRegeneration?: Set<number>;
 }
 
 interface ChapterCardProps {
-	chapter: Chapter;
+	chapter: AnyChapter;
 	isExpanded: boolean;
 	onToggle: () => void;
 	editMode?: boolean;
-	onUpdateChapter?: (chapter: Chapter) => void;
+	onUpdateChapter?: (chapter: AnyChapter) => void;
 	onDeleteChapter?: () => void;
 	onUpdateEvent?: (eventIndex: number, event: TimestampedEvent) => void;
 	onDeleteEvent?: (eventIndex: number) => void;
+	/** Narrative events from event store (for DerivedChapters) */
+	narrativeEvents?: NarrativeEvent[];
+	/** Update a narrative event */
+	onNarrativeEventUpdate?: (eventId: string, updates: Partial<NarrativeEvent>) => void;
+	/** Delete a narrative event */
+	onNarrativeEventDelete?: (eventId: string) => void;
+	/** Whether this chapter needs summary regeneration on save */
+	needsRegeneration?: boolean;
 }
 
 // ============================================
@@ -87,6 +116,10 @@ function ChapterCard({
 	onDeleteChapter,
 	onUpdateEvent,
 	onDeleteEvent,
+	narrativeEvents,
+	onNarrativeEventUpdate,
+	onNarrativeEventDelete,
+	needsRegeneration,
 }: ChapterCardProps) {
 	const [editingTitle, setEditingTitle] = useState(chapter.title);
 	const [editingSummary, setEditingSummary] = useState(chapter.summary);
@@ -144,6 +177,15 @@ function ChapterCard({
 						chapter.timeRange.end,
 					)}
 				</div>
+				{/* Regeneration indicator */}
+				{editMode && needsRegeneration && (
+					<span
+						className="bt-regeneration-pending"
+						title="Summary will be regenerated on save"
+					>
+						Will regenerate
+					</span>
+				)}
 				{editMode && (
 					<button
 						type="button"
@@ -260,8 +302,8 @@ function ChapterCard({
 						</div>
 					)}
 
-					{/* Archived Events */}
-					{chapter.events.length > 0 && (
+					{/* Archived Events (only for legacy chapters with embedded events) */}
+					{isLegacyChapter(chapter) && chapter.events.length > 0 && (
 						<div className="bt-chapter-events">
 							<div className="bt-section-header">
 								<i className="fa-solid fa-list" />{' '}
@@ -312,13 +354,68 @@ function ChapterCard({
 							)}
 						</div>
 					)}
+
+					{/* Event Store Events (for DerivedChapters in edit mode) */}
+					{editMode &&
+						isDerivedChapter(chapter) &&
+						narrativeEvents &&
+						narrativeEvents.length > 0 && (
+							<div className="bt-chapter-events bt-derived-events">
+								<div className="bt-section-header">
+									<i className="fa-solid fa-bolt" />{' '}
+									Events (
+									{narrativeEvents.length})
+								</div>
+								<div className="bt-events-list-compact">
+									{narrativeEvents.map(
+										event => (
+											<NarrativeEventCard
+												key={
+													event.id
+												}
+												event={
+													event
+												}
+												compact
+												onUpdate={
+													onNarrativeEventUpdate
+														? updates =>
+																onNarrativeEventUpdate(
+																	event.id,
+																	updates,
+																)
+														: undefined
+												}
+												onDelete={
+													onNarrativeEventDelete
+														? () =>
+																onNarrativeEventDelete(
+																	event.id,
+																)
+														: undefined
+												}
+											/>
+										),
+									)}
+								</div>
+							</div>
+						)}
 				</div>
 			)}
 		</div>
 	);
 }
 
-export function ChapterHistory({ chapters, editMode, onUpdate }: ChapterHistoryProps) {
+export function ChapterHistory({
+	chapters,
+	editMode,
+	onUpdate,
+	hasEventStore,
+	getEventsForChapter,
+	onEventUpdate,
+	onEventDelete,
+	chaptersNeedingRegeneration,
+}: ChapterHistoryProps) {
 	const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
 	const toggleExpanded = (index: number) => {
@@ -341,7 +438,7 @@ export function ChapterHistory({ chapters, editMode, onUpdate }: ChapterHistoryP
 		setExpandedIds(new Set());
 	};
 
-	const handleUpdateChapter = (chapterIndex: number, updatedChapter: Chapter) => {
+	const handleUpdateChapter = (chapterIndex: number, updatedChapter: AnyChapter) => {
 		if (onUpdate) {
 			const newChapters = chapters.map(ch =>
 				ch.index === chapterIndex ? updatedChapter : ch,
@@ -369,7 +466,7 @@ export function ChapterHistory({ chapters, editMode, onUpdate }: ChapterHistoryP
 	) => {
 		if (onUpdate) {
 			const newChapters = chapters.map(ch => {
-				if (ch.index === chapterIndex) {
+				if (ch.index === chapterIndex && isLegacyChapter(ch)) {
 					const newEvents = [...ch.events];
 					newEvents[eventIndex] = event;
 					return { ...ch, events: newEvents };
@@ -383,7 +480,7 @@ export function ChapterHistory({ chapters, editMode, onUpdate }: ChapterHistoryP
 	const handleDeleteEvent = (chapterIndex: number, eventIndex: number) => {
 		if (onUpdate) {
 			const newChapters = chapters.map(ch => {
-				if (ch.index === chapterIndex) {
+				if (ch.index === chapterIndex && isLegacyChapter(ch)) {
 					const newEvents = ch.events.filter(
 						(_, i) => i !== eventIndex,
 					);
@@ -429,31 +526,56 @@ export function ChapterHistory({ chapters, editMode, onUpdate }: ChapterHistoryP
 
 			{/* Chapter list */}
 			<div className="bt-chapter-list">
-				{sortedChapters.map(chapter => (
-					<ChapterCard
-						key={chapter.index}
-						chapter={chapter}
-						isExpanded={expandedIds.has(chapter.index)}
-						onToggle={() => toggleExpanded(chapter.index)}
-						editMode={editMode}
-						onUpdateChapter={ch =>
-							handleUpdateChapter(chapter.index, ch)
-						}
-						onDeleteChapter={() =>
-							handleDeleteChapter(chapter.index)
-						}
-						onUpdateEvent={(evtIdx, evt) =>
-							handleUpdateEvent(
+				{sortedChapters.map(chapter => {
+					// Get events for DerivedChapter when editing
+					const chapterEvents =
+						editMode &&
+						hasEventStore &&
+						getEventsForChapter &&
+						isDerivedChapter(chapter)
+							? getEventsForChapter(chapter.index)
+							: undefined;
+
+					return (
+						<ChapterCard
+							key={chapter.index}
+							chapter={chapter}
+							isExpanded={expandedIds.has(chapter.index)}
+							onToggle={() =>
+								toggleExpanded(chapter.index)
+							}
+							editMode={editMode}
+							onUpdateChapter={ch =>
+								handleUpdateChapter(
+									chapter.index,
+									ch,
+								)
+							}
+							onDeleteChapter={() =>
+								handleDeleteChapter(chapter.index)
+							}
+							onUpdateEvent={(evtIdx, evt) =>
+								handleUpdateEvent(
+									chapter.index,
+									evtIdx,
+									evt,
+								)
+							}
+							onDeleteEvent={evtIdx =>
+								handleDeleteEvent(
+									chapter.index,
+									evtIdx,
+								)
+							}
+							narrativeEvents={chapterEvents}
+							onNarrativeEventUpdate={onEventUpdate}
+							onNarrativeEventDelete={onEventDelete}
+							needsRegeneration={chaptersNeedingRegeneration?.has(
 								chapter.index,
-								evtIdx,
-								evt,
-							)
-						}
-						onDeleteEvent={evtIdx =>
-							handleDeleteEvent(chapter.index, evtIdx)
-						}
-					/>
-				))}
+							)}
+						/>
+					);
+				})}
 			</div>
 		</div>
 	);

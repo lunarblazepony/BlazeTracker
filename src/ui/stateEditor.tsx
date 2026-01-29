@@ -6,9 +6,11 @@
  *
  * Only shows sections for fields that exist in the state.
  * Preserves optionality - undefined fields stays undefined.
+ *
+ * Also includes an event-based editor (EventStateEditor) for the new event system.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import type {
 	TrackedState,
@@ -18,6 +20,9 @@ import type {
 	NarrativeDateTime,
 	LocationState,
 	WeatherCondition,
+	StateEvent,
+	UnifiedEventStore,
+	ProjectedState,
 } from '../types/state';
 import { toDisplayTemp, toStorageTemp } from '../utils/temperatures';
 import { getSettings } from '../settings';
@@ -35,6 +40,9 @@ import {
 } from './constants';
 import { TagInput, OutfitEditor } from './components/form';
 import { isLegacyClimate } from '../weather';
+import { StateEventEditor, type StateEventEditorHandle } from './components/StateEventEditor';
+import { ProjectionPreview } from './components/ProjectionPreview';
+import { getStateEventsForMessage, projectStateAtMessage } from '../state/eventStore';
 
 // --- Types ---
 
@@ -1754,3 +1762,214 @@ export async function openStateEditor(
 }
 
 export default StateEditor;
+
+// ============================================
+// Event-Based State Editor (Split-Pane)
+// ============================================
+
+interface EventStateEditorProps {
+	store: UnifiedEventStore;
+	messageId: number;
+	swipeId: number;
+	chat?: { swipe_id?: number }[];
+	onSave: (events: StateEvent[]) => void;
+	onCancel: () => void;
+}
+
+/**
+ * Event-based state editor with split-pane layout.
+ * Left pane: Edit events for this message
+ * Right pane: Live projection preview
+ */
+export function EventStateEditor({
+	store,
+	messageId,
+	swipeId,
+	chat,
+	onSave,
+	onCancel,
+}: EventStateEditorProps) {
+	// Get events for this message
+	const initialEvents = useMemo(
+		() => getStateEventsForMessage(store, messageId, swipeId),
+		[store, messageId, swipeId],
+	);
+
+	const [events, setEvents] = useState<StateEvent[]>(initialEvents);
+
+	// Ref to StateEventEditor for committing pending edits
+	const stateEventEditorRef = useRef<StateEventEditorHandle>(null);
+
+	// Compute live projection from all events up to and including this message
+	const projection = useMemo((): ProjectedState => {
+		// Create a temp store with all prior events plus our edited events for this message
+		const tempStore: UnifiedEventStore = {
+			...store,
+			stateEvents: [
+				// Include all events before this message (or for other swipes of this message)
+				...store.stateEvents.filter(
+					e =>
+						!e.deleted &&
+						(e.messageId < messageId ||
+							(e.messageId === messageId &&
+								e.swipeId !== swipeId)),
+				),
+				// Plus our edited events for this message
+				...events,
+			],
+		};
+
+		return projectStateAtMessage(tempStore, messageId, swipeId, chat ?? []);
+	}, [store, messageId, swipeId, events, chat]);
+
+	const handleSave = () => {
+		// Commit any pending inline edits before saving
+		const finalEvents = stateEventEditorRef.current?.commitPendingEdits() ?? events;
+		onSave(finalEvents);
+	};
+
+	const hasEvents = events.length > 0;
+	const hasProjection =
+		projection.time || projection.location || projection.characters.size > 0;
+
+	return (
+		<div className="bt-editor bt-event-editor-container">
+			<div className="bt-split-editor">
+				{/* Left pane - Event editor */}
+				<div className="bt-events-pane">
+					<h3>
+						<i className="fa-solid fa-list"></i> Events for
+						Message #{messageId}
+					</h3>
+					<StateEventEditor
+						ref={stateEventEditorRef}
+						events={events}
+						messageId={messageId}
+						swipeId={swipeId}
+						onEventsChange={setEvents}
+						projection={projection}
+					/>
+					{!hasEvents && (
+						<div className="bt-empty-events">
+							<i className="fa-solid fa-info-circle"></i>
+							<p>No events for this message.</p>
+							<p>
+								Click "Add Event" to create time,
+								location, or character events.
+							</p>
+						</div>
+					)}
+				</div>
+
+				{/* Right pane - Projection preview */}
+				<div className="bt-projection-pane">
+					<h3>
+						<i className="fa-solid fa-eye"></i> State Preview
+					</h3>
+					{hasProjection ? (
+						<ProjectionPreview projection={projection} />
+					) : (
+						<div className="bt-empty-projection">
+							<i className="fa-solid fa-ghost"></i>
+							<p>No state data.</p>
+							<p>
+								Add events to see the projected
+								state.
+							</p>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* Actions */}
+			<div className="bt-actions">
+				<button type="button" onClick={onCancel} className="bt-btn">
+					Cancel
+				</button>
+				<button
+					type="button"
+					onClick={handleSave}
+					className="bt-btn bt-btn-primary"
+				>
+					<i className="fa-solid fa-save"></i> Save
+				</button>
+			</div>
+		</div>
+	);
+}
+
+/**
+ * Opens the event-based state editor in a popup dialog.
+ * Returns the edited events if saved, null if cancelled.
+ */
+export async function openEventStateEditor(
+	store: UnifiedEventStore,
+	messageId: number,
+	swipeId: number,
+	onSave: (events: StateEvent[]) => Promise<void>,
+): Promise<boolean> {
+	// Load CSS if not already loaded
+	const cssUrl = new URL('./stateEditor.css', import.meta.url).href;
+	if (!document.querySelector(`link[href="${cssUrl}"]`)) {
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = cssUrl;
+		document.head.appendChild(link);
+	}
+
+	const context = SillyTavern.getContext();
+
+	return new Promise(resolve => {
+		// Create container
+		const container = document.createElement('div');
+		container.id = 'bt-event-editor-root';
+
+		let savedEvents: StateEvent[] | null = null;
+
+		const handleSave = (events: StateEvent[]) => {
+			savedEvents = events;
+			// Close popup by clicking OK
+			(document.querySelector('.popup-button-ok') as HTMLElement)?.click();
+		};
+
+		const handleCancel = () => {
+			(document.querySelector('.popup-button-cancel') as HTMLElement)?.click();
+		};
+
+		const root = ReactDOM.createRoot(container);
+
+		root.render(
+			<EventStateEditor
+				store={store}
+				messageId={messageId}
+				swipeId={swipeId}
+				chat={context.chat}
+				onSave={handleSave}
+				onCancel={handleCancel}
+			/>,
+		);
+
+		// Show popup
+		context.callGenericPopup(container, context.POPUP_TYPE.CONFIRM, null, {
+			wide: true,
+			large: true,
+			okButton: '', // Hidden
+			cancelButton: 'Close',
+		}).then(async () => {
+			root.unmount();
+
+			if (savedEvents) {
+				await onSave(savedEvents);
+				resolve(true);
+			} else {
+				resolve(false);
+			}
+		});
+
+		// Hide default OK button
+		requestAnimationFrame(() => {
+			const okBtn = document.querySelector('.popup-button-ok') as HTMLElement;
+			if (okBtn) okBtn.style.display = 'none';
+		});
+	});
+}

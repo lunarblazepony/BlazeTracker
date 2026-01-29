@@ -6,10 +6,14 @@ import type {
 	NarrativeDateTime,
 	LocationState,
 	Chapter,
+	DerivedChapter,
 	ChapterOutcomes,
 	TimestampedEvent,
 } from '../types/state';
 import { getSettings } from '../settings';
+
+/** Union type for both legacy and derived chapters */
+export type AnyChapter = Chapter | DerivedChapter;
 
 // ============================================
 // Time Delta Calculations
@@ -244,7 +248,7 @@ export function finalizeChapter(
 /**
  * Format a chapter for display in prompts.
  */
-export function formatChapterForPrompt(chapter: Chapter): string {
+export function formatChapterForPrompt(chapter: AnyChapter): string {
 	const lines: string[] = [];
 
 	lines.push(`## Chapter ${chapter.index + 1}: ${chapter.title}`);
@@ -272,7 +276,7 @@ export function formatChapterForPrompt(chapter: Chapter): string {
 /**
  * Format multiple chapters for injection.
  */
-export function formatChaptersForInjection(chapters: Chapter[], limit?: number): string {
+export function formatChaptersForInjection(chapters: AnyChapter[], limit?: number): string {
 	if (chapters.length === 0) {
 		return 'No previous chapters.';
 	}

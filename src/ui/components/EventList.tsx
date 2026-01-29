@@ -3,7 +3,12 @@
 // ============================================
 
 import React, { useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
-import type { TimestampedEvent, NarrativeDateTime, EventType } from '../../types/state';
+import type {
+	TimestampedEvent,
+	NarrativeDateTime,
+	EventType,
+	MilestoneType,
+} from '../../types/state';
 import {
 	getTensionLevelIcon,
 	getTensionColor,
@@ -31,6 +36,13 @@ export interface EventListHandle {
 	commitPendingEdits: () => boolean;
 }
 
+/** Computed milestone from event store */
+export interface ComputedEventMilestone {
+	type: MilestoneType;
+	pair: [string, string];
+	description?: string;
+}
+
 interface EventListProps {
 	events: TimestampedEvent[];
 	presentCharacters?: string[];
@@ -38,6 +50,8 @@ interface EventListProps {
 	editMode?: boolean;
 	onUpdate?: (index: number, event: TimestampedEvent) => void;
 	onDelete?: (index: number) => void;
+	/** Compute milestones for a specific event (by messageId) */
+	computeMilestonesForEvent?: (messageId: number) => ComputedEventMilestone[];
 }
 
 interface EventItemProps {
@@ -48,6 +62,8 @@ interface EventItemProps {
 	editMode?: boolean;
 	onEdit?: () => void;
 	onDelete?: () => void;
+	/** Computed milestones for this event (from event store) */
+	computedMilestones?: ComputedEventMilestone[];
 }
 
 // ============================================
@@ -92,12 +108,15 @@ function EventItem({
 	editMode,
 	onEdit,
 	onDelete,
+	computedMilestones,
 }: EventItemProps) {
 	const levelIconClass = getTensionLevelIcon(event.tensionLevel);
 	const levelColor = getTensionColor(event.tensionLevel);
 	const typeIconClass = getTensionIcon(event.tensionType);
 	const typeColor = getTensionTypeColor(event.tensionType);
-	const milestones = event.relationshipSignal?.milestones ?? [];
+
+	// Prefer computed milestones from event store, fall back to legacy format
+	const milestones = computedMilestones ?? event.relationshipSignal?.milestones ?? [];
 
 	// Get event types sorted by salience
 	const eventTypes: EventType[] = event.eventTypes?.length
@@ -242,7 +261,15 @@ function EventItem({
 }
 
 export const EventList = forwardRef<EventListHandle, EventListProps>(function EventList(
-	{ events, presentCharacters, maxEvents, editMode, onUpdate, onDelete },
+	{
+		events,
+		presentCharacters,
+		maxEvents,
+		editMode,
+		onUpdate,
+		onDelete,
+		computeMilestonesForEvent,
+	},
 	ref,
 ) {
 	const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -331,24 +358,33 @@ export const EventList = forwardRef<EventListHandle, EventListProps>(function Ev
 
 	return (
 		<div className="bt-event-list">
-			{editingIndex !== null && eventBeingEdited && (
-				<div className="bt-event-editor-container">
-					<EventEditor
-						ref={eventEditorRef}
-						event={eventBeingEdited}
-						onSave={handleSaveEdit}
-						onCancel={handleCancelEdit}
-					/>
-				</div>
-			)}
 			{displayEvents.map((event, displayIndex) => {
 				const originalIndex = getOriginalIndex(displayIndex);
-				// Skip showing the item being edited
-				if (originalIndex === editingIndex) {
-					return null;
+
+				// Show editor in-place instead of hiding item
+				if (originalIndex === editingIndex && eventBeingEdited) {
+					return (
+						<div
+							key={originalIndex}
+							className="bt-event-editor-container"
+						>
+							<EventEditor
+								ref={eventEditorRef}
+								event={eventBeingEdited}
+								onSave={handleSaveEdit}
+								onCancel={handleCancelEdit}
+							/>
+						</div>
+					);
 				}
+
 				// Decrease opacity for older events: 100%, 75%, 50%, 40% (min)
 				const opacity = Math.max(0.4, 1 - displayIndex * 0.25);
+				// Compute milestones for this event if function is provided
+				const computedMilestones =
+					computeMilestonesForEvent && event.messageId !== undefined
+						? computeMilestonesForEvent(event.messageId)
+						: undefined;
 				return (
 					<EventItem
 						key={originalIndex}
@@ -359,6 +395,7 @@ export const EventList = forwardRef<EventListHandle, EventListProps>(function Ev
 						editMode={editMode}
 						onEdit={() => handleEdit(displayIndex)}
 						onDelete={() => handleDelete(displayIndex)}
+						computedMilestones={computedMilestones}
 					/>
 				);
 			})}

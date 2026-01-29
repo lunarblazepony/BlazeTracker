@@ -101,6 +101,7 @@ export interface EventTypes {
 	MESSAGE_SENT: string;
 	MESSAGE_SWIPED: string;
 	MESSAGE_DELETED: string;
+	MESSAGE_SWIPE_DELETED: string;
 	MESSAGE_EDITED: string;
 	CHAT_CHANGED: string;
 	CHARACTER_MESSAGE_RENDERED: string;
@@ -109,6 +110,7 @@ export interface EventTypes {
 	GENERATION_ENDED: string;
 	GENERATION_STOPPED: string;
 	SWIPE_CHANGED: string;
+	CHARACTER_EDITED: string;
 }
 
 export interface ChatMessage {
