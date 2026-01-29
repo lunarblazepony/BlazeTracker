@@ -40,6 +40,7 @@ export function createDefaultV2Settings(): V2Settings {
 		// Core
 		v2ProfileId: '',
 		v2AutoExtract: true,
+		v2MaxTokens: 4096,
 
 		// Debug & Display
 		v2DebugLogging: false,
@@ -75,6 +76,7 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		// Core
 		v2ProfileId: partial.v2ProfileId ?? defaults.v2ProfileId,
 		v2AutoExtract: partial.v2AutoExtract ?? defaults.v2AutoExtract,
+		v2MaxTokens: partial.v2MaxTokens ?? defaults.v2MaxTokens,
 
 		// Debug & Display
 		v2DebugLogging: partial.v2DebugLogging ?? defaults.v2DebugLogging,

@@ -1353,6 +1353,8 @@ export const initialCharacterOutfitsPrompt: PromptTemplate<ExtractedCharacterOut
 		PLACEHOLDERS.messages,
 		PLACEHOLDERS.characterName,
 		PLACEHOLDERS.characterDescription,
+		PLACEHOLDERS.userName,
+		PLACEHOLDERS.userDescription,
 		PLACEHOLDERS.charactersPresent,
 	],
 
@@ -1407,6 +1409,10 @@ ${BAD_EXAMPLES}
 Name: {{characterName}}
 Description: {{characterDescription}}
 
+## User/Persona Context
+Name: {{userName}}
+Description: {{userDescription}}
+
 ## Characters Present
 {{charactersPresent}}
 
@@ -1419,12 +1425,14 @@ For each character present in the scene, extract their current outfit. For each 
 - Make reasonable inferences for unmentioned items (socks with sneakers, underwear under clothes)
 - Be specific with colors, materials, and styles when the text provides them
 - Use character card descriptions as defaults when scene doesn't specify
+- Use persona description for the user character's outfit when not specified in scene
 
 Remember:
 - Only include clothing that is CURRENTLY being worn
 - Make reasonable assumptions for clothed human characters (they likely have underwear, socks with shoes)
 - A single garment (like a dress) can span multiple slots
-- Equipment and held items are NOT clothing`,
+- Equipment and held items are NOT clothing
+- The user/persona description can provide default outfit information for {{userName}}`,
 
 	responseSchema: characterOutfitsSchema,
 

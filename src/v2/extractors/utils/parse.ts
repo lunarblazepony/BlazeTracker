@@ -6,6 +6,7 @@ import type { Generator } from '../../generator';
 import { buildPrompt } from '../../generator';
 import type { PromptTemplate, BuiltPrompt } from '../../prompts';
 import { debugLog, debugWarn, errorLog } from '../../../utils/debug';
+import { getV2Settings } from '../../settings';
 
 /**
  * Options for parsing with retry.
@@ -92,9 +93,10 @@ export async function generateAndParse<T>(
 				prompt.name,
 			);
 
+			const settings = getV2Settings();
 			const response = await generator.generate(generatorPrompt, {
 				temperature: currentTemp,
-				maxTokens: 2048,
+				maxTokens: settings.v2MaxTokens,
 				abortSignal,
 			});
 

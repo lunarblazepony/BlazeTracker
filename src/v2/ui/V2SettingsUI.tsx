@@ -910,9 +910,33 @@ function V2SettingsPanel() {
 				</div>
 				<div className="inline-drawer-content" style={{ display: 'none' }}>
 					<small className="bt-drawer-description">
-						Category temperature defaults
+						LLM configuration and category temperature defaults
 					</small>
 					<div className="bt-advanced-content">
+						{/* Max Tokens */}
+						<div className="flex-container flexFlowColumn" style={{ marginBottom: '1em' }}>
+							<label htmlFor="bt-v2-maxtokens">Max Tokens</label>
+							<small>
+								Maximum tokens for LLM extraction responses
+							</small>
+							<input
+								id="bt-v2-maxtokens"
+								type="number"
+								className="text_pole"
+								min="256"
+								max="16384"
+								step="256"
+								value={settings.v2MaxTokens}
+								onChange={e => {
+									const value = parseInt(e.target.value, 10);
+									if (!isNaN(value) && value >= 256) {
+										handleUpdate('v2MaxTokens', value);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+
 						{/* Temperature Sliders */}
 						<div className="bt-temperature-section">
 							<div className="bt-section-header">

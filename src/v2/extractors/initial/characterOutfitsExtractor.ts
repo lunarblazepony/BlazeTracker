@@ -13,6 +13,7 @@ import { initialCharacterOutfitsPrompt } from '../../prompts/initial/characterOu
 import {
 	formatMessages,
 	getCharacterDescription,
+	getUserDescription,
 	generateAndParse,
 	findMatchingCharacterKey,
 	getExtractorTemperature,
@@ -64,6 +65,8 @@ export const initialCharacterOutfitsExtractor: InitialExtractor<ExtractedCharact
 			messages: formatMessages(context, 0, context.chat.length - 1),
 			characterName: context.name2,
 			characterDescription: getCharacterDescription(context),
+			userName: context.name1,
+			userDescription: getUserDescription(context),
 			charactersPresent: characterNames.join(', '),
 		};
 

@@ -50,6 +50,8 @@ export interface V2Settings {
 	v2ProfileId: string;
 	/** Auto-extraction on/off (extractors handle their own run intervals) */
 	v2AutoExtract: boolean;
+	/** Maximum tokens for LLM responses */
+	v2MaxTokens: number;
 
 	// Debug & Display
 	/** Enable debug logging to console */
@@ -93,6 +95,7 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 	return (
 		typeof s.v2ProfileId === 'string' &&
 		typeof s.v2AutoExtract === 'boolean' &&
+		(typeof s.v2MaxTokens === 'number' || s.v2MaxTokens === undefined) &&
 		typeof s.v2DebugLogging === 'boolean' &&
 		typeof s.v2DisplayPosition === 'string' &&
 		typeof s.v2TemperatureUnit === 'string' &&
