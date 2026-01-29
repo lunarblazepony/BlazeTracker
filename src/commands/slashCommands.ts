@@ -3,34 +3,8 @@
 // ============================================
 
 import type { STContext } from '../types/st';
-import type { TrackedState, NarrativeDateTime } from '../types/state';
-import { EXTENSION_NAME } from '../constants';
-import {
-	doExtractState,
-	renderMessageState,
-	renderAllStates,
-	unmountAllRoots,
-	extractionInProgress,
-} from '../ui/stateDisplay';
-import { setBatchExtractionInProgress } from '../extractors/extractState';
-import { getMessageState, setMessageState } from '../utils/messageState';
-import { updateInjectionFromChat } from '../injectors/injectState';
-import {
-	getOrInitializeNarrativeState,
-	saveNarrativeState,
-	addChapter,
-	getNarrativeState,
-	initializeNarrativeState,
-	setNarrativeState,
-} from '../state/narrativeState';
-import { EXTENSION_KEY } from '../constants';
-import { extractChapterBoundary } from '../extractors/extractChapter';
-import {
-	getMostRecentMessageId,
-	getStateForMessage,
-	countExtractedMessages,
-	getLastExtractedMessageId,
-} from './helpers';
+import { EXTENSION_NAME, EXTENSION_KEY } from '../constants';
+import { getMostRecentMessageId, getStateForMessage, countExtractedMessages } from './helpers';
 import {
 	clearV2EventStore,
 	runV2ExtractionAll,
@@ -50,6 +24,7 @@ import {
 	updateV2ExtractionProgress,
 } from '../v2/ui/mountV2Display';
 import { openEventStoreModal } from './eventStoreModal';
+import { getV2Settings } from '../v2/settings';
 
 // Slash command types are retrieved from SillyTavern context at registration time
 
@@ -58,22 +33,17 @@ function log(..._args: unknown[]) {
 }
 
 // ============================================
-// Helper Functions
+// Helper: Batch Extraction Flag
 // ============================================
 
-/**
- * Get default time for chapter extraction.
- */
-function getDefaultTime(): NarrativeDateTime {
-	return {
-		year: 2024,
-		month: 1,
-		day: 1,
-		dayOfWeek: 'Monday',
-		hour: 12,
-		minute: 0,
-		second: 0,
-	};
+let batchExtractionInProgress = false;
+
+export function setBatchExtractionInProgress(value: boolean): void {
+	batchExtractionInProgress = value;
+}
+
+export function isBatchExtractionInProgress(): boolean {
+	return batchExtractionInProgress;
 }
 
 // ============================================
@@ -81,7 +51,7 @@ function getDefaultTime(): NarrativeDateTime {
 // ============================================
 
 async function extractCommand(args: Record<string, unknown>, _value: string): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 
 	// Link ST's abort controller to BlazeTracker's internal abort
 	// Note: ST's SlashCommandAbortController fires 'abort' on the controller itself, not on signal
@@ -144,394 +114,11 @@ async function extractCommand(args: Record<string, unknown>, _value: string): Pr
 }
 
 // ============================================
-// Command: /bt-deprecated-extract (V1)
-// ============================================
-
-async function deprecatedExtractCommand(
-	args: Record<string, string>,
-	_value: string,
-): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
-
-	// Parse message ID from args or use most recent
-	let messageId: number;
-	if (args.id !== undefined && args.id !== '') {
-		messageId = parseInt(args.id, 10);
-		if (isNaN(messageId) || messageId < 0 || messageId >= context.chat.length) {
-			return `Error: Invalid message ID "${args.id}". Valid range: 0-${context.chat.length - 1}`;
-		}
-	} else {
-		messageId = getMostRecentMessageId(context);
-	}
-
-	if (messageId <= 0) {
-		return 'Error: No messages to extract (chat is empty or only has system message)';
-	}
-
-	log('Slash command: extracting state for message', messageId);
-
-	// Note: Milestone clearing for re-extraction happens inside doExtractState
-	// so it applies to all extraction triggers (swiping, editing, fire button, etc.)
-
-	try {
-		const result = await doExtractState(messageId, { isManual: true });
-
-		if (result) {
-			updateInjectionFromChat();
-			return `Successfully extracted state for message ${messageId}`;
-		} else {
-			return `Extraction returned no result for message ${messageId} (may have been aborted or already in progress)`;
-		}
-	} catch (e: any) {
-		log('Extraction error:', e);
-		return `Error extracting state: ${e.message}`;
-	}
-}
-
-// ============================================
-// Command: /bt-deprecated-chapter (V1)
-// ============================================
-
-async function deprecatedChapterCommand(
-	args: Record<string, string>,
-	_value: string,
-): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
-	const lastMessageId = getMostRecentMessageId(context);
-
-	if (lastMessageId <= 0) {
-		return 'Error: No messages in chat';
-	}
-
-	// Get the current state
-	const message = context.chat[lastMessageId];
-	let stateData = getMessageState(message);
-
-	// If no state, run extraction first
-	if (!stateData?.state) {
-		if (extractionInProgress.has(lastMessageId)) {
-			return 'Error: Extraction already in progress for this message. Please wait.';
-		}
-
-		const extractResult = await doExtractState(lastMessageId, { isManual: true });
-		if (!extractResult?.state) {
-			return 'Error: Failed to extract state for the most recent message.';
-		}
-		stateData = extractResult;
-	}
-
-	const state = stateData.state;
-	const currentEvents = state.currentEvents ?? [];
-
-	if (currentEvents.length === 0) {
-		return 'Error: No events in current chapter to finalize. Need at least one event.';
-	}
-
-	const narrativeState = getOrInitializeNarrativeState();
-	const currentChapter = state.currentChapter ?? 0;
-
-	// Get time range from events
-	const startTime = currentEvents[0]?.timestamp ?? state.time ?? getDefaultTime();
-	const endTime = state.time ?? getDefaultTime();
-	const primaryLocation = state.location
-		? `${state.location.area} - ${state.location.place}`
-		: 'Unknown';
-
-	log('Slash command: forcing chapter break at chapter', currentChapter);
-
-	try {
-		// Extract chapter summary via LLM (force create since this is an explicit command)
-		const chapterResult = await extractChapterBoundary({
-			events: currentEvents,
-			narrativeState,
-			chapterIndex: currentChapter,
-			startTime,
-			endTime,
-			primaryLocation,
-			forceCreate: true,
-		});
-
-		if (!chapterResult.chapter) {
-			return 'Error: Failed to generate chapter summary';
-		}
-
-		// Allow title override
-		if (args.title) {
-			chapterResult.chapter.title = args.title;
-		}
-
-		// Add chapter to narrative state
-		addChapter(narrativeState, chapterResult.chapter);
-		await saveNarrativeState(narrativeState);
-
-		// Update the message state - increment chapter, clear events, show chapter ended
-		const updatedState: TrackedState = {
-			...state,
-			currentChapter: currentChapter + 1,
-			currentEvents: undefined,
-			chapterEnded: {
-				index: currentChapter,
-				title: chapterResult.chapter.title,
-				summary: chapterResult.chapter.summary,
-				eventCount: currentEvents.length,
-				reason: 'manual',
-			},
-		};
-
-		const newStateData = {
-			state: updatedState,
-			extractedAt: new Date().toISOString(),
-		};
-
-		setMessageState(message, newStateData);
-		await context.saveChat();
-
-		// Re-render the state display with the new state data
-		renderMessageState(lastMessageId, newStateData);
-		updateInjectionFromChat();
-
-		return `Chapter ${currentChapter + 1} created: "${chapterResult.chapter.title}" (${currentEvents.length} events archived)`;
-	} catch (e: any) {
-		log('Chapter creation error:', e);
-		return `Error creating chapter: ${e.message}`;
-	}
-}
-
-// ============================================
-// Command: /bt-deprecated-extract-all (V1)
-// ============================================
-
-async function deprecatedExtractAllCommand(
-	_args: Record<string, string>,
-	_value: string,
-): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
-
-	const totalMessages = context.chat.length;
-
-	if (totalMessages <= 1) {
-		return 'Error: No messages to extract (chat is empty or only has system message)';
-	}
-
-	// Get current state info for confirmation message
-	const currentNarrativeState = getNarrativeState();
-	const chapterCount = currentNarrativeState?.chapters.length ?? 0;
-	const relationshipCount = currentNarrativeState?.relationships.length ?? 0;
-
-	// Show confirmation popup
-	const confirmMessage =
-		`This will DELETE all BlazeTracker data FOR THIS CHAT and re-extract from scratch:\n\n` +
-		`• ${chapterCount} chapter(s)\n` +
-		`• ${relationshipCount} relationship(s) (including all milestones)\n` +
-		`• All per-message state data\n\n` +
-		`Other chats are not affected. This cannot be undone. Continue?`;
-
-	const confirmed =
-		(await (context as any).callGenericPopup?.(confirmMessage, 1 /* CONFIRM */)) ??
-		window.confirm(confirmMessage);
-
-	if (!confirmed) {
-		return 'Extraction cancelled.';
-	}
-
-	log('Slash command: extracting all messages');
-
-	// Unmount all roots first to prevent stale UI during extraction
-	unmountAllRoots();
-
-	// Clear all existing state before starting
-	log('Clearing all existing BlazeTracker state...');
-
-	// 1. Reset narrative state (chapters, relationships)
-	const freshNarrativeState = initializeNarrativeState();
-	setNarrativeState(freshNarrativeState);
-
-	// 2. Clear all per-message states
-	for (let i = 1; i < totalMessages; i++) {
-		const message = context.chat[i];
-		if (message.extra && message.extra[EXTENSION_KEY]) {
-			delete message.extra[EXTENSION_KEY];
-		}
-	}
-
-	// Save the cleared state
-	await context.saveChat();
-	log('All state cleared, starting fresh extraction...');
-
-	let extracted = 0;
-	let failed = 0;
-
-	// Set batch flag to prevent GENERATION_ENDED handler from interfering
-	setBatchExtractionInProgress(true);
-
-	try {
-		// Start from message 1 (skip system message at 0)
-		for (let i = 1; i < totalMessages; i++) {
-			try {
-				// Show progress via toastr if available
-				window.toastr?.info(
-					`Extracting message ${i}/${totalMessages - 1}...`,
-					EXTENSION_NAME,
-					{ timeOut: 1000 },
-				);
-
-				const result = await doExtractState(i);
-
-				if (result) {
-					extracted++;
-				} else {
-					failed++;
-				}
-			} catch (e: any) {
-				log(`Failed to extract message ${i}:`, e);
-				failed++;
-			}
-		}
-	} finally {
-		// Always clear the batch flag when done
-		setBatchExtractionInProgress(false);
-	}
-
-	// Final update
-	renderAllStates();
-	updateInjectionFromChat();
-
-	const results: string[] = [];
-	if (extracted > 0) results.push(`${extracted} extracted`);
-	if (failed > 0) results.push(`${failed} failed`);
-
-	return `Extraction complete (full reset): ${results.join(', ')}`;
-}
-
-/**
- * Run extraction on all messages (used by legacy data migration).
- * Assumes state has already been cleared/initialized.
- */
-export async function runExtractAll(): Promise<{ extracted: number; failed: number }> {
-	const context = SillyTavern.getContext() as STContext;
-	const totalMessages = context.chat.length;
-
-	let extracted = 0;
-	let failed = 0;
-
-	// Set batch flag to prevent GENERATION_ENDED handler from interfering
-	setBatchExtractionInProgress(true);
-
-	try {
-		// Start from message 1 (skip system message at 0)
-		for (let i = 1; i < totalMessages; i++) {
-			try {
-				window.toastr?.info(
-					`Extracting message ${i}/${totalMessages - 1}...`,
-					EXTENSION_NAME,
-					{ timeOut: 1000 },
-				);
-
-				const result = await doExtractState(i);
-
-				if (result) {
-					extracted++;
-				} else {
-					failed++;
-				}
-			} catch (e: any) {
-				log(`Failed to extract message ${i}:`, e);
-				failed++;
-			}
-		}
-	} finally {
-		setBatchExtractionInProgress(false);
-	}
-
-	// Final update
-	renderAllStates();
-	updateInjectionFromChat();
-
-	return { extracted, failed };
-}
-
-// ============================================
-// Command: /bt-deprecated-extract-remaining (V1)
-// ============================================
-
-async function deprecatedCatchupCommand(
-	_args: Record<string, string>,
-	_value: string,
-): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
-
-	const totalMessages = context.chat.length;
-
-	if (totalMessages <= 1) {
-		return 'Error: No messages to extract (chat is empty or only has system message)';
-	}
-
-	// Find the last extracted message
-	const lastExtractedId = getLastExtractedMessageId(context);
-
-	// Determine starting point
-	const startId = lastExtractedId === -1 ? 1 : lastExtractedId + 1;
-
-	// Check if there's anything to extract
-	if (startId >= totalMessages) {
-		return 'Already caught up! All messages have been extracted.';
-	}
-
-	const messagesToExtract = totalMessages - startId;
-
-	log('Slash command: catching up from message', startId);
-
-	let extracted = 0;
-	let failed = 0;
-
-	// Set batch flag to prevent GENERATION_ENDED handler from interfering
-	setBatchExtractionInProgress(true);
-
-	try {
-		for (let i = startId; i < totalMessages; i++) {
-			try {
-				// Show progress via toastr if available
-				window.toastr?.info(
-					`Extracting message ${i - startId + 1}/${messagesToExtract}...`,
-					EXTENSION_NAME,
-					{ timeOut: 1000 },
-				);
-
-				const result = await doExtractState(i);
-
-				if (result) {
-					extracted++;
-				} else {
-					failed++;
-				}
-			} catch (e: any) {
-				log(`Failed to extract message ${i}:`, e);
-				failed++;
-			}
-		}
-	} finally {
-		// Always clear the batch flag when done
-		setBatchExtractionInProgress(false);
-	}
-
-	// Final update
-	renderAllStates();
-	updateInjectionFromChat();
-
-	const results: string[] = [];
-	if (extracted > 0) results.push(`${extracted} extracted`);
-	if (failed > 0) results.push(`${failed} failed`);
-
-	const startInfo = lastExtractedId === -1 ? 'from start' : `from message ${startId}`;
-	return `Catchup complete (${startInfo}): ${results.join(', ')}`;
-}
-
-// ============================================
 // Command: /bt-extract-all (V2)
 // ============================================
 
 async function extractAllCommand(args: Record<string, unknown>, _value: string): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 
 	// Link ST's abort controller to BlazeTracker's internal abort
 	// Note: ST's SlashCommandAbortController fires 'abort' on the controller itself, not on signal
@@ -570,18 +157,13 @@ async function extractAllCommand(args: Record<string, unknown>, _value: string):
 	// Clear existing v2 state
 	await clearV2EventStore();
 
-	// Clear v1 state from all messages and unmount v1 displays
-	unmountAllRoots();
+	// Clear v1 state from all messages
 	for (let i = 1; i < totalMessages; i++) {
 		const message = context.chat[i];
 		if (message.extra && message.extra[EXTENSION_KEY]) {
 			delete message.extra[EXTENSION_KEY];
 		}
 	}
-
-	// Clear v1 narrative state
-	const freshNarrativeState = initializeNarrativeState();
-	setNarrativeState(freshNarrativeState);
 
 	// Save the cleared state
 	await context.saveChat();
@@ -653,7 +235,7 @@ async function extractRemainingCommand(
 	args: Record<string, unknown>,
 	_value: string,
 ): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 
 	// Link ST's abort controller to BlazeTracker's internal abort
 	// Note: ST's SlashCommandAbortController fires 'abort' on the controller itself, not on signal
@@ -759,7 +341,7 @@ async function eventStoreCommand(_args: Record<string, string>, _value: string):
 		return 'Error: No event store available. Run /bt-extract-all first.';
 	}
 
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 	const swipeContext = buildSwipeContext(context);
 
 	// Open the event store modal
@@ -773,26 +355,29 @@ async function eventStoreCommand(_args: Record<string, string>, _value: string):
 // ============================================
 
 async function statusCommand(_args: Record<string, string>, _value: string): Promise<string> {
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 	const { extracted, total } = countExtractedMessages(context);
-	const narrativeState = getNarrativeState();
+	const settings = getV2Settings();
 
 	// Build status rows
 	const rows: Array<{ label: string; value: string }> = [
 		{ label: 'Messages Extracted', value: `${extracted} / ${total}` },
+		{
+			label: 'V2 Auto Extract',
+			value: settings.v2AutoExtract ? 'Enabled' : 'Disabled',
+		},
 	];
 
-	if (narrativeState) {
-		rows.push({ label: 'Chapters', value: String(narrativeState.chapters.length) });
-		rows.push({
-			label: 'Relationships',
-			value: String(narrativeState.relationships.length),
-		});
+	// Get V2 event store info
+	const store = getV2EventStore();
+	if (hasV2InitialSnapshot()) {
+		const messageIds = store.getMessageIdsWithEvents();
+		rows.push({ label: 'Messages with Events', value: String(messageIds.length) });
 	} else {
-		rows.push({ label: 'Narrative State', value: 'Not initialized' });
+		rows.push({ label: 'V2 State', value: 'Not initialized' });
 	}
 
-	// Get current events from most recent state
+	// Get current state from most recent message
 	const lastMessageId = getMostRecentMessageId(context);
 	if (lastMessageId > 0) {
 		const state = getStateForMessage(context, lastMessageId);
@@ -855,7 +440,7 @@ export function registerSlashCommands(): void {
 		}
 
 		// ========================================
-		// V2 Commands (Current)
+		// V2 Commands
 		// ========================================
 
 		// /bt-extract - Extract state for a message (V2)
@@ -973,96 +558,10 @@ export function registerSlashCommands(): void {
 					Displays:
 					<ul>
 						<li>Messages extracted vs total</li>
-						<li>Number of chapters</li>
-						<li>Number of relationships</li>
+						<li>V2 auto-extract status</li>
+						<li>Messages with events</li>
 						<li>Events in current chapter</li>
 					</ul>
-				</div>
-			`,
-				returns: ARGUMENT_TYPE.STRING,
-			}),
-		);
-
-		// ========================================
-		// Deprecated V1 Commands
-		// ========================================
-
-		// /bt-deprecated-extract - V1 extraction
-		SlashCommandParser.addCommandObject(
-			SlashCommand.fromProps({
-				name: 'bt-deprecated-extract',
-				callback: deprecatedExtractCommand,
-				namedArgumentList: [
-					SlashCommandNamedArgument.fromProps({
-						name: 'id',
-						description:
-							'Message ID to extract (defaults to most recent)',
-						typeList: [ARGUMENT_TYPE.NUMBER],
-						isRequired: false,
-					}),
-				],
-				helpString: `
-				<div>
-					<strong>DEPRECATED:</strong> Use /bt-extract instead.
-					<br><br>
-					V1 extraction for backwards compatibility.
-				</div>
-			`,
-				returns: ARGUMENT_TYPE.STRING,
-			}),
-		);
-
-		// /bt-deprecated-chapter - V1 chapter command
-		SlashCommandParser.addCommandObject(
-			SlashCommand.fromProps({
-				name: 'bt-deprecated-chapter',
-				callback: deprecatedChapterCommand,
-				namedArgumentList: [
-					SlashCommandNamedArgument.fromProps({
-						name: 'title',
-						description:
-							'Override the auto-generated chapter title',
-						typeList: [ARGUMENT_TYPE.STRING],
-						isRequired: false,
-					}),
-				],
-				helpString: `
-				<div>
-					<strong>DEPRECATED:</strong> Chapter breaks are now automatic in V2.
-					<br><br>
-					V1 chapter command for backwards compatibility.
-				</div>
-			`,
-				returns: ARGUMENT_TYPE.STRING,
-			}),
-		);
-
-		// /bt-deprecated-extract-all - V1 extract all
-		SlashCommandParser.addCommandObject(
-			SlashCommand.fromProps({
-				name: 'bt-deprecated-extract-all',
-				callback: deprecatedExtractAllCommand,
-				helpString: `
-				<div>
-					<strong>DEPRECATED:</strong> Use /bt-extract-all instead.
-					<br><br>
-					V1 extract all for backwards compatibility.
-				</div>
-			`,
-				returns: ARGUMENT_TYPE.STRING,
-			}),
-		);
-
-		// /bt-deprecated-extract-remaining - V1 catchup
-		SlashCommandParser.addCommandObject(
-			SlashCommand.fromProps({
-				name: 'bt-deprecated-extract-remaining',
-				callback: deprecatedCatchupCommand,
-				helpString: `
-				<div>
-					<strong>DEPRECATED:</strong> Use /bt-extract-remaining instead.
-					<br><br>
-					V1 catchup command for backwards compatibility.
 				</div>
 			`,
 				returns: ARGUMENT_TYPE.STRING,

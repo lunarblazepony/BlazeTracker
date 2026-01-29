@@ -163,7 +163,7 @@ function handleOpenNarrativeModal(messageId: number): void {
 		return;
 	}
 
-	const stContext = SillyTavern.getContext() as STContext;
+	const stContext = SillyTavern.getContext() as unknown as STContext;
 
 	// Create container if needed
 	if (!narrativeModalContainer) {
@@ -227,7 +227,7 @@ function handleEditEvents(messageId: number, swipeId: number): void {
 		return;
 	}
 
-	const stContext = SillyTavern.getContext() as STContext;
+	const stContext = SillyTavern.getContext() as unknown as STContext;
 	const swipeContext = buildSwipeContext(stContext);
 
 	// Create container if needed
@@ -315,7 +315,7 @@ export function mountV2ProjectionDisplay(messageId: number): void {
 	const milestones = isExtracting ? [] : getMilestonesAtMessage(messageId);
 
 	// Get swipe ID for editor
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 	const message = context.chat[messageId];
 	const swipeId = message?.swipe_id ?? 0;
 
@@ -361,7 +361,7 @@ export function mountAllV2ProjectionDisplays(): void {
 		return;
 	}
 
-	const context = SillyTavern.getContext() as STContext;
+	const context = SillyTavern.getContext() as unknown as STContext;
 	for (let i = 1; i < context.chat.length; i++) {
 		mountV2ProjectionDisplay(i);
 	}

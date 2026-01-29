@@ -55,7 +55,9 @@ module.exports = {
             patterns: [
                 { from: 'src/ui/stateDisplay.css', to: 'stateDisplay.css' },
                 { from: 'src/ui/stateEditor.css', to: 'stateEditor.css' },
+                { from: 'src/ui/settings.css', to: 'settings.css' },
                 { from: 'src/ui/cardDefaults.css', to: 'cardDefaults.css' },
+                { from: 'src/v2/ui/V2NarrativeModal.css', to: 'V2NarrativeModal.css' },
             ]
         }),
     ],

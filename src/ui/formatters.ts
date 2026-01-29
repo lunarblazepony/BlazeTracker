@@ -14,7 +14,7 @@ import { MONTH_NAMES } from './constants';
 import { applyTimeFormat, type TimeFormat } from '../utils/timeFormat';
 import { formatTemperature } from '../utils/temperatures';
 import { isLegacyClimate } from '../weather';
-import { getSettings } from '../settings';
+import { getV2Settings } from '../v2/settings';
 
 /**
  * Format a narrative datetime for display.
@@ -84,20 +84,23 @@ Tension: ${tensionParts.join(', ')}`;
  * @returns Formatted climate string
  */
 export function formatClimate(climate: Climate | ProceduralClimate): string {
-	const settings = getSettings();
+	const settings = getV2Settings();
 
 	if (isLegacyClimate(climate)) {
 		// Legacy format: simple weather + temperature
-		return `${formatTemperature(climate.temperature, settings.temperatureUnit)}, ${climate.weather}`;
+		return `${formatTemperature(climate.temperature, settings.v2TemperatureUnit)}, ${climate.weather}`;
 	}
 
 	// Procedural format: more detailed
 	const parts: string[] = [];
 
 	// Temperature with feels like if significantly different
-	const tempStr = formatTemperature(climate.temperature, settings.temperatureUnit);
+	const tempStr = formatTemperature(climate.temperature, settings.v2TemperatureUnit);
 	if (Math.abs(climate.feelsLike - climate.temperature) > 5) {
-		const feelsLikeStr = formatTemperature(climate.feelsLike, settings.temperatureUnit);
+		const feelsLikeStr = formatTemperature(
+			climate.feelsLike,
+			settings.v2TemperatureUnit,
+		);
 		parts.push(`${tempStr} (feels like ${feelsLikeStr})`);
 	} else {
 		parts.push(tempStr);
@@ -117,7 +120,7 @@ export function formatClimate(climate: Climate | ProceduralClimate): string {
 	if (climate.isIndoors && climate.indoorTemperature !== undefined) {
 		const outdoorStr = formatTemperature(
 			climate.outdoorTemperature,
-			settings.temperatureUnit,
+			settings.v2TemperatureUnit,
 		);
 		parts.push(`(${outdoorStr} outside)`);
 	}

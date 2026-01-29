@@ -7,7 +7,7 @@
 
 import type { LocationMapping, BaseClimateType } from './types';
 import { geocodeLocation } from './climateApi';
-import { getSettings, getTemperature } from '../settings';
+import { getV2Settings } from '../v2/settings';
 import { makeGeneratorRequest, buildExtractionMessages } from '../utils/generator';
 import { parseJsonResponse } from '../utils/json';
 import { debugWarn, errorLog } from '../utils/debug';
@@ -250,7 +250,7 @@ async function analyzeLocation(
 	context: string,
 	abortSignal?: AbortSignal,
 ): Promise<LocationAnalysisResult> {
-	const settings = getSettings();
+	const settings = getV2Settings();
 
 	const prompt = LOCATION_ANALYSIS_PROMPT.replace('{{location}}', location).replace(
 		'{{context}}',
@@ -261,9 +261,9 @@ async function analyzeLocation(
 
 	try {
 		const response = await makeGeneratorRequest(messages, {
-			profileId: settings.profileId,
+			profileId: settings.v2ProfileId,
 			maxTokens: 500,
-			temperature: getTemperature('climate_initial'),
+			temperature: settings.v2Temperatures.climate,
 			abortSignal,
 		});
 

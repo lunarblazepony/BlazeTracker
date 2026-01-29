@@ -9,7 +9,7 @@ import React, { useMemo } from 'react';
 import type { Projection, CharacterState, RelationshipState } from '../types/snapshot';
 import type { CharacterOutfit, OutfitSlot } from '../types/common';
 import type { Event } from '../types/event';
-import { getSettings } from '../../settings';
+import { getV2Settings } from '../settings';
 import {
 	getMilestonesForPair as getMilestonesFromEvents,
 	getMilestoneDisplayName,
@@ -38,7 +38,7 @@ export function V2ProjectionPreview({
 	events,
 	swipeContext = NoSwipeFiltering,
 }: V2ProjectionPreviewProps) {
-	const settings = getSettings();
+	const settings = getV2Settings();
 	const characters = Object.values(projection.characters);
 	const relationships = Object.values(projection.relationships);
 
@@ -77,7 +77,7 @@ export function V2ProjectionPreview({
 					<h4>Time</h4>
 					<div className="bt-projection-value">
 						<i className="fa-regular fa-clock"></i>{' '}
-						{formatTime(projection.time, settings.timeFormat)}
+						{formatTime(projection.time, settings.v2TimeFormat)}
 					</div>
 				</div>
 			)}

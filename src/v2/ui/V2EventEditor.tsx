@@ -1639,7 +1639,7 @@ const V2RelationshipEventEditor = forwardRef<
 		isSubject ? (event as RelationshipSubjectEvent).subject : 'conversation',
 	);
 	const [milestoneDescription, setMilestoneDescription] = useState(
-		isSubject ? (event as RelationshipSubjectEvent).milestoneDescription ?? '' : '',
+		isSubject ? ((event as RelationshipSubjectEvent).milestoneDescription ?? '') : '',
 	);
 
 	const getCurrentState = useCallback((): Partial<RelationshipEvent> => {
@@ -1669,7 +1669,16 @@ const V2RelationshipEventEditor = forwardRef<
 			subject,
 			milestoneDescription: milestoneDescription || undefined,
 		} as Partial<RelationshipSubjectEvent>;
-	}, [charA, charB, value, newStatus, isStatus, isDirectional, subject, milestoneDescription]);
+	}, [
+		charA,
+		charB,
+		value,
+		newStatus,
+		isStatus,
+		isDirectional,
+		subject,
+		milestoneDescription,
+	]);
 
 	useImperativeHandle(ref, () => ({ getCurrentState }), [getCurrentState]);
 
@@ -1686,7 +1695,9 @@ const V2RelationshipEventEditor = forwardRef<
 							onChange={e => setCharA(e.target.value)}
 						>
 							<option value="">
-								{isDirectional ? 'From character' : 'Character A'}
+								{isDirectional
+									? 'From character'
+									: 'Character A'}
 							</option>
 							{characterNames.map(name => (
 								<option key={name} value={name}>
@@ -1700,7 +1711,9 @@ const V2RelationshipEventEditor = forwardRef<
 							onChange={e => setCharB(e.target.value)}
 						>
 							<option value="">
-								{isDirectional ? 'Toward character' : 'Character B'}
+								{isDirectional
+									? 'Toward character'
+									: 'Character B'}
 							</option>
 							{characterNames.map(name => (
 								<option key={name} value={name}>
@@ -1723,12 +1736,18 @@ const V2RelationshipEventEditor = forwardRef<
 						<select
 							value={newStatus}
 							onChange={e =>
-								setNewStatus(e.target.value as RelationshipStatus)
+								setNewStatus(
+									e.target
+										.value as RelationshipStatus,
+								)
 							}
 						>
 							{RELATIONSHIP_STATUSES.map(status => (
 								<option key={status} value={status}>
-									{status.charAt(0).toUpperCase() + status.slice(1)}
+									{status
+										.charAt(0)
+										.toUpperCase() +
+										status.slice(1)}
 								</option>
 							))}
 						</select>
@@ -1738,7 +1757,12 @@ const V2RelationshipEventEditor = forwardRef<
 						<>
 							<select
 								value={subject}
-								onChange={e => setSubject(e.target.value as Subject)}
+								onChange={e =>
+									setSubject(
+										e.target
+											.value as Subject,
+									)
+								}
 							>
 								{SUBJECTS.map(s => (
 									<option key={s} value={s}>
@@ -1750,7 +1774,11 @@ const V2RelationshipEventEditor = forwardRef<
 								type="text"
 								placeholder="Milestone description (optional)"
 								value={milestoneDescription}
-								onChange={e => setMilestoneDescription(e.target.value)}
+								onChange={e =>
+									setMilestoneDescription(
+										e.target.value,
+									)
+								}
 							/>
 						</>
 					)}

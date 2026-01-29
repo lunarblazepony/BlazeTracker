@@ -56,7 +56,9 @@ export function V2NarrativeModal({
 	const relationshipsCount = projection ? Object.keys(projection.relationships).length : 0;
 	const chaptersCount = projection ? projection.currentChapter + 1 : 0;
 	const eventsCount = projection
-		? projection.narrativeEvents.filter(e => e.chapterIndex === projection.currentChapter).length
+		? projection.narrativeEvents.filter(
+				e => e.chapterIndex === projection.currentChapter,
+			).length
 		: 0;
 
 	// Handle editing a relationship

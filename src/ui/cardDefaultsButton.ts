@@ -54,7 +54,7 @@ export function injectCardDefaultsButton(): boolean {
 
 	// Create click handler
 	buttonClickHandler = () => {
-		const context = SillyTavern.getContext() as STContext;
+		const context = SillyTavern.getContext() as unknown as STContext;
 		const characterId = context.characterId;
 		if (onOpenModal && characterId !== undefined) {
 			onOpenModal(characterId);

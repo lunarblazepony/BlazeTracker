@@ -162,7 +162,10 @@ export function V2RelationshipEditor({
 			prev.map(e => {
 				if (e.id !== eventId) return e;
 				if (isRelationshipSubjectEvent(e)) {
-					return { ...e, milestoneDescription: milestone || undefined };
+					return {
+						...e,
+						milestoneDescription: milestone || undefined,
+					};
 				}
 				return e;
 			}),
@@ -544,11 +547,15 @@ function RelationshipEventCard({
 							type="text"
 							className="bt-v2-event-rel-input"
 							value={getDisplayValue()}
-							onChange={e => onValueChange(e.target.value)}
+							onChange={e =>
+								onValueChange(e.target.value)
+							}
 							onBlur={() => setIsEditing(false)}
 							onKeyDown={e => {
-								if (e.key === 'Enter') setIsEditing(false);
-								if (e.key === 'Escape') setIsEditing(false);
+								if (e.key === 'Enter')
+									setIsEditing(false);
+								if (e.key === 'Escape')
+									setIsEditing(false);
 							}}
 							autoFocus
 							style={{
@@ -567,9 +574,17 @@ function RelationshipEventCard({
 						className="bt-v2-event-rel-value"
 						onClick={() => setIsEditing(true)}
 					>
-						{isSubject ? formatSubject(getDisplayValue()) : getDisplayValue() || (
-							<em style={{ color: '#555' }}>empty</em>
-						)}
+						{isSubject
+							? formatSubject(getDisplayValue())
+							: getDisplayValue() || (
+									<em
+										style={{
+											color: '#555',
+										}}
+									>
+										empty
+									</em>
+								)}
 					</div>
 				)}
 				{isDirectionalRelationshipEvent(event) && (
@@ -585,11 +600,23 @@ function RelationshipEventCard({
 								type="text"
 								placeholder="Milestone description"
 								value={getMilestoneText()}
-								onChange={e => onMilestoneChange?.(e.target.value)}
-								onBlur={() => setIsEditingMilestone(false)}
+								onChange={e =>
+									onMilestoneChange?.(
+										e.target.value,
+									)
+								}
+								onBlur={() =>
+									setIsEditingMilestone(false)
+								}
 								onKeyDown={e => {
-									if (e.key === 'Enter') setIsEditingMilestone(false);
-									if (e.key === 'Escape') setIsEditingMilestone(false);
+									if (e.key === 'Enter')
+										setIsEditingMilestone(
+											false,
+										);
+									if (e.key === 'Escape')
+										setIsEditingMilestone(
+											false,
+										);
 								}}
 								autoFocus
 								style={{
@@ -605,16 +632,30 @@ function RelationshipEventCard({
 						) : (
 							<div
 								className="bt-v2-event-rel-milestone-text"
-								onClick={() => setIsEditingMilestone(true)}
+								onClick={() =>
+									setIsEditingMilestone(true)
+								}
 								style={{
 									fontSize: '0.8rem',
-									color: getMilestoneText() ? '#eab308' : '#555',
-									fontStyle: getMilestoneText() ? 'normal' : 'italic',
+									color: getMilestoneText()
+										? '#eab308'
+										: '#555',
+									fontStyle: getMilestoneText()
+										? 'normal'
+										: 'italic',
 									cursor: 'pointer',
 								}}
 							>
-								<i className="fa-solid fa-star" style={{ marginRight: '0.3rem', fontSize: '0.7rem' }} />
-								{getMilestoneText() || 'add milestone text'}
+								<i
+									className="fa-solid fa-star"
+									style={{
+										marginRight:
+											'0.3rem',
+										fontSize: '0.7rem',
+									}}
+								/>
+								{getMilestoneText() ||
+									'add milestone text'}
 							</div>
 						)}
 					</div>

@@ -54,7 +54,7 @@ export function EventStoreEditor({
 
 	// Create swipe context for projection - uses actual swipe IDs from each message
 	const swipeContext = useMemo(() => {
-		const stContext = SillyTavern.getContext() as STContext;
+		const stContext = SillyTavern.getContext() as unknown as STContext;
 		return buildSwipeContext(stContext);
 	}, []);
 

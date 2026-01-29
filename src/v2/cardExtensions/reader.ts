@@ -122,7 +122,7 @@ export function readCardExtensions(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): CardExtensions | null {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 
 	const character = ctx.characters[charId] as CharacterWithExtensions | undefined;
@@ -270,7 +270,7 @@ export async function writeLocationExtension(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 	await ctx.writeExtensionField(charId, EXTENSION_KEY_LOCATION, location);
 }
@@ -283,7 +283,7 @@ export async function writeTimeExtension(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 	await ctx.writeExtensionField(charId, EXTENSION_KEY_TIME, time);
 }
@@ -296,7 +296,7 @@ export async function writeOutfitExtension(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 	await ctx.writeExtensionField(charId, EXTENSION_KEY_OUTFIT, outfit);
 }
@@ -309,7 +309,7 @@ export async function writeProfileExtension(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 	await ctx.writeExtensionField(charId, EXTENSION_KEY_PROFILE, profile);
 }
@@ -322,7 +322,7 @@ export async function writeRelationshipsExtension(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 	await ctx.writeExtensionField(charId, EXTENSION_KEY_RELATIONSHIPS, relationships);
 }
@@ -335,7 +335,7 @@ export async function writeAllExtensions(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 
 	const promises: Promise<void>[] = [];
@@ -392,7 +392,7 @@ export async function clearExtension(
 	characterId?: number,
 	context?: STContextWithExtensions,
 ): Promise<void> {
-	const ctx = context ?? (SillyTavern.getContext() as STContextWithExtensions);
+	const ctx = context ?? (SillyTavern.getContext() as unknown as STContextWithExtensions);
 	const charId = characterId ?? ctx.characterId;
 	await ctx.writeExtensionField(charId, key, null);
 }

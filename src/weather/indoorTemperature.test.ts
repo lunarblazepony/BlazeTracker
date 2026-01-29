@@ -5,7 +5,7 @@ import {
 	isIndoors,
 	calculateEffectiveTemperature,
 } from './indoorTemperature';
-import type { LocationState } from '../extractors/extractLocation';
+import type { LocationState } from '../types/state';
 
 // ============================================
 // Test Helpers

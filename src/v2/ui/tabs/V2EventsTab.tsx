@@ -52,10 +52,7 @@ function NarrativeEventItem({
 	const typeTooltip = `Type: ${event.tension.type}`;
 
 	return (
-		<div
-			className="bt-event-item"
-			style={{ borderLeftColor: levelColor }}
-		>
+		<div className="bt-event-item" style={{ borderLeftColor: levelColor }}>
 			{/* Row 1: Time (left), Tension icons (right) */}
 			<div className="bt-event-header">
 				<span className="bt-event-time">
@@ -93,9 +90,14 @@ function NarrativeEventItem({
 				<div className="bt-event-footer">
 					<div className="bt-event-people">
 						<div className="bt-event-witnesses">
-							<span className="bt-witnesses-label">Witnesses:</span>
+							<span className="bt-witnesses-label">
+								Witnesses:
+							</span>
 							{event.witnesses.map((w, i) => (
-								<span key={i} className="bt-witness">
+								<span
+									key={i}
+									className="bt-witness"
+								>
 									{w}
 								</span>
 							))}
@@ -110,13 +112,20 @@ function NarrativeEventItem({
 					{event.subjects
 						.filter(s => s.isMilestone)
 						.map((subject, idx) => (
-							<span key={idx} className="bt-event-milestone">
+							<span
+								key={idx}
+								className="bt-event-milestone"
+							>
 								<i className="fa-solid fa-star" />
-								{subject.pair.join(' & ')}: {subject.subject}
+								{subject.pair.join(' & ')}:{' '}
+								{subject.subject}
 								{subject.milestoneDescription && (
 									<span className="bt-milestone-desc">
 										{' '}
-										- {subject.milestoneDescription}
+										-{' '}
+										{
+											subject.milestoneDescription
+										}
 									</span>
 								)}
 							</span>

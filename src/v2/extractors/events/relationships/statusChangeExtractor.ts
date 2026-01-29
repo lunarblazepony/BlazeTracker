@@ -34,8 +34,7 @@ import {
 	getExtractorTemperature,
 } from '../../utils';
 import { applyStatusGating } from '../../utils/statusGating';
-import { sortPair } from '../../../../state/relationships';
-import { getRelationshipKey } from '../../../types/snapshot';
+import { sortPair, getRelationshipKey } from '../../../types/snapshot';
 import { getMilestonesForPair, createSwipeContext } from '../../../store/projection';
 import { debugLog } from '../../../../utils/debug';
 

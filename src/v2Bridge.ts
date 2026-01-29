@@ -8,8 +8,6 @@
 import type { STContext } from './types/st';
 import { getV2Settings } from './v2/settings/manager';
 import type { V2Settings } from './v2/settings/types';
-// Legacy import for deprecated buildExtractionSettings
-import type { BlazeTrackerSettings } from './settings';
 import {
 	SillyTavernGenerator,
 	EventStore as V2EventStore,
@@ -118,41 +116,6 @@ export function buildExtractionContext(stContext: STContext): ExtractionContext 
 }
 
 /**
- * Convert extension settings to v2 ExtractionSettings.
- * @deprecated Use buildExtractionSettingsFromV2 for new code
- */
-export function buildExtractionSettings(settings: BlazeTrackerSettings): ExtractionSettings {
-	const temps = settings.customTemperatures ?? {};
-	return {
-		profileId: settings.profileId ?? '',
-		track: {
-			time: settings.trackTime ?? true,
-			location: settings.trackLocation ?? true,
-			props: settings.trackLocation ?? true, // Props tied to location
-			climate: settings.trackClimate ?? true,
-			characters: settings.trackCharacters ?? true,
-			relationships: settings.trackRelationships ?? true,
-			scene: settings.trackScene ?? true,
-			narrative: settings.trackEvents ?? true,
-			chapters: true, // Always track chapters in v2
-		},
-		temperatures: {
-			time: temps['time'] ?? 0.3,
-			location: temps['location'] ?? 0.5,
-			climate: temps['climate'] ?? 0.3,
-			characters: temps['characters'] ?? 0.7,
-			relationships: temps['relationships'] ?? 0.6,
-			scene: temps['scene'] ?? 0.6,
-			narrative: temps['events'] ?? 0.7,
-			chapters: temps['chapter'] ?? 0.5,
-		},
-		// Old format is Record<string, string>, v2 expects Record<string, { systemPrompt?, userTemplate? }>
-		// For now, don't migrate old custom prompts - they need new format
-		customPrompts: {},
-	};
-}
-
-/**
  * Convert V2 settings to ExtractionSettings.
  * Uses the new V2Settings format with proper per-prompt temperature support.
  */
@@ -224,7 +187,7 @@ export function setV2EventStore(store: V2EventStore): void {
  */
 export function loadV2EventStore(): boolean {
 	try {
-		const context = SillyTavern.getContext() as STContext;
+		const context = SillyTavern.getContext() as unknown as STContext;
 		const chat = context.chat;
 
 		if (!chat || chat.length === 0) {
@@ -269,7 +232,7 @@ export async function saveV2EventStore(): Promise<void> {
 	}
 
 	try {
-		const context = SillyTavern.getContext() as STContext;
+		const context = SillyTavern.getContext() as unknown as STContext;
 		const chat = context.chat;
 
 		if (!chat || chat.length === 0) {
@@ -311,7 +274,7 @@ export async function clearV2EventStore(): Promise<void> {
 	currentEventStore = null;
 
 	try {
-		const context = SillyTavern.getContext() as STContext;
+		const context = SillyTavern.getContext() as unknown as STContext;
 		const chat = context.chat;
 
 		if (!chat || chat.length === 0) {
@@ -370,7 +333,7 @@ export async function runV2Extraction(
 	const { onProgress, onStatus, isManual: _isManual = false } = options;
 
 	// Get ST context and V2 settings
-	const stContext = SillyTavern.getContext() as STContext;
+	const stContext = SillyTavern.getContext() as unknown as STContext;
 	const v2Settings = getV2Settings();
 
 	if (!v2Settings.v2ProfileId) {
@@ -512,7 +475,7 @@ export async function runV2ExtractionAll(
 ): Promise<{ extracted: number; failed: number }> {
 	const { onStatus, onProgress, onMessageStart, onMessageEnd } = options;
 
-	const stContext = SillyTavern.getContext() as STContext;
+	const stContext = SillyTavern.getContext() as unknown as STContext;
 	const totalMessages = stContext.chat.length;
 
 	let extracted = 0;
@@ -593,7 +556,7 @@ export function getProjectionForMessage(messageId: number): Projection | null {
 	}
 
 	try {
-		const stContext = SillyTavern.getContext() as STContext;
+		const stContext = SillyTavern.getContext() as unknown as STContext;
 		const swipeContext = buildSwipeContext(stContext);
 		return store.projectStateAtMessage(messageId, swipeContext);
 	} catch (e) {
@@ -703,7 +666,7 @@ export function getMilestonesAtMessage(messageId: number): MilestoneInfo[] {
 	const store = currentEventStore;
 	if (!store) return [];
 
-	const stContext = SillyTavern.getContext() as STContext;
+	const stContext = SillyTavern.getContext() as unknown as STContext;
 	const swipeContext = buildSwipeContext(stContext);
 	const canonicalSwipeId = swipeContext.getCanonicalSwipeId(messageId);
 

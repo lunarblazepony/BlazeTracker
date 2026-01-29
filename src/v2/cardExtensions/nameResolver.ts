@@ -6,6 +6,7 @@
  */
 
 import { namesMatch } from './reader';
+import type { STContext } from '../../types/st';
 
 /**
  * Result of a name resolution attempt.
@@ -83,7 +84,7 @@ async function showNameResolutionPopup(
 	contextLabel: string,
 ): Promise<NameResolutionResult> {
 	return new Promise(resolve => {
-		const context = SillyTavern.getContext();
+		const context = SillyTavern.getContext() as unknown as STContext;
 
 		const container = document.createElement('div');
 		container.innerHTML = `

@@ -6,7 +6,7 @@
  */
 
 import type { BuildingType } from './types';
-import type { LocationState } from '../extractors/extractLocation';
+import type { LocationState } from '../types/state';
 
 // ============================================
 // Indoor Temperature Calculation

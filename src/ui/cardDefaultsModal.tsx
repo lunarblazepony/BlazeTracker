@@ -25,7 +25,7 @@ import {
 } from '../v2/cardExtensions/reader';
 import { LOCATION_TYPES, OUTFIT_SLOTS, RELATIONSHIP_STATUSES } from '../v2/types/common';
 import { MILESTONE_WORTHY_SUBJECTS, type Subject } from '../v2/types/subject';
-import { getSettings } from '../settings';
+import { v2SettingsManager } from '../v2/settings/manager';
 import { errorLog } from '../utils/debug';
 
 // Debounce delay for auto-save (ms)
@@ -46,26 +46,25 @@ export interface PersonaDefaults {
 
 /**
  * Get persona defaults from extension settings.
+ * Stored as an extra property on the V2 settings object.
  */
 export function getPersonaDefaults(personaName: string): PersonaDefaults {
-	const settings = getSettings();
-	const allDefaults = (settings as any).personaDefaults as
-		| Record<string, PersonaDefaults>
-		| undefined;
+	const settings = v2SettingsManager.getSettings() as unknown as Record<string, unknown>;
+	const allDefaults = settings.personaDefaults as Record<string, PersonaDefaults> | undefined;
 	return allDefaults?.[personaName] ?? {};
 }
 
 /**
  * Save persona defaults to extension settings.
+ * Stored as an extra property on the V2 settings object.
  */
 export function savePersonaDefaults(personaName: string, defaults: PersonaDefaults): void {
-	const settings = getSettings();
-	if (!(settings as any).personaDefaults) {
-		(settings as any).personaDefaults = {};
+	const settings = v2SettingsManager.getSettings() as unknown as Record<string, unknown>;
+	if (!settings.personaDefaults) {
+		settings.personaDefaults = {};
 	}
-	(settings as any).personaDefaults[personaName] = defaults;
-	const ctx = SillyTavern.getContext() as STContextWithExtensions;
-	ctx.saveSettingsDebounced();
+	(settings.personaDefaults as Record<string, PersonaDefaults>)[personaName] = defaults;
+	v2SettingsManager.saveSettings();
 }
 
 // ============================================
@@ -303,7 +302,7 @@ export function CardDefaultsModal({ characterId, onClose }: CardDefaultsModalPro
 
 	// Load extensions on mount
 	useEffect(() => {
-		const ctx = SillyTavern.getContext() as STContextWithExtensions;
+		const ctx = SillyTavern.getContext() as unknown as STContextWithExtensions;
 		const loaded = readCardExtensions(characterId, ctx);
 		if (loaded) {
 			setInitialData(loaded);
@@ -318,7 +317,7 @@ export function CardDefaultsModal({ characterId, onClose }: CardDefaultsModalPro
 
 	const handleSave = useCallback(
 		async (data: CardExtensions) => {
-			const ctx = SillyTavern.getContext() as STContextWithExtensions;
+			const ctx = SillyTavern.getContext() as unknown as STContextWithExtensions;
 			await writeAllExtensions(data, characterId, ctx);
 		},
 		[characterId],

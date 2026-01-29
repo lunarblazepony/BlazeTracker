@@ -11,8 +11,7 @@ import type {
 	LocationMapping,
 	ForecastCacheEntry,
 } from './types';
-import type { NarrativeDateTime, Climate } from '../types/state';
-import type { LocationState } from '../extractors/extractLocation';
+import type { NarrativeDateTime, Climate, LocationState } from '../types/state';
 import { errorLog } from '../utils/debug';
 
 import { mapLocation, addToCache as addLocationToCache } from './locationMapper';
