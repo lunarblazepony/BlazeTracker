@@ -33,3 +33,11 @@ yarn-error.log*
 # Claude Code
 CLAUDE.md
 plans/
+specs/
+
+# Playwright
+playwright/
+playwright-report/
+
+# Test results
+test-results/
