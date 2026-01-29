@@ -660,9 +660,15 @@ Respond with a JSON object containing:
 - Dresses count as both "torso" AND "legs" slots
 - Adjustments (rolling sleeves, loosening tie) are NOT removals unless item comes off
 - Damage to clothing is NOT removal unless item is completely gone
-- Don't invent items not mentioned in the text
 - Watches, bracelets, rings, earrings don't fit standard slots - ignore them
 - If replacing one item with another in same slot, just use "added" (not removed)
+
+## Inferring Added Items
+When text implies clothing was added but doesn't give specifics, INFER appropriate items from context:
+- "She changed into work clothes" → infer professional attire (blouse, dress pants, flats)
+- "He got dressed for the gym" → infer workout clothes (athletic shirt, gym shorts, sneakers)
+- "She put on something more comfortable" → infer casual wear (t-shirt, sweatpants, slippers)
+Do NOT invent removals - only report items explicitly described as removed/taken off.
 
 ${GOOD_EXAMPLES}
 

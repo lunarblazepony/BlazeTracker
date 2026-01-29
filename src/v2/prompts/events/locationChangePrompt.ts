@@ -218,22 +218,20 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Marcus is telling a story about something that happened in the past. The current scene is still at O'Hare Airport where Marcus and Sarah are having coffee.
 
-### Bad Example 3: Inventing Location Details Not in Text
+### Bad Example 3: Using Vague Generic Descriptions Instead of Specifics
 INPUT:
 """
-Current location: New York - Times Square - Street corner near the TKTS booth
+Current location: London - St. Paul's Cathedral - Main nave
 
-Sarah: *She walked away from the noise and found a quieter spot to make her phone call. The person she needed to reach wasn't answering, and frustration built with each ring that went to voicemail.*
+Elena: *She slipped away from the tour group and wandered deeper into the cathedral, finding a quiet corridor away from the crowds. The ancient stonework here was darker, less restored, and she could hear her own footsteps echo.*
 """
 WRONG OUTPUT:
 {
-  "reasoning": "She walked to a quieter spot, probably into a Starbucks on 42nd Street.",
+  "reasoning": "She moved to a different corridor in the cathedral.",
   "changed": true,
-  "newArea": "New York",
-  "newPlace": "Starbucks on 42nd Street",
-  "newPosition": "In a corner booth by the window"
+  "newPosition": "Different corridor or room within St. Paul's Cathedral"
 }
-WHY THIS IS WRONG: The text says she found "a quieter spot" but doesn't specify where. Don't invent details like "Starbucks" or "42nd Street" that aren't in the text. The location change should only include what's actually described.
+WHY THIS IS WRONG: "Different corridor or room" is vague and unhelpful. When the exact location isn't stated, INVENT plausible specifics. The correct output should be something like "Quiet side corridor near the south transept" or "Dimly lit passage in the east wing". Also, Position should never restate the Place name - "within St. Paul's Cathedral" is redundant.
 
 ### Bad Example 4: Missing Partial Location Updates
 INPUT:
@@ -439,9 +437,24 @@ IMPORTANT: Position describes WHERE in the scene the camera is focused, like a r
 - If only position changes, omit newArea and newPlace
 - If changed is false, don't include any new* fields
 - Include newLocationType when moving between indoor/outdoor or different building types (e.g., entering a building, exiting to street)
-- Don't invent location details not present in the text
 - Vehicle journeys should report the final destination, not the vehicle
 - Fantasy/sci-fi locations should be described as they exist in the narrative
+
+## Inventing Specific Details
+When the text is vague about exact location, INVENT plausible specific details rather than using generic descriptions:
+- BAD: "Different corridor or room within the cathedral"
+- GOOD: "West Wing corridor, ground floor" or "Side chapel near the entrance"
+- BAD: "Another part of the building"
+- GOOD: "Third floor hallway" or "East stairwell"
+
+Be creative and specific - invent floor numbers, wing names, directional descriptions (north, south, east, west), or descriptive landmarks.
+
+## Position Must Not Duplicate Place
+Position describes WHERE within the Place - never restate or include the Place name:
+- Place: "St. Cuthbert's Cathedral" + Position: "Near the altar" ✓
+- Place: "St. Cuthbert's Cathedral" + Position: "Inside St. Cuthbert's Cathedral" ✗
+- Place: "The Rusty Nail bar" + Position: "Corner booth" ✓
+- Place: "The Rusty Nail bar" + Position: "In The Rusty Nail bar" ✗
 
 ${GOOD_EXAMPLES}
 
@@ -466,9 +479,10 @@ Remember:
 - Area = broadest (neighborhood, region, district)
 - Place = specific (building, establishment, landmark)
 - Position = scene landmark or room (NOT character posture - write "By the windows" not "Standing by the windows")
+- Position must NOT duplicate or restate the Place - it describes WHERE within the Place
 - locationType = only include if indoor/outdoor status changed ("outdoor", "modern", "heated", "unheated", "underground", "tent", "vehicle")
 - Only include fields that actually changed
-- Don't invent details not in the text
+- INVENT specific details when text is vague (e.g., "West corridor, 2nd floor" not "Different corridor")
 - Ignore memories, dreams, and dialogue about other places`,
 
 	responseSchema: locationChangeSchema,
