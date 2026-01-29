@@ -210,8 +210,7 @@ function formatSubkindLabel(subkind: string): string {
  * V2 Event Editor Component
  */
 export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>(
-	function V2EventEditor({ events, messageId, swipeId, onEventsChange, projection }, ref) {
-		const [showAddMenu, setShowAddMenu] = useState(false);
+	function V2EventEditor({ events, onEventsChange, projection }, ref) {
 		const [collapsedGroups, setCollapsedGroups] = useState<Set<V2EventGroupKind>>(
 			new Set(),
 		);
@@ -281,14 +280,6 @@ export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>
 						e.id === eventId ? { ...e, ...updates } : e,
 					) as Event[],
 				);
-			},
-			[events, onEventsChange],
-		);
-
-		const handleAddEvent = useCallback(
-			(newEvent: Event) => {
-				onEventsChange([...events, newEvent]);
-				setShowAddMenu(false);
 			},
 			[events, onEventsChange],
 		);
@@ -559,27 +550,6 @@ export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>
 						))}
 					</EventGroup>
 				)}
-
-				{/* Add Event Dropdown */}
-				<div className="bt-add-event-dropdown">
-					<button
-						className="bt-add-event-btn"
-						onClick={() => setShowAddMenu(!showAddMenu)}
-					>
-						<i className="fa-solid fa-plus"></i>
-						Add Event
-					</button>
-
-					{showAddMenu && (
-						<V2AddEventMenu
-							messageId={messageId}
-							swipeId={swipeId}
-							onAdd={handleAddEvent}
-							onClose={() => setShowAddMenu(false)}
-							projection={projection}
-						/>
-					)}
-				</div>
 			</div>
 		);
 	},
@@ -2098,7 +2068,7 @@ function V2ChapterEventCard({ event, index, onDelete }: V2ChapterEventCardProps)
 // Add Event Menu
 // =============================================
 
-interface V2AddEventMenuProps {
+export interface V2AddEventMenuProps {
 	messageId: number;
 	swipeId: number;
 	onAdd: (event: Event) => void;
@@ -2114,9 +2084,18 @@ type V2SubmenuType =
 	| 'outfit_changed'
 	| 'position_changed'
 	| 'activity_changed'
+	| 'feeling_removed'
+	| 'secret_removed'
+	| 'want_removed'
 	| null;
 
-function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2AddEventMenuProps) {
+export function V2AddEventMenu({
+	messageId,
+	swipeId,
+	onAdd,
+	onClose,
+	projection,
+}: V2AddEventMenuProps) {
 	const [submenu, setSubmenu] = useState<V2SubmenuType>(null);
 	const [selectedChar, setSelectedChar] = useState<string | null>(null);
 
@@ -2144,24 +2123,27 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 	if (submenu === 'prop_removed') {
 		return (
 			<>
-				<div className="bt-add-event-backdrop" onClick={onClose}></div>
-				<div className="bt-add-event-menu">
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
 					<div
-						className="bt-add-event-submenu-header"
+						className="bt-v2-add-event-submenu-header"
 						onClick={handleBack}
 					>
 						<i className="fa-solid fa-arrow-left"></i>
 						Remove Prop
 					</div>
 					{props.length === 0 ? (
-						<div className="bt-add-event-empty">
+						<div className="bt-v2-add-event-empty">
 							No props to remove
 						</div>
 					) : (
 						props.map(prop => (
 							<div
 								key={prop}
-								className="bt-add-event-option"
+								className="bt-v2-add-event-option"
 								onClick={() => {
 									onAdd({
 										...createBaseEvent(),
@@ -2185,24 +2167,27 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 	if (submenu === 'departed') {
 		return (
 			<>
-				<div className="bt-add-event-backdrop" onClick={onClose}></div>
-				<div className="bt-add-event-menu">
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
 					<div
-						className="bt-add-event-submenu-header"
+						className="bt-v2-add-event-submenu-header"
 						onClick={handleBack}
 					>
 						<i className="fa-solid fa-arrow-left"></i>
 						Character Departed
 					</div>
 					{characterNames.length === 0 ? (
-						<div className="bt-add-event-empty">
+						<div className="bt-v2-add-event-empty">
 							No characters present
 						</div>
 					) : (
 						characterNames.map(name => (
 							<div
 								key={name}
-								className="bt-add-event-option"
+								className="bt-v2-add-event-option"
 								onClick={() => {
 									onAdd({
 										...createBaseEvent(),
@@ -2231,26 +2216,26 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 			return (
 				<>
 					<div
-						className="bt-add-event-backdrop"
+						className="bt-v2-add-event-menu-backdrop"
 						onClick={onClose}
 					></div>
-					<div className="bt-add-event-menu">
+					<div className="bt-v2-add-event-menu">
 						<div
-							className="bt-add-event-submenu-header"
+							className="bt-v2-add-event-submenu-header"
 							onClick={handleBack}
 						>
 							<i className="fa-solid fa-arrow-left"></i>
 							Remove Mood - Select Character
 						</div>
 						{charsWithMoods.length === 0 ? (
-							<div className="bt-add-event-empty">
+							<div className="bt-v2-add-event-empty">
 								No characters have moods
 							</div>
 						) : (
 							charsWithMoods.map(name => (
 								<div
 									key={name}
-									className="bt-add-event-option"
+									className="bt-v2-add-event-option"
 									onClick={() =>
 										setSelectedChar(
 											name,
@@ -2259,7 +2244,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 								>
 									<i className="fa-solid fa-user"></i>
 									{name}
-									<span className="bt-add-event-count">
+									<span className="bt-v2-add-event-count">
 										(
 										{projection
 											.characters[
@@ -2279,10 +2264,13 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 		const moods = projection.characters[selectedChar]?.mood ?? [];
 		return (
 			<>
-				<div className="bt-add-event-backdrop" onClick={onClose}></div>
-				<div className="bt-add-event-menu">
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
 					<div
-						className="bt-add-event-submenu-header"
+						className="bt-v2-add-event-submenu-header"
 						onClick={handleBack}
 					>
 						<i className="fa-solid fa-arrow-left"></i>
@@ -2291,7 +2279,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					{moods.map(mood => (
 						<div
 							key={mood}
-							className="bt-add-event-option"
+							className="bt-v2-add-event-option"
 							onClick={() => {
 								onAdd({
 									...createBaseEvent(),
@@ -2320,26 +2308,26 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 			return (
 				<>
 					<div
-						className="bt-add-event-backdrop"
+						className="bt-v2-add-event-menu-backdrop"
 						onClick={onClose}
 					></div>
-					<div className="bt-add-event-menu">
+					<div className="bt-v2-add-event-menu">
 						<div
-							className="bt-add-event-submenu-header"
+							className="bt-v2-add-event-submenu-header"
 							onClick={handleBack}
 						>
 							<i className="fa-solid fa-arrow-left"></i>
 							Remove Physical State - Select Character
 						</div>
 						{charsWithPhysical.length === 0 ? (
-							<div className="bt-add-event-empty">
+							<div className="bt-v2-add-event-empty">
 								No characters have physical states
 							</div>
 						) : (
 							charsWithPhysical.map(name => (
 								<div
 									key={name}
-									className="bt-add-event-option"
+									className="bt-v2-add-event-option"
 									onClick={() =>
 										setSelectedChar(
 											name,
@@ -2348,7 +2336,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 								>
 									<i className="fa-solid fa-user"></i>
 									{name}
-									<span className="bt-add-event-count">
+									<span className="bt-v2-add-event-count">
 										(
 										{projection
 											.characters[
@@ -2369,10 +2357,13 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 		const states = projection.characters[selectedChar]?.physicalState ?? [];
 		return (
 			<>
-				<div className="bt-add-event-backdrop" onClick={onClose}></div>
-				<div className="bt-add-event-menu">
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
 					<div
-						className="bt-add-event-submenu-header"
+						className="bt-v2-add-event-submenu-header"
 						onClick={handleBack}
 					>
 						<i className="fa-solid fa-arrow-left"></i>
@@ -2381,7 +2372,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					{states.map(state => (
 						<div
 							key={state}
-							className="bt-add-event-option"
+							className="bt-v2-add-event-option"
 							onClick={() => {
 								onAdd({
 									...createBaseEvent(),
@@ -2407,26 +2398,26 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 			return (
 				<>
 					<div
-						className="bt-add-event-backdrop"
+						className="bt-v2-add-event-menu-backdrop"
 						onClick={onClose}
 					></div>
-					<div className="bt-add-event-menu">
+					<div className="bt-v2-add-event-menu">
 						<div
-							className="bt-add-event-submenu-header"
+							className="bt-v2-add-event-submenu-header"
 							onClick={handleBack}
 						>
 							<i className="fa-solid fa-arrow-left"></i>
 							Outfit Changed - Select Character
 						</div>
 						{characterNames.length === 0 ? (
-							<div className="bt-add-event-empty">
+							<div className="bt-v2-add-event-empty">
 								No characters present
 							</div>
 						) : (
 							characterNames.map(name => (
 								<div
 									key={name}
-									className="bt-add-event-option"
+									className="bt-v2-add-event-option"
 									onClick={() =>
 										setSelectedChar(
 											name,
@@ -2446,10 +2437,13 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 		const outfit = projection.characters[selectedChar]?.outfit;
 		return (
 			<>
-				<div className="bt-add-event-backdrop" onClick={onClose}></div>
-				<div className="bt-add-event-menu">
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
 					<div
-						className="bt-add-event-submenu-header"
+						className="bt-v2-add-event-submenu-header"
 						onClick={handleBack}
 					>
 						<i className="fa-solid fa-arrow-left"></i>
@@ -2460,7 +2454,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 						return (
 							<div
 								key={slot}
-								className="bt-add-event-option"
+								className="bt-v2-add-event-option"
 								onClick={() => {
 									onAdd({
 										...createBaseEvent(),
@@ -2475,11 +2469,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 								}}
 							>
 								<i className="fa-solid fa-shirt"></i>
-								<span className="bt-slot-name">
+								<span className="bt-v2-slot-name">
 									{slot}
 								</span>
 								{currentItem && (
-									<span className="bt-slot-current">
+									<span className="bt-v2-slot-current">
 										({currentItem})
 									</span>
 								)}
@@ -2496,10 +2490,13 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 		const isPosition = submenu === 'position_changed';
 		return (
 			<>
-				<div className="bt-add-event-backdrop" onClick={onClose}></div>
-				<div className="bt-add-event-menu">
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
 					<div
-						className="bt-add-event-submenu-header"
+						className="bt-v2-add-event-submenu-header"
 						onClick={handleBack}
 					>
 						<i className="fa-solid fa-arrow-left"></i>
@@ -2507,7 +2504,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 						Select Character
 					</div>
 					{characterNames.length === 0 ? (
-						<div className="bt-add-event-empty">
+						<div className="bt-v2-add-event-empty">
 							No characters present
 						</div>
 					) : (
@@ -2519,7 +2516,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 							return (
 								<div
 									key={name}
-									className="bt-add-event-option"
+									className="bt-v2-add-event-option"
 									onClick={() => {
 										const event =
 											isPosition
@@ -2548,7 +2545,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 									<i className="fa-solid fa-user"></i>
 									{name}
 									{current && (
-										<span className="bt-slot-current">
+										<span className="bt-v2-slot-current">
 											({current})
 										</span>
 									)}
@@ -2561,13 +2558,134 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 		);
 	}
 
+	// Submenus for relationship removal events (feeling_removed, secret_removed, want_removed)
+	if (
+		submenu === 'feeling_removed' ||
+		submenu === 'secret_removed' ||
+		submenu === 'want_removed'
+	) {
+		// Get all relationships from projection
+		const relationships = Object.values(projection.relationships);
+
+		// Helper to get the appropriate array based on submenu type
+		const getValueArray = (attitude: {
+			feelings: string[];
+			secrets: string[];
+			wants: string[];
+		}): string[] => {
+			if (submenu === 'feeling_removed') return attitude.feelings;
+			if (submenu === 'secret_removed') return attitude.secrets;
+			if (submenu === 'want_removed') return attitude.wants;
+			return [];
+		};
+
+		const getSubkindLabel = () => {
+			if (submenu === 'feeling_removed') return 'Feeling';
+			if (submenu === 'secret_removed') return 'Secret';
+			if (submenu === 'want_removed') return 'Want';
+			return '';
+		};
+
+		const getSubkindIcon = () => {
+			if (submenu === 'feeling_removed') return 'fa-heart-circle-minus';
+			if (submenu === 'secret_removed') return 'fa-mask';
+			if (submenu === 'want_removed') return 'fa-star-half-stroke';
+			return 'fa-circle';
+		};
+
+		// Build list of all removable items across all relationships
+		type RemovableItem = {
+			fromChar: string;
+			towardChar: string;
+			value: string;
+		};
+		const removableItems: RemovableItem[] = [];
+
+		for (const rel of relationships) {
+			const [charA, charB] = rel.pair;
+			// A → B direction
+			for (const val of getValueArray(rel.aToB)) {
+				removableItems.push({
+					fromChar: charA,
+					towardChar: charB,
+					value: val,
+				});
+			}
+			// B → A direction
+			for (const val of getValueArray(rel.bToA)) {
+				removableItems.push({
+					fromChar: charB,
+					towardChar: charA,
+					value: val,
+				});
+			}
+		}
+
+		return (
+			<>
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
+					<div
+						className="bt-v2-add-event-submenu-header"
+						onClick={handleBack}
+					>
+						<i className="fa-solid fa-arrow-left"></i>
+						Remove {getSubkindLabel()}
+					</div>
+					{removableItems.length === 0 ? (
+						<div className="bt-v2-add-event-empty">
+							No {getSubkindLabel().toLowerCase()}s to
+							remove
+						</div>
+					) : (
+						removableItems.map((item, idx) => (
+							<div
+								key={`${item.fromChar}-${item.towardChar}-${item.value}-${idx}`}
+								className="bt-v2-add-event-option"
+								onClick={() => {
+									onAdd({
+										...createBaseEvent(),
+										kind: 'relationship',
+										subkind: submenu,
+										fromCharacter:
+											item.fromChar,
+										towardCharacter:
+											item.towardChar,
+										value: item.value,
+									} as
+										| RelationshipFeelingRemovedEvent
+										| RelationshipSecretRemovedEvent
+										| RelationshipWantRemovedEvent);
+								}}
+							>
+								<i
+									className={`fa-solid ${getSubkindIcon()}`}
+								></i>
+								<span className="bt-v2-rel-direction">
+									{item.fromChar} →{' '}
+									{item.towardChar}
+								</span>
+								<span className="bt-v2-rel-value">
+									"{item.value}"
+								</span>
+							</div>
+						))
+					)}
+				</div>
+			</>
+		);
+	}
+
 	// Main menu
 	return (
 		<>
-			<div className="bt-add-event-backdrop" onClick={onClose}></div>
-			<div className="bt-add-event-menu">
+			<div className="bt-v2-add-event-menu-backdrop" onClick={onClose}></div>
+			<div className="bt-v2-add-event-menu">
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2586,7 +2704,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Time Delta
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2602,9 +2720,9 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Location Change
 				</div>
 
-				<div className="bt-add-event-section-label">Location Props</div>
+				<div className="bt-v2-add-event-section-label">Location Props</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2618,7 +2736,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Prop Added
 				</div>
 				<div
-					className={`bt-add-event-option ${props.length === 0 ? 'disabled' : ''}`}
+					className={`bt-v2-add-event-option ${props.length === 0 ? 'disabled' : ''}`}
 					onClick={() =>
 						props.length > 0 && setSubmenu('prop_removed')
 					}
@@ -2626,13 +2744,15 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					<i className="fa-solid fa-minus"></i>
 					Prop Removed
 					{props.length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 
-				<div className="bt-add-event-section-label">Character Events</div>
+				<div className="bt-v2-add-event-section-label">
+					Character Events
+				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2646,7 +2766,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Character Appeared
 				</div>
 				<div
-					className={`bt-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
+					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
 					onClick={() =>
 						characterNames.length > 0 && setSubmenu('departed')
 					}
@@ -2654,11 +2774,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					<i className="fa-solid fa-user-minus"></i>
 					Character Departed
 					{characterNames.length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 				<div
-					className={`bt-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
+					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
 					onClick={() =>
 						characterNames.length > 0 &&
 						setSubmenu('position_changed')
@@ -2667,11 +2787,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					<i className="fa-solid fa-arrows-up-down-left-right"></i>
 					Position Changed
 					{characterNames.length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 				<div
-					className={`bt-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
+					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
 					onClick={() =>
 						characterNames.length > 0 &&
 						setSubmenu('activity_changed')
@@ -2680,11 +2800,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					<i className="fa-solid fa-person-running"></i>
 					Activity Changed
 					{characterNames.length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2699,7 +2819,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Mood Added
 				</div>
 				<div
-					className={`bt-add-event-option ${
+					className={`bt-v2-add-event-option ${
 						characterNames.filter(
 							n =>
 								projection.characters[n]?.mood
@@ -2725,11 +2845,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					{characterNames.filter(
 						n => projection.characters[n]?.mood?.length > 0,
 					).length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 				<div
-					className={`bt-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
+					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
 					onClick={() =>
 						characterNames.length > 0 &&
 						setSubmenu('outfit_changed')
@@ -2738,11 +2858,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					<i className="fa-solid fa-shirt"></i>
 					Outfit Changed
 					{characterNames.length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2757,7 +2877,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Physical State Added
 				</div>
 				<div
-					className={`bt-add-event-option ${
+					className={`bt-v2-add-event-option ${
 						characterNames.filter(
 							n =>
 								projection.characters[n]
@@ -2786,15 +2906,15 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 							projection.characters[n]?.physicalState
 								?.length > 0,
 					).length > 0 && (
-						<i className="fa-solid fa-chevron-right bt-submenu-arrow"></i>
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
 					)}
 				</div>
 
-				<div className="bt-add-event-section-label">
+				<div className="bt-v2-add-event-section-label">
 					Relationship Events
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2810,23 +2930,40 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Feeling Added
 				</div>
 				<div
-					className="bt-add-event-option"
-					onClick={() =>
-						onAdd({
-							...createBaseEvent(),
-							kind: 'relationship',
-							subkind: 'feeling_removed',
-							fromCharacter: '',
-							towardCharacter: '',
-							value: '',
-						} as RelationshipFeelingRemovedEvent)
-					}
+					className={`bt-v2-add-event-option ${
+						Object.values(projection.relationships).every(
+							r =>
+								r.aToB.feelings.length === 0 &&
+								r.bToA.feelings.length === 0,
+						)
+							? 'disabled'
+							: ''
+					}`}
+					onClick={() => {
+						const hasRemovable = Object.values(
+							projection.relationships,
+						).some(
+							r =>
+								r.aToB.feelings.length > 0 ||
+								r.bToA.feelings.length > 0,
+						);
+						if (hasRemovable) {
+							setSubmenu('feeling_removed');
+						}
+					}}
 				>
 					<i className="fa-solid fa-heart-circle-minus"></i>
 					Feeling Removed
+					{Object.values(projection.relationships).some(
+						r =>
+							r.aToB.feelings.length > 0 ||
+							r.bToA.feelings.length > 0,
+					) && (
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
+					)}
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2842,23 +2979,40 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Secret Added
 				</div>
 				<div
-					className="bt-add-event-option"
-					onClick={() =>
-						onAdd({
-							...createBaseEvent(),
-							kind: 'relationship',
-							subkind: 'secret_removed',
-							fromCharacter: '',
-							towardCharacter: '',
-							value: '',
-						} as RelationshipSecretRemovedEvent)
-					}
+					className={`bt-v2-add-event-option ${
+						Object.values(projection.relationships).every(
+							r =>
+								r.aToB.secrets.length === 0 &&
+								r.bToA.secrets.length === 0,
+						)
+							? 'disabled'
+							: ''
+					}`}
+					onClick={() => {
+						const hasRemovable = Object.values(
+							projection.relationships,
+						).some(
+							r =>
+								r.aToB.secrets.length > 0 ||
+								r.bToA.secrets.length > 0,
+						);
+						if (hasRemovable) {
+							setSubmenu('secret_removed');
+						}
+					}}
 				>
 					<i className="fa-solid fa-mask"></i>
 					Secret Removed
+					{Object.values(projection.relationships).some(
+						r =>
+							r.aToB.secrets.length > 0 ||
+							r.bToA.secrets.length > 0,
+					) && (
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
+					)}
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2874,23 +3028,40 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Want Added
 				</div>
 				<div
-					className="bt-add-event-option"
-					onClick={() =>
-						onAdd({
-							...createBaseEvent(),
-							kind: 'relationship',
-							subkind: 'want_removed',
-							fromCharacter: '',
-							towardCharacter: '',
-							value: '',
-						} as RelationshipWantRemovedEvent)
-					}
+					className={`bt-v2-add-event-option ${
+						Object.values(projection.relationships).every(
+							r =>
+								r.aToB.wants.length === 0 &&
+								r.bToA.wants.length === 0,
+						)
+							? 'disabled'
+							: ''
+					}`}
+					onClick={() => {
+						const hasRemovable = Object.values(
+							projection.relationships,
+						).some(
+							r =>
+								r.aToB.wants.length > 0 ||
+								r.bToA.wants.length > 0,
+						);
+						if (hasRemovable) {
+							setSubmenu('want_removed');
+						}
+					}}
 				>
 					<i className="fa-solid fa-star-half-stroke"></i>
 					Want Removed
+					{Object.values(projection.relationships).some(
+						r =>
+							r.aToB.wants.length > 0 ||
+							r.bToA.wants.length > 0,
+					) && (
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
+					)}
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2905,7 +3076,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Status Changed
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2920,9 +3091,9 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Subject
 				</div>
 
-				<div className="bt-add-event-section-label">Scene Events</div>
+				<div className="bt-v2-add-event-section-label">Scene Events</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),
@@ -2937,7 +3108,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection }: V2Ad
 					Tension Change
 				</div>
 				<div
-					className="bt-add-event-option"
+					className="bt-v2-add-event-option"
 					onClick={() =>
 						onAdd({
 							...createBaseEvent(),

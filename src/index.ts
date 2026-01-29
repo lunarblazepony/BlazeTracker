@@ -19,6 +19,7 @@ import {
 	deleteV2EventsForSwipe,
 	cleanupV2EventsAfterMessage,
 	wasExtractionAborted,
+	abortExtraction,
 } from './v2Bridge';
 // V2 Injection
 import { injectState as v2InjectState } from './v2';
@@ -264,6 +265,12 @@ async function init() {
 				updateV2Injection(messageId);
 			}
 		}
+	}) as (...args: unknown[]) => void);
+
+	// Handle generation stopped (user clicked stop button)
+	context.eventSource.on(context.event_types.GENERATION_STOPPED, (() => {
+		debugLog('Generation stopped, aborting any running extraction');
+		abortExtraction();
 	}) as (...args: unknown[]) => void);
 
 	// Re-render all on generation end (to catch any we missed)

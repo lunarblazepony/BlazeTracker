@@ -24,6 +24,7 @@ import {
 import type { RelationshipStatus } from '../../types/common';
 import type { Subject } from '../../types/subject';
 import { SUBJECTS } from '../../types/subject';
+import type { RelationshipState } from '../../types/snapshot';
 
 export interface V2RelationshipEditorProps {
 	pair: [string, string];
@@ -101,7 +102,12 @@ export function V2RelationshipEditor({
 
 	// Handle adding new event
 	const handleAddEvent = useCallback(
-		(subkind: RelationshipSubkind, fromChar?: string, toChar?: string) => {
+		(
+			subkind: RelationshipSubkind,
+			fromChar?: string,
+			toChar?: string,
+			value?: string,
+		) => {
 			const newEvent: RelationshipEvent = {
 				id: crypto.randomUUID(),
 				kind: 'relationship',
@@ -115,7 +121,7 @@ export function V2RelationshipEditor({
 					? {
 							fromCharacter: fromChar || charA,
 							towardCharacter: toChar || charB,
-							value: '',
+							value: value ?? '',
 						}
 					: subkind === 'status_changed'
 						? {
@@ -243,6 +249,9 @@ export function V2RelationshipEditor({
 									<AddEventMenu
 										charA={charA}
 										charB={charB}
+										relationship={
+											relationship
+										}
 										onSelect={
 											handleAddEvent
 										}
@@ -685,21 +694,83 @@ function RelationshipEventCard({
 interface AddEventMenuProps {
 	charA: string;
 	charB: string;
-	onSelect: (subkind: RelationshipSubkind, fromChar?: string, toChar?: string) => void;
+	relationship: RelationshipState | null;
+	onSelect: (
+		subkind: RelationshipSubkind,
+		fromChar?: string,
+		toChar?: string,
+		value?: string,
+	) => void;
 	onClose: () => void;
 }
 
-function AddEventMenu({ charA, charB, onSelect, onClose }: AddEventMenuProps): React.ReactElement {
-	const directionalTypes: { subkind: RelationshipSubkind; label: string; icon: string }[] = [
-		{ subkind: 'feeling_added', label: 'Add Feeling', icon: 'fa-heart' },
-		{ subkind: 'feeling_removed', label: 'Remove Feeling', icon: 'fa-heart-crack' },
-		{ subkind: 'secret_added', label: 'Add Secret', icon: 'fa-user-secret' },
-		{ subkind: 'secret_removed', label: 'Remove Secret', icon: 'fa-eye' },
-		{ subkind: 'want_added', label: 'Add Want', icon: 'fa-hand-holding-heart' },
-		{ subkind: 'want_removed', label: 'Remove Want', icon: 'fa-xmark' },
+function AddEventMenu({
+	charA,
+	charB,
+	relationship,
+	onSelect,
+	onClose,
+}: AddEventMenuProps): React.ReactElement {
+	const directionalTypes: {
+		subkind: RelationshipSubkind;
+		label: string;
+		icon: string;
+		isRemove: boolean;
+	}[] = [
+		{
+			subkind: 'feeling_added',
+			label: 'Add Feeling',
+			icon: 'fa-heart',
+			isRemove: false,
+		},
+		{
+			subkind: 'feeling_removed',
+			label: 'Remove Feeling',
+			icon: 'fa-heart-crack',
+			isRemove: true,
+		},
+		{
+			subkind: 'secret_added',
+			label: 'Add Secret',
+			icon: 'fa-user-secret',
+			isRemove: false,
+		},
+		{
+			subkind: 'secret_removed',
+			label: 'Remove Secret',
+			icon: 'fa-eye',
+			isRemove: true,
+		},
+		{
+			subkind: 'want_added',
+			label: 'Add Want',
+			icon: 'fa-hand-holding-heart',
+			isRemove: false,
+		},
+		{ subkind: 'want_removed', label: 'Remove Want', icon: 'fa-xmark', isRemove: true },
 	];
 
 	const [expandedSubkind, setExpandedSubkind] = useState<RelationshipSubkind | null>(null);
+	// For _removed events: track which direction is expanded to show value picker
+	const [expandedDirection, setExpandedDirection] = useState<'aToB' | 'bToA' | null>(null);
+
+	// Helper to get existing values for a removed event type
+	const getExistingValues = (
+		subkind: RelationshipSubkind,
+		direction: 'aToB' | 'bToA',
+	): string[] => {
+		if (!relationship) return [];
+		const attitude = relationship[direction];
+		if (subkind === 'feeling_removed') return attitude.feelings;
+		if (subkind === 'secret_removed') return attitude.secrets;
+		if (subkind === 'want_removed') return attitude.wants;
+		return [];
+	};
+
+	// Check if this is a remove subkind
+	const isRemoveSubkind = (subkind: RelationshipSubkind): boolean => {
+		return subkind.endsWith('_removed');
+	};
 
 	return (
 		<>
@@ -724,17 +795,18 @@ function AddEventMenu({ charA, charB, onSelect, onClose }: AddEventMenuProps): R
 				</div>
 
 				{/* Directional events */}
-				{directionalTypes.map(({ subkind, label, icon }) => (
+				{directionalTypes.map(({ subkind, label, icon, isRemove }) => (
 					<div key={subkind}>
 						<div
 							className="bt-v2-add-event-option"
-							onClick={() =>
+							onClick={() => {
 								setExpandedSubkind(
 									expandedSubkind === subkind
 										? null
 										: subkind,
-								)
-							}
+								);
+								setExpandedDirection(null);
+							}}
 						>
 							<i className={`fa-solid ${icon}`} />
 							{label}
@@ -748,38 +820,221 @@ function AddEventMenu({ charA, charB, onSelect, onClose }: AddEventMenuProps): R
 						</div>
 						{expandedSubkind === subkind && (
 							<>
-								<div
-									className="bt-v2-add-event-option"
-									style={{
-										paddingLeft: '2rem',
-										background: '#222',
-									}}
-									onClick={() =>
-										onSelect(
-											subkind,
-											charA,
-											charB,
-										)
-									}
-								>
-									{charA} → {charB}
-								</div>
-								<div
-									className="bt-v2-add-event-option"
-									style={{
-										paddingLeft: '2rem',
-										background: '#222',
-									}}
-									onClick={() =>
-										onSelect(
-											subkind,
-											charB,
-											charA,
-										)
-									}
-								>
-									{charB} → {charA}
-								</div>
+								{/* A → B direction */}
+								{isRemove &&
+								isRemoveSubkind(subkind) ? (
+									<>
+										<div
+											className="bt-v2-add-event-option"
+											style={{
+												paddingLeft:
+													'2rem',
+												background: '#222',
+											}}
+											onClick={() =>
+												setExpandedDirection(
+													expandedDirection ===
+														'aToB'
+														? null
+														: 'aToB',
+												)
+											}
+										>
+											{charA} →{' '}
+											{charB}
+											<i
+												className={`fa-solid ${expandedDirection === 'aToB' ? 'fa-chevron-up' : 'fa-chevron-right'}`}
+												style={{
+													marginLeft: 'auto',
+													fontSize: '0.6rem',
+												}}
+											/>
+										</div>
+										{expandedDirection ===
+											'aToB' && (
+											<div className="bt-v2-add-event-values">
+												{getExistingValues(
+													subkind,
+													'aToB',
+												)
+													.length ===
+												0 ? (
+													<div
+														className="bt-v2-add-event-option"
+														style={{
+															paddingLeft:
+																'3rem',
+															background: '#1a1a1a',
+															color: '#666',
+															fontStyle: 'italic',
+														}}
+													>
+														No
+														values
+														to
+														remove
+													</div>
+												) : (
+													getExistingValues(
+														subkind,
+														'aToB',
+													).map(
+														value => (
+															<div
+																key={
+																	value
+																}
+																className="bt-v2-add-event-option"
+																style={{
+																	paddingLeft:
+																		'3rem',
+																	background: '#1a1a1a',
+																}}
+																onClick={() =>
+																	onSelect(
+																		subkind,
+																		charA,
+																		charB,
+																		value,
+																	)
+																}
+															>
+																{
+																	value
+																}
+															</div>
+														),
+													)
+												)}
+											</div>
+										)}
+										{/* B → A direction */}
+										<div
+											className="bt-v2-add-event-option"
+											style={{
+												paddingLeft:
+													'2rem',
+												background: '#222',
+											}}
+											onClick={() =>
+												setExpandedDirection(
+													expandedDirection ===
+														'bToA'
+														? null
+														: 'bToA',
+												)
+											}
+										>
+											{charB} →{' '}
+											{charA}
+											<i
+												className={`fa-solid ${expandedDirection === 'bToA' ? 'fa-chevron-up' : 'fa-chevron-right'}`}
+												style={{
+													marginLeft: 'auto',
+													fontSize: '0.6rem',
+												}}
+											/>
+										</div>
+										{expandedDirection ===
+											'bToA' && (
+											<div className="bt-v2-add-event-values">
+												{getExistingValues(
+													subkind,
+													'bToA',
+												)
+													.length ===
+												0 ? (
+													<div
+														className="bt-v2-add-event-option"
+														style={{
+															paddingLeft:
+																'3rem',
+															background: '#1a1a1a',
+															color: '#666',
+															fontStyle: 'italic',
+														}}
+													>
+														No
+														values
+														to
+														remove
+													</div>
+												) : (
+													getExistingValues(
+														subkind,
+														'bToA',
+													).map(
+														value => (
+															<div
+																key={
+																	value
+																}
+																className="bt-v2-add-event-option"
+																style={{
+																	paddingLeft:
+																		'3rem',
+																	background: '#1a1a1a',
+																}}
+																onClick={() =>
+																	onSelect(
+																		subkind,
+																		charB,
+																		charA,
+																		value,
+																	)
+																}
+															>
+																{
+																	value
+																}
+															</div>
+														),
+													)
+												)}
+											</div>
+										)}
+									</>
+								) : (
+									<>
+										{/* Non-remove events: direct selection */}
+										<div
+											className="bt-v2-add-event-option"
+											style={{
+												paddingLeft:
+													'2rem',
+												background: '#222',
+											}}
+											onClick={() =>
+												onSelect(
+													subkind,
+													charA,
+													charB,
+												)
+											}
+										>
+											{charA} →{' '}
+											{charB}
+										</div>
+										<div
+											className="bt-v2-add-event-option"
+											style={{
+												paddingLeft:
+													'2rem',
+												background: '#222',
+											}}
+											onClick={() =>
+												onSelect(
+													subkind,
+													charB,
+													charA,
+												)
+											}
+										>
+											{charB} →{' '}
+											{charA}
+										</div>
+									</>
+								)}
 							</>
 						)}
 					</div>

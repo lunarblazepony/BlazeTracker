@@ -1,0 +1,1189 @@
+/* V2 NarrativeModal Styles */
+
+/* =============================================
+   Modal Backdrop & Container
+   ============================================= */
+
+.bt-v2-narrative-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.7);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+	backdrop-filter: blur(2px);
+}
+
+.bt-v2-narrative-modal {
+	background: #1a1a1a;
+	border: 1px solid #444;
+	border-radius: 8px;
+	width: 90vw;
+	max-width: 1100px;
+	height: 85vh;
+	max-height: 850px;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* =============================================
+   Modal Header
+   ============================================= */
+
+.bt-v2-narrative-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 1rem;
+	background: #222;
+	border-bottom: 1px solid #444;
+	border-radius: 8px 8px 0 0;
+	flex-shrink: 0;
+}
+
+.bt-v2-narrative-header h2 {
+	margin: 0;
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: #f80;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.bt-v2-narrative-close {
+	background: transparent;
+	border: none;
+	color: #888;
+	font-size: 1.2rem;
+	cursor: pointer;
+	padding: 0.5rem;
+	border-radius: 4px;
+	transition: all 0.15s;
+}
+
+.bt-v2-narrative-close:hover {
+	color: #fff;
+	background: #333;
+}
+
+/* =============================================
+   Tabs
+   ============================================= */
+
+.bt-v2-narrative-tabs {
+	display: flex;
+	gap: 4px;
+	padding: 0.75rem 1rem;
+	background: #1e1e1e;
+	border-bottom: 1px solid #333;
+	flex-shrink: 0;
+}
+
+.bt-v2-narrative-tab {
+	padding: 0.5rem 1rem;
+	border: 1px solid #444;
+	background: #252525;
+	color: #aaa;
+	cursor: pointer;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.9rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-narrative-tab:hover {
+	background: #333;
+	color: #fff;
+}
+
+.bt-v2-narrative-tab.active {
+	background: #f80;
+	color: #000;
+	border-color: #f80;
+	font-weight: 500;
+}
+
+.bt-v2-tab-count {
+	font-size: 0.75rem;
+	background: rgba(0, 0, 0, 0.2);
+	padding: 0.1rem 0.4rem;
+	border-radius: 3px;
+}
+
+.bt-v2-narrative-tab.active .bt-v2-tab-count {
+	background: rgba(0, 0, 0, 0.3);
+}
+
+/* =============================================
+   Tab Content
+   ============================================= */
+
+.bt-v2-narrative-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 1rem;
+	min-height: 0;
+}
+
+.bt-v2-narrative-content::-webkit-scrollbar {
+	width: 8px;
+}
+
+.bt-v2-narrative-content::-webkit-scrollbar-track {
+	background: #1a1a1a;
+}
+
+.bt-v2-narrative-content::-webkit-scrollbar-thumb {
+	background: #444;
+	border-radius: 4px;
+}
+
+.bt-v2-narrative-content::-webkit-scrollbar-thumb:hover {
+	background: #555;
+}
+
+/* =============================================
+   Modal Footer
+   ============================================= */
+
+.bt-v2-narrative-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	background: #222;
+	border-top: 1px solid #444;
+	border-radius: 0 0 8px 8px;
+	flex-shrink: 0;
+}
+
+/* =============================================
+   Relationships Tab
+   ============================================= */
+
+.bt-v2-relationships-filter {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem;
+	background: #252525;
+	border-radius: 6px;
+	margin-bottom: 1rem;
+}
+
+.bt-v2-relationships-filter label {
+	font-size: 0.85rem;
+	color: #888;
+}
+
+.bt-v2-relationships-filter select {
+	padding: 0.4rem 0.75rem;
+	background: #1a1a1a;
+	border: 1px solid #444;
+	border-radius: 4px;
+	color: #fff;
+	font-size: 0.9rem;
+}
+
+.bt-v2-relationships-filter select:focus {
+	outline: none;
+	border-color: #f80;
+}
+
+.bt-v2-relationships-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.bt-v2-relationships-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	padding: 3rem;
+	color: #666;
+	text-align: center;
+}
+
+.bt-v2-relationships-empty i {
+	font-size: 2.5rem;
+	opacity: 0.5;
+}
+
+/* =============================================
+   Relationship Card
+   ============================================= */
+
+.bt-v2-relationship-card {
+	background: #252525;
+	border: 1px solid #333;
+	border-radius: 6px;
+	padding: 0.75rem 1rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-relationship-card:hover {
+	border-color: #444;
+	background: #2a2a2a;
+}
+
+.bt-v2-relationship-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.bt-v2-relationship-pair {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.bt-v2-relationship-char {
+	font-weight: 600;
+	color: #fff;
+	font-size: 0.95rem;
+}
+
+.bt-v2-relationship-arrow {
+	color: #666;
+	font-size: 0.85rem;
+}
+
+.bt-v2-relationship-status {
+	font-size: 0.75rem;
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	text-transform: capitalize;
+	background: rgba(236, 72, 153, 0.15);
+	color: #ec4899;
+}
+
+.bt-v2-relationship-status.strangers {
+	background: rgba(107, 114, 128, 0.15);
+	color: #9ca3af;
+}
+
+.bt-v2-relationship-status.acquaintances {
+	background: rgba(59, 130, 246, 0.15);
+	color: #60a5fa;
+}
+
+.bt-v2-relationship-status.friendly {
+	background: rgba(34, 197, 94, 0.15);
+	color: #4ade80;
+}
+
+.bt-v2-relationship-status.close {
+	background: rgba(168, 85, 247, 0.15);
+	color: #c084fc;
+}
+
+.bt-v2-relationship-status.intimate {
+	background: rgba(236, 72, 153, 0.15);
+	color: #f472b6;
+}
+
+.bt-v2-relationship-status.strained {
+	background: rgba(249, 115, 22, 0.15);
+	color: #fb923c;
+}
+
+.bt-v2-relationship-status.hostile {
+	background: rgba(239, 68, 68, 0.15);
+	color: #f87171;
+}
+
+.bt-v2-relationship-status.complicated {
+	background: rgba(234, 179, 8, 0.15);
+	color: #fbbf24;
+}
+
+.bt-v2-relationship-edit-btn {
+	background: transparent;
+	border: 1px solid #444;
+	color: #888;
+	padding: 0.35rem 0.6rem;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.8rem;
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-relationship-edit-btn:hover {
+	background: #333;
+	color: #fff;
+	border-color: #555;
+}
+
+.bt-v2-relationship-body {
+	margin-top: 0.75rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid #333;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+.bt-v2-attitude-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.bt-v2-attitude-header {
+	font-size: 0.8rem;
+	color: #888;
+	margin-bottom: 0.25rem;
+}
+
+.bt-v2-attitude-header .name {
+	color: #fff;
+	font-weight: 500;
+}
+
+.bt-v2-attitude-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.35rem;
+	font-size: 0.8rem;
+}
+
+.bt-v2-attitude-label {
+	color: #666;
+	min-width: 50px;
+}
+
+.bt-v2-attitude-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+}
+
+.bt-v2-tag-feeling {
+	background: rgba(236, 72, 153, 0.2);
+	color: #ec4899;
+	padding: 0.1rem 0.35rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+}
+
+.bt-v2-tag-secret {
+	background: rgba(139, 92, 246, 0.2);
+	color: #a78bfa;
+	padding: 0.1rem 0.35rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+}
+
+.bt-v2-tag-want {
+	background: rgba(245, 158, 11, 0.2);
+	color: #f59e0b;
+	padding: 0.1rem 0.35rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+}
+
+.bt-v2-attitude-empty {
+	font-size: 0.8rem;
+	color: #555;
+	font-style: italic;
+}
+
+.bt-v2-milestones-section {
+	grid-column: span 2;
+	margin-top: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #333;
+}
+
+.bt-v2-milestones-header {
+	font-size: 0.8rem;
+	color: #f59e0b;
+	margin-bottom: 0.35rem;
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.bt-v2-milestones-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.bt-v2-milestone-tag {
+	background: rgba(245, 158, 11, 0.15);
+	color: #fbbf24;
+	padding: 0.15rem 0.4rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+	text-transform: capitalize;
+}
+
+/* =============================================
+   Relationship Editor Modal
+   ============================================= */
+
+.bt-v2-relationship-editor-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.7);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1100;
+	backdrop-filter: blur(2px);
+}
+
+.bt-v2-relationship-editor {
+	background: #1a1a1a;
+	border: 1px solid #444;
+	border-radius: 8px;
+	width: 85vw;
+	max-width: 1000px;
+	height: 75vh;
+	max-height: 700px;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.bt-v2-relationship-editor-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 1rem;
+	background: #222;
+	border-bottom: 1px solid #444;
+	border-radius: 8px 8px 0 0;
+	flex-shrink: 0;
+}
+
+.bt-v2-relationship-editor-header h3 {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 600;
+	color: #f80;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.bt-v2-relationship-editor-split {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.bt-v2-editor-events-pane {
+	display: flex;
+	flex-direction: column;
+	border-right: 1px solid #444;
+	min-height: 0;
+	/* Allow overflow for dropdown menus */
+	overflow: visible;
+}
+
+.bt-v2-editor-projection-pane {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+	background: rgba(255, 136, 0, 0.02);
+}
+
+.bt-v2-editor-pane-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	padding: 0.6rem 0.75rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #f80;
+	background: rgba(255, 136, 0, 0.05);
+	border-bottom: 1px solid #333;
+	flex-shrink: 0;
+}
+
+.bt-v2-editor-pane-header i {
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-add-event-btn {
+	background: transparent;
+	border: 1px solid #f80;
+	color: #f80;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.75rem;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-add-event-btn:hover {
+	background: #f80;
+	color: #000;
+}
+
+.bt-v2-editor-pane-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0.75rem;
+	min-height: 0;
+}
+
+.bt-v2-editor-pane-content::-webkit-scrollbar {
+	width: 6px;
+}
+
+.bt-v2-editor-pane-content::-webkit-scrollbar-track {
+	background: #1a1a1a;
+}
+
+.bt-v2-editor-pane-content::-webkit-scrollbar-thumb {
+	background: #444;
+	border-radius: 3px;
+}
+
+.bt-v2-relationship-editor-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	background: #222;
+	border-top: 1px solid #444;
+	border-radius: 0 0 8px 8px;
+	flex-shrink: 0;
+}
+
+/* Events grouped by message */
+.bt-v2-events-message-group {
+	margin-bottom: 0.75rem;
+}
+
+.bt-v2-events-message-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.35rem 0.5rem;
+	background: #252525;
+	border-radius: 4px;
+	font-size: 0.8rem;
+	color: #888;
+	border-left: 2px solid #f80;
+	margin-bottom: 0.35rem;
+}
+
+.bt-v2-events-message-header i {
+	font-size: 0.7rem;
+	color: #f80;
+}
+
+.bt-v2-event-rel-card {
+	background: #1e1e1e;
+	border-radius: 4px;
+	padding: 0.5rem 0.6rem;
+	border-left: 3px solid #ec4899;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.25rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-event-rel-card:hover {
+	background: #252525;
+}
+
+.bt-v2-event-rel-icon {
+	color: #ec4899;
+	font-size: 0.8rem;
+	width: 1rem;
+	text-align: center;
+}
+
+.bt-v2-event-rel-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.bt-v2-event-rel-subkind {
+	font-size: 0.75rem;
+	color: #aaa;
+	text-transform: capitalize;
+}
+
+.bt-v2-event-rel-value {
+	font-size: 0.85rem;
+	color: #e0e0e0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bt-v2-event-rel-direction {
+	font-size: 0.7rem;
+	color: #666;
+}
+
+.bt-v2-event-rel-actions {
+	display: flex;
+	gap: 0.25rem;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.bt-v2-event-rel-card:hover .bt-v2-event-rel-actions {
+	opacity: 1;
+}
+
+.bt-v2-event-action-btn {
+	padding: 0.2rem 0.35rem;
+	border: none;
+	background: transparent;
+	color: #888;
+	cursor: pointer;
+	border-radius: 3px;
+	font-size: 0.75rem;
+}
+
+.bt-v2-event-action-btn:hover {
+	background: #333;
+	color: #fff;
+}
+
+.bt-v2-event-action-btn.delete:hover {
+	background: rgba(239, 68, 68, 0.2);
+	color: #f66;
+}
+
+.bt-v2-events-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 2rem;
+	color: #555;
+	text-align: center;
+}
+
+.bt-v2-events-empty i {
+	font-size: 1.5rem;
+	opacity: 0.5;
+}
+
+/* Projected relationship display */
+.bt-v2-projected-rel {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.bt-v2-projected-rel-section {
+	background: #252525;
+	border-radius: 6px;
+	padding: 0.6rem 0.75rem;
+	border: 1px solid #333;
+}
+
+.bt-v2-projected-rel-section h4 {
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #f80;
+	margin: 0 0 0.4rem 0;
+	opacity: 0.8;
+}
+
+/* =============================================
+   Chapters Tab
+   ============================================= */
+
+.bt-v2-chapters-container {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.bt-v2-tension-graph-container {
+	background: #252525;
+	border-radius: 6px;
+	padding: 0.75rem;
+	border: 1px solid #333;
+}
+
+.bt-v2-tension-graph-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #f80;
+	margin-bottom: 0.5rem;
+}
+
+.bt-v2-tension-graph-header i {
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-chapters-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.bt-v2-chapter-card {
+	background: #252525;
+	border: 1px solid #333;
+	border-radius: 6px;
+	padding: 0.75rem 1rem;
+}
+
+.bt-v2-chapter-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.5rem;
+}
+
+.bt-v2-chapter-index {
+	font-size: 0.75rem;
+	color: #888;
+	background: #333;
+	padding: 0.15rem 0.5rem;
+	border-radius: 4px;
+}
+
+.bt-v2-chapter-title {
+	flex: 1;
+	font-weight: 600;
+	color: #fff;
+	font-size: 0.95rem;
+}
+
+.bt-v2-chapter-end-reason {
+	font-size: 0.7rem;
+	color: #666;
+	font-style: italic;
+}
+
+.bt-v2-chapter-summary {
+	font-size: 0.9rem;
+	color: #ccc;
+	line-height: 1.4;
+}
+
+.bt-v2-chapter-stats {
+	display: flex;
+	gap: 1rem;
+	margin-top: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #333;
+}
+
+.bt-v2-chapter-stat {
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-chapter-stat i {
+	margin-right: 0.35rem;
+	color: #666;
+}
+
+.bt-v2-chapters-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	padding: 3rem;
+	color: #666;
+	text-align: center;
+}
+
+.bt-v2-chapters-empty i {
+	font-size: 2.5rem;
+	opacity: 0.5;
+}
+
+/* =============================================
+   Events Tab
+   ============================================= */
+
+.bt-v2-events-container {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.bt-v2-events-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.5rem 0.75rem;
+	background: #252525;
+	border-radius: 6px;
+	border: 1px solid #333;
+}
+
+.bt-v2-events-chapter {
+	font-weight: 600;
+	color: #f80;
+	font-size: 0.9rem;
+}
+
+.bt-v2-events-count {
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-events-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	padding: 3rem;
+	color: #666;
+	text-align: center;
+}
+
+.bt-v2-events-empty i {
+	font-size: 2.5rem;
+	opacity: 0.5;
+}
+
+/* Events Tab - bt-event-* classes (matching ProjectionDisplay style) */
+.bt-v2-events-container .bt-event-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.bt-v2-events-container .bt-event-item {
+	background: #252525;
+	border: 1px solid #333;
+	border-radius: 6px;
+	padding: 0.75rem;
+	border-left: 3px solid #666;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-events-container .bt-event-item:hover {
+	background: #2a2a2a;
+	border-color: #444;
+}
+
+.bt-v2-events-container .bt-event-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.bt-v2-events-container .bt-event-time {
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-events-container .bt-event-header-right {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.bt-v2-events-container .bt-event-tension {
+	display: flex;
+	gap: 0.35rem;
+	font-size: 0.85rem;
+}
+
+.bt-v2-events-container .bt-event-summary {
+	font-size: 0.9rem;
+	color: #e0e0e0;
+	line-height: 1.4;
+}
+
+.bt-v2-events-container .bt-event-location {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-events-container .bt-event-location i {
+	color: #666;
+	font-size: 0.75rem;
+}
+
+.bt-v2-events-container .bt-event-footer {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	color: #888;
+}
+
+.bt-v2-events-container .bt-event-people {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.bt-v2-events-container .bt-event-witnesses {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.bt-v2-events-container .bt-witnesses-label {
+	color: #666;
+	font-size: 0.75rem;
+}
+
+.bt-v2-events-container .bt-witness {
+	background: #333;
+	padding: 0.15rem 0.4rem;
+	border-radius: 3px;
+	font-size: 0.75rem;
+}
+
+.bt-v2-events-container .bt-event-milestones {
+	margin-top: 0.25rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #333;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.bt-v2-events-container .bt-event-milestone {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.8rem;
+	color: #fbbf24;
+}
+
+.bt-v2-events-container .bt-event-milestone i {
+	color: #f59e0b;
+	font-size: 0.75rem;
+}
+
+.bt-v2-events-container .bt-milestone-desc {
+	color: #888;
+	font-style: italic;
+}
+
+/* =============================================
+   Tension Graph
+   ============================================= */
+
+.bt-v2-tension-graph {
+	width: 100%;
+	height: 260px;
+}
+
+/* =============================================
+   Common Buttons
+   ============================================= */
+
+.bt-v2-btn {
+	padding: 0.5rem 1rem;
+	border: 1px solid #555;
+	border-radius: 4px;
+	background: #2a2a2a;
+	color: #ccc;
+	cursor: pointer;
+	font-size: 0.9rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	transition: all 0.15s;
+}
+
+.bt-v2-btn:hover {
+	background: #333;
+	color: #fff;
+}
+
+.bt-v2-btn-primary {
+	background: #f80;
+	color: #000;
+	border-color: #f80;
+	font-weight: 500;
+}
+
+.bt-v2-btn-primary:hover {
+	background: #fa0;
+}
+
+.bt-v2-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* =============================================
+   Add Event Menu
+   ============================================= */
+
+.bt-v2-add-event-menu-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1200;
+}
+
+.bt-v2-add-event-menu {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	margin-top: 0.25rem;
+	background: #2a2a2a;
+	border: 1px solid #444;
+	border-radius: 6px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	z-index: 1250;
+	max-height: 250px;
+	overflow-y: auto;
+	min-width: 280px;
+	width: max-content;
+}
+
+.bt-v2-add-event-option {
+	padding: 0.5rem 0.75rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	color: #ccc;
+	transition: all 0.1s;
+}
+
+.bt-v2-add-event-option:hover {
+	background: #333;
+	color: #fff;
+}
+
+.bt-v2-add-event-option i {
+	color: #888;
+	width: 1rem;
+	text-align: center;
+}
+
+.bt-v2-add-event-option.disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.bt-v2-add-event-option.disabled:hover {
+	background: transparent;
+	color: #ccc;
+}
+
+.bt-v2-add-event-submenu-header {
+	padding: 0.5rem 0.75rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #f80;
+	background: rgba(255, 136, 0, 0.1);
+	border-bottom: 1px solid #333;
+}
+
+.bt-v2-add-event-submenu-header:hover {
+	background: rgba(255, 136, 0, 0.15);
+}
+
+.bt-v2-add-event-empty {
+	padding: 0.75rem;
+	text-align: center;
+	color: #666;
+	font-style: italic;
+	font-size: 0.85rem;
+}
+
+.bt-v2-add-event-count {
+	margin-left: auto;
+	color: #666;
+	font-size: 0.75rem;
+}
+
+.bt-v2-add-event-section-label {
+	padding: 0.4rem 0.75rem;
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	background: rgba(0, 0, 0, 0.2);
+	border-top: 1px solid #333;
+	margin-top: 0.25rem;
+}
+
+.bt-v2-submenu-arrow {
+	margin-left: auto;
+	font-size: 0.65rem;
+	color: #666;
+}
+
+.bt-v2-slot-name {
+	flex: 1;
+}
+
+.bt-v2-slot-current {
+	color: #888;
+	font-size: 0.8rem;
+	margin-left: auto;
+}
+
+.bt-v2-rel-direction {
+	color: #f80;
+	font-size: 0.85rem;
+}
+
+.bt-v2-rel-value {
+	color: #aaa;
+	font-size: 0.85rem;
+	margin-left: auto;
+}

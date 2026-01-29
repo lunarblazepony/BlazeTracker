@@ -500,7 +500,8 @@
 	flex-direction: column;
 	border-right: 1px solid #444;
 	min-height: 0;
-	overflow: hidden;
+	/* Allow overflow for dropdown menus */
+	overflow: visible;
 }
 
 .bt-v2-editor-projection-pane {
@@ -1073,7 +1074,6 @@
 	position: absolute;
 	top: 100%;
 	left: 0;
-	right: 0;
 	margin-top: 0.25rem;
 	background: #2a2a2a;
 	border: 1px solid #444;
@@ -1082,6 +1082,8 @@
 	z-index: 1250;
 	max-height: 250px;
 	overflow-y: auto;
+	min-width: 280px;
+	width: max-content;
 }
 
 .bt-v2-add-event-option {
@@ -1104,4 +1106,84 @@
 	color: #888;
 	width: 1rem;
 	text-align: center;
+}
+
+.bt-v2-add-event-option.disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.bt-v2-add-event-option.disabled:hover {
+	background: transparent;
+	color: #ccc;
+}
+
+.bt-v2-add-event-submenu-header {
+	padding: 0.5rem 0.75rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #f80;
+	background: rgba(255, 136, 0, 0.1);
+	border-bottom: 1px solid #333;
+}
+
+.bt-v2-add-event-submenu-header:hover {
+	background: rgba(255, 136, 0, 0.15);
+}
+
+.bt-v2-add-event-empty {
+	padding: 0.75rem;
+	text-align: center;
+	color: #666;
+	font-style: italic;
+	font-size: 0.85rem;
+}
+
+.bt-v2-add-event-count {
+	margin-left: auto;
+	color: #666;
+	font-size: 0.75rem;
+}
+
+.bt-v2-add-event-section-label {
+	padding: 0.4rem 0.75rem;
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	background: rgba(0, 0, 0, 0.2);
+	border-top: 1px solid #333;
+	margin-top: 0.25rem;
+}
+
+.bt-v2-submenu-arrow {
+	margin-left: auto;
+	font-size: 0.65rem;
+	color: #666;
+}
+
+.bt-v2-slot-name {
+	flex: 1;
+}
+
+.bt-v2-slot-current {
+	color: #888;
+	font-size: 0.8rem;
+	margin-left: auto;
+}
+
+.bt-v2-rel-direction {
+	color: #f80;
+	font-size: 0.85rem;
+}
+
+.bt-v2-rel-value {
+	color: #aaa;
+	font-size: 0.85rem;
+	margin-left: auto;
 }

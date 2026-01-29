@@ -32,9 +32,14 @@ export function getV2Settings(): V2Settings {
 
 /**
  * Update a single V2 setting.
+ * Ensures v2PersonaDefaults is preserved (managed separately by card defaults modal).
  */
 export function updateV2Setting<K extends keyof V2Settings>(key: K, value: V2Settings[K]): void {
 	const settings = v2SettingsManager.getSettings();
+	// Ensure v2PersonaDefaults exists (may be missing from old stored settings)
+	if (!settings.v2PersonaDefaults) {
+		settings.v2PersonaDefaults = {};
+	}
 	settings[key] = value;
 	v2SettingsManager.saveSettings();
 }

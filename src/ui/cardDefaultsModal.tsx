@@ -46,24 +46,24 @@ export interface PersonaDefaults {
 
 /**
  * Get persona defaults from extension settings.
- * Stored as an extra property on the V2 settings object.
  */
 export function getPersonaDefaults(personaName: string): PersonaDefaults {
-	const settings = v2SettingsManager.getSettings() as unknown as Record<string, unknown>;
-	const allDefaults = settings.personaDefaults as Record<string, PersonaDefaults> | undefined;
+	const settings = v2SettingsManager.getSettings();
+	const allDefaults = settings.v2PersonaDefaults as
+		| Record<string, PersonaDefaults>
+		| undefined;
 	return allDefaults?.[personaName] ?? {};
 }
 
 /**
  * Save persona defaults to extension settings.
- * Stored as an extra property on the V2 settings object.
  */
 export function savePersonaDefaults(personaName: string, defaults: PersonaDefaults): void {
-	const settings = v2SettingsManager.getSettings() as unknown as Record<string, unknown>;
-	if (!settings.personaDefaults) {
-		settings.personaDefaults = {};
+	const settings = v2SettingsManager.getSettings();
+	if (!settings.v2PersonaDefaults) {
+		settings.v2PersonaDefaults = {};
 	}
-	(settings.personaDefaults as Record<string, PersonaDefaults>)[personaName] = defaults;
+	(settings.v2PersonaDefaults as Record<string, PersonaDefaults>)[personaName] = defaults;
 	v2SettingsManager.saveSettings();
 }
 

@@ -78,6 +78,10 @@ export interface V2Settings {
 	// Per-prompt temperature overrides
 	/** Per-prompt temperature overrides (overrides category temperature) */
 	v2PromptTemperatures: Record<string, number>;
+
+	// Card/Persona defaults
+	/** Persona-specific default outfit and profile settings */
+	v2PersonaDefaults: Record<string, unknown>;
 }
 
 /**
@@ -96,7 +100,8 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		typeof s.v2Track === 'object' &&
 		typeof s.v2Temperatures === 'object' &&
 		typeof s.v2CustomPrompts === 'object' &&
-		typeof s.v2PromptTemperatures === 'object'
+		typeof s.v2PromptTemperatures === 'object' &&
+		typeof s.v2PersonaDefaults === 'object'
 	);
 }
 

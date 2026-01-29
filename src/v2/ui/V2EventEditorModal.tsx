@@ -11,7 +11,7 @@ import type { Event } from '../types/event';
 import type { Projection } from '../types/snapshot';
 import type { EventStore } from '../store/EventStore';
 import type { SwipeContext } from '../store/projection';
-import { V2EventEditor, type V2EventEditorHandle } from './V2EventEditor';
+import { V2EventEditor, V2AddEventMenu, type V2EventEditorHandle } from './V2EventEditor';
 import { V2ProjectionPreview } from './V2ProjectionPreview';
 
 export interface V2EventEditorModalProps {
@@ -46,6 +46,9 @@ export function V2EventEditorModal({
 	// Deep clone store for isolated editing
 	const [clonedStore] = useState(() => eventStore.getDeepClone());
 
+	// Add event menu state
+	const [showAddMenu, setShowAddMenu] = useState(false);
+
 	// Track edited events at this message/swipe
 	const [localEvents, setLocalEvents] = useState<Event[]>(() =>
 		clonedStore.getEventsAtMessage({ messageId, swipeId }),
@@ -79,6 +82,12 @@ export function V2EventEditorModal({
 	// Handle events change from editor
 	const handleEventsChange = useCallback((events: Event[]) => {
 		setLocalEvents(events);
+	}, []);
+
+	// Handle adding a new event from menu
+	const handleAddEvent = useCallback((event: Event) => {
+		setLocalEvents(prev => [...prev, event]);
+		setShowAddMenu(false);
 	}, []);
 
 	// Handle save
@@ -144,8 +153,42 @@ export function V2EventEditorModal({
 					{/* Left Pane: Events Editor */}
 					<div className="bt-v2-editor-left">
 						<div className="bt-v2-pane-header">
-							<i className="fa-solid fa-list"></i>
-							Events ({localEvents.length})
+							<span>
+								<i className="fa-solid fa-list"></i>{' '}
+								Events ({localEvents.length})
+							</span>
+							<div style={{ position: 'relative' }}>
+								<button
+									className="bt-v2-add-event-btn"
+									onClick={() =>
+										setShowAddMenu(
+											!showAddMenu,
+										)
+									}
+								>
+									<i className="fa-solid fa-plus" />{' '}
+									Add
+								</button>
+								{showAddMenu && projection && (
+									<V2AddEventMenu
+										messageId={
+											messageId
+										}
+										swipeId={swipeId}
+										onAdd={
+											handleAddEvent
+										}
+										onClose={() =>
+											setShowAddMenu(
+												false,
+											)
+										}
+										projection={
+											projection
+										}
+									/>
+								)}
+							</div>
 						</div>
 						<div className="bt-v2-pane-content">
 							{projection ? (

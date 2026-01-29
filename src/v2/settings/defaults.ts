@@ -60,6 +60,9 @@ export function createDefaultV2Settings(): V2Settings {
 
 		// Per-prompt temperature overrides
 		v2PromptTemperatures: {},
+
+		// Persona defaults
+		v2PersonaDefaults: {},
 	};
 }
 
@@ -103,6 +106,12 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2PromptTemperatures: {
 			...defaults.v2PromptTemperatures,
 			...partial.v2PromptTemperatures,
+		},
+
+		// Persona defaults - merge nested object
+		v2PersonaDefaults: {
+			...defaults.v2PersonaDefaults,
+			...partial.v2PersonaDefaults,
 		},
 	};
 }

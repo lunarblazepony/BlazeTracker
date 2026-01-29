@@ -38,6 +38,7 @@ const V2_STORE_KEY = 'v2EventStore';
 // ============================================
 
 let currentAbortController: AbortController | null = null;
+let generationWasStopped = false;
 
 /**
  * Get or create an AbortController for the current extraction.
@@ -51,12 +52,13 @@ export function getExtractionAbortController(): AbortController {
 
 /**
  * Abort the current extraction.
+ * Called when GENERATION_STOPPED fires.
  */
 export function abortExtraction(): void {
+	generationWasStopped = true;
 	if (currentAbortController) {
+		debugLog('Aborting extraction');
 		currentAbortController.abort();
-		// Don't nullify - wasExtractionAborted() needs to check the aborted state
-		// resetAbortController() handles cleanup in finally blocks
 	}
 }
 
@@ -69,9 +71,12 @@ export function resetAbortController(): void {
 
 /**
  * Check if extraction was aborted.
+ * Returns the flag value and resets it to false.
  */
 export function wasExtractionAborted(): boolean {
-	return currentAbortController?.signal.aborted ?? false;
+	const wasAborted = generationWasStopped;
+	generationWasStopped = false;
+	return wasAborted;
 }
 
 // ============================================
