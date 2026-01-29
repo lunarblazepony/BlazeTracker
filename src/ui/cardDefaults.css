@@ -226,11 +226,6 @@
 }
 
 /* Row layout for two fields */
-.bt-defaults-row {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 12px;
-}
 
 /* Outfit slot row */
 .bt-defaults-outfit-slot {

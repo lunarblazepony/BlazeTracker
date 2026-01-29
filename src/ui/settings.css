@@ -3,45 +3,6 @@
    ============================================ */
 
 /* Prompts Section */
-.bt-prompts-section {
-	margin-top: 10px;
-}
-
-.bt-prompts-header {
-	cursor: pointer;
-	padding: 8px;
-	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
-	border-radius: 4px;
-	margin-bottom: 8px;
-}
-
-.bt-prompts-header:hover {
-	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
-}
-
-.bt-prompts-title {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.bt-prompts-title i {
-	width: 12px;
-	text-align: center;
-}
-
-.bt-prompts-count {
-	font-size: 0.85em;
-	opacity: 0.7;
-	font-weight: normal;
-}
-
-.bt-prompts-header small {
-	display: block;
-	margin-top: 4px;
-	margin-left: 20px;
-	opacity: 0.7;
-}
 
 /* Prompts List */
 .bt-prompts-list {
@@ -165,24 +126,6 @@
 }
 
 /* Temperature Control */
-.bt-temperature-control {
-	margin-bottom: 12px;
-	padding: 10px;
-	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
-	border-radius: 4px;
-}
-
-.bt-temperature-label {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-}
-
-.bt-temperature-label>span:first-child {
-	font-weight: 500;
-	min-width: 90px;
-}
 
 .bt-temperature-slider {
 	flex: 1;
@@ -231,25 +174,7 @@
 	border-color: var(--SmartThemeFavColor, #ffaa00);
 }
 
-.bt-temperature-default {
-	font-size: 0.85em;
-	opacity: 0.6;
-}
-
 /* Prompt badges in collapsed view */
-.bt-prompt-badges {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.bt-prompt-temperature-badge {
-	font-size: 0.85em;
-	padding: 2px 6px;
-	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
-	border-radius: 3px;
-	color: var(--SmartThemeFavColor, #ffaa00);
-}
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
@@ -378,19 +303,6 @@
 }
 
 /* Custom Prompts Section */
-.bt-custom-prompts-section {
-	margin-top: 10px;
-}
-
-.bt-no-custom-prompts {
-	opacity: 0.7;
-	font-style: italic;
-	padding: 10px;
-}
-
-.bt-add-prompt-btn {
-	margin-top: 10px;
-}
 
 .bt-prompt-section {
 	margin-bottom: 12px;
@@ -425,14 +337,6 @@
    ============================================ */
 
 /* Expandable Field Layout */
-.bt-expandable-field {
-	display: flex;
-	gap: 4px;
-}
-
-.bt-expandable-field textarea {
-	flex: 1;
-}
 
 .bt-expand-button {
 	align-self: flex-start;
@@ -569,10 +473,4 @@
 	display: flex;
 	align-items: baseline;
 	gap: 8px;
-}
-
-.bt-prompt-key {
-	font-size: 0.85em;
-	opacity: 0.6;
-	font-family: monospace;
 }

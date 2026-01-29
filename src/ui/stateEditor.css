@@ -1,31 +1,6 @@
 /* BlazeTracker State Editor - Fixed for ST popups */
 
-#bt-editor-root {
-	max-height: 65vh;
-	overflow: hidden;
-	display: flex;
-}
-
-.bt-editor {
-	display: flex;
-	flex-direction: column;
-	width: 100%;
-	height: 80vh;
-	max-height: 80vh;
-	overflow: hidden;
-	background: #1a1a1a;
-	color: #e0e0e0;
-	border-radius: 6px;
-}
-
 /* Tabs */
-.bt-tabs {
-	display: flex;
-	gap: 4px;
-	padding: 12px;
-	background: #222;
-	flex-shrink: 0;
-}
 
 .bt-tab {
 	padding: 8px 16px;
@@ -52,94 +27,12 @@
 }
 
 /* THIS IS THE KEY - scrollable panel */
-.bt-panel {
-	flex: 1 1 auto;
-	overflow-y: auto !important;
-	overflow-x: hidden;
-	padding: 12px;
-	min-height: 0;
-	max-height: calc(65vh - 140px);
-	/* Account for tabs + actions */
-}
 
 /* Sections */
-.bt-section {
-	border: 1px solid #444;
-	border-radius: 6px;
-	padding: 12px;
-	margin: 0 0 12px 0;
-	background: #252525;
-}
-
-.bt-section legend {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	font-weight: 500;
-	color: #f80;
-	padding: 0 8px;
-	font-size: 0.9em;
-}
 
 /* Form fields */
-.bt-field {
-	margin-bottom: 12px;
-}
-
-.bt-field:last-child {
-	margin-bottom: 0;
-}
-
-.bt-field>label {
-	display: block;
-	font-size: 0.8em;
-	color: #999;
-	margin-bottom: 4px;
-}
-
-.bt-field input[type="text"],
-.bt-field input[type="number"],
-.bt-field select,
-.bt-field textarea {
-	width: 100%;
-	padding: 8px 10px;
-	border: 1px solid #444;
-	border-radius: 4px;
-	background: #1a1a1a;
-	color: #fff;
-	font-size: 0.9em;
-	font-family: inherit;
-	box-sizing: border-box;
-}
-
-.bt-field textarea {
-	resize: vertical;
-	min-height: 60px;
-}
-
-.bt-field input:focus,
-.bt-field select:focus,
-.bt-field textarea:focus {
-	outline: none;
-	border-color: #f80;
-}
-
-.bt-err {
-	border-color: #f44 !important;
-}
 
 /* Grid rows */
-.bt-row-2 {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 12px;
-}
-
-.bt-row-3 {
-	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
-	gap: 12px;
-}
 
 /* Tag Input */
 .bt-tag-input {
@@ -208,51 +101,7 @@
 
 /* NOTE: Event list styles moved to stateDisplay.css to avoid conflicts */
 
-.bt-event-add {
-	display: flex;
-	gap: 6px;
-	margin-top: 4px;
-}
-
-.bt-event-add input {
-	flex: 1;
-	padding: 6px 10px;
-	font-size: 0.85em;
-	border: 1px solid #444;
-	border-radius: 4px;
-	background: #1a1a1a;
-	color: #fff;
-}
-
-.bt-event-add button {
-	padding: 6px 12px;
-	border: none;
-	background: #f80;
-	color: #000;
-	border-radius: 4px;
-	cursor: pointer;
-	font-weight: bold;
-}
-
-.bt-event-hint {
-	font-size: 0.75em;
-	color: #888;
-	margin-top: 4px;
-}
-
 /* Characters list */
-.bt-chars-list {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.bt-char-card {
-	border: 1px solid #444;
-	border-radius: 6px;
-	overflow: hidden;
-	background: #222;
-}
 
 .bt-char-header {
 	display: flex;
@@ -274,58 +123,9 @@
 	flex-shrink: 0;
 }
 
-.bt-char-name {
-	flex: 1;
-	font-weight: 600;
-	color: #fff;
-}
-
-.bt-char-body {
-	padding: 16px;
-	background: #252525;
-}
-
 /* Add character button */
-.bt-add-char {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	width: 100%;
-	padding: 14px;
-	border: 2px dashed #555;
-	border-radius: 6px;
-	background: transparent;
-	color: #888;
-	cursor: pointer;
-	font-size: 0.9em;
-	margin-top: 12px;
-}
-
-.bt-add-char:hover {
-	border-color: #f80;
-	color: #f80;
-}
 
 /* Details/Accordion */
-.bt-details {
-	margin-top: 16px;
-	padding-top: 12px;
-	border-top: 1px solid #333;
-}
-
-.bt-details>summary {
-	cursor: pointer;
-	user-select: none;
-	font-size: 0.9em;
-	color: #aaa;
-	margin-bottom: 10px;
-	padding: 4px 0;
-}
-
-.bt-details>summary:hover {
-	color: #f80;
-}
 
 /* Outfit Grid */
 .bt-outfit-grid {
@@ -378,100 +178,11 @@
 	color: #fff;
 }
 
-.bt-x-red {
-	padding: 6px 10px;
-	border: none;
-	background: transparent;
-	color: #e55;
-	cursor: pointer;
-	border-radius: 4px;
-	flex-shrink: 0;
-}
-
-.bt-x-red:hover {
-	background: rgba(255, 68, 68, 0.2);
-}
-
 /* Dispositions */
-.bt-dispositions {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.bt-disposition {
-	background: #1e1e1e;
-	border-radius: 6px;
-	padding: 12px;
-}
-
-.bt-disposition-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 10px;
-	font-size: 0.9em;
-	color: #8af;
-	font-weight: 500;
-}
-
-.bt-add-row {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-}
-
-.bt-add-row select,
-.bt-add-row input {
-	flex: 1;
-	min-width: 120px;
-	padding: 8px 10px;
-	border: 1px solid #444;
-	border-radius: 4px;
-	background: #1a1a1a;
-	color: #fff;
-	font-size: 0.85em;
-}
-
-.bt-add-row button {
-	padding: 8px 16px;
-	border: none;
-	background: #f80;
-	color: #000;
-	border-radius: 4px;
-	cursor: pointer;
-	font-weight: 500;
-}
-
-.bt-add-row button:disabled {
-	opacity: 0.4;
-	cursor: not-allowed;
-}
 
 /* Error Summary */
-.bt-errors {
-	background: rgba(255, 68, 68, 0.15);
-	border: 1px solid rgba(255, 68, 68, 0.5);
-	border-radius: 4px;
-	padding: 10px 14px;
-	margin: 0 12px;
-	color: #f99;
-	font-size: 0.85em;
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-shrink: 0;
-}
 
 /* Actions - fixed at bottom */
-.bt-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 10px;
-	padding: 12px;
-	background: #222;
-	flex-shrink: 0;
-}
 
 .bt-btn {
 	padding: 10px 20px;
@@ -503,41 +214,8 @@
 }
 
 /* Scrollbar */
-.bt-panel::-webkit-scrollbar {
-	width: 8px;
-}
-
-.bt-panel::-webkit-scrollbar-track {
-	background: #1a1a1a;
-	border-radius: 4px;
-}
-
-.bt-panel::-webkit-scrollbar-thumb {
-	background: #444;
-	border-radius: 4px;
-}
-
-.bt-panel::-webkit-scrollbar-thumb:hover {
-	background: #555;
-}
 
 /* Add section buttons */
-.bt-add-sections {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.75rem;
-	background: var(--SmartThemeBlurTintColor);
-	border-radius: 4px;
-	margin-top: 0.5rem;
-}
-
-.bt-add-sections-label {
-	font-size: 0.85rem;
-	color: var(--SmartThemeBodyColor);
-	opacity: 0.7;
-}
 
 .bt-btn-small {
 	display: inline-flex;
@@ -557,21 +235,6 @@
 }
 
 /* Section remove button in legend */
-.bt-section-remove {
-	float: right;
-	background: transparent;
-	border: none;
-	color: var(--SmartThemeBodyColor);
-	opacity: 0.5;
-	cursor: pointer;
-	padding: 0.2rem 0.4rem;
-	font-size: 0.75rem;
-}
-
-.bt-section-remove:hover {
-	opacity: 1;
-	color: #e74c3c;
-}
 
 /* Section header for characters */
 .bt-section-header {
@@ -591,101 +254,21 @@
    Split-pane Editor Layout
    ============================================= */
 
-.bt-split-editor {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 1rem;
-	height: 100%;
-	min-height: 0;
-}
-
-.bt-events-pane {
-	overflow-y: auto;
-	padding: 0.75rem;
-	border-right: 1px solid #444;
-	min-height: 0;
-	position: relative;
-}
-
-.bt-projection-pane {
-	overflow-y: auto;
-	padding: 0.75rem;
-	background: rgba(255, 136, 0, 0.03);
-	min-height: 0;
-}
-
 /* =============================================
    Relationship Card Split Editor
    ============================================= */
 
-.bt-relationship-card.bt-editing.bt-expanded {
-	display: flex;
-	flex-direction: column;
-}
-
-.bt-relationship-card.bt-editing.bt-expanded .bt-split-editor {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 1rem;
-	height: 60vh;
-	width: 100%;
-}
-
-.bt-relationship-card .bt-events-pane,
-.bt-relationship-card .bt-projection-pane {
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	min-height: 0;
-	height: 100%;
-}
-
 /* Header should not shrink */
-.bt-relationship-card .bt-events-pane-header {
-	flex-shrink: 0;
-}
 
 /* Add event form should not shrink */
-.bt-relationship-card .bt-add-event-form {
-	flex-shrink: 0;
-}
 
 /* Make the relationship events list scrollable - this is the key fix */
-.bt-relationship-card .bt-relationship-events-list {
-	flex: 1 1 0;
-	overflow-y: auto;
-	min-height: 0;
-}
 
 /* Empty state should not cause scroll issues */
-.bt-relationship-card .bt-events-list-empty {
-	flex-shrink: 0;
-}
 
 /* Projection pane content scrollable */
-.bt-relationship-card .bt-projected-relationship {
-	flex: 1 1 0;
-	overflow-y: auto;
-	min-height: 0;
-}
-
-.bt-relationship-card .bt-events-pane h3,
-.bt-relationship-card .bt-projection-pane h3 {
-	font-size: 0.85rem;
-	color: #f80;
-	margin: 0;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
 
 /* Events pane header with Add button */
-.bt-events-pane-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 0.75rem;
-}
 
 .bt-add-event-btn {
 	display: flex;
@@ -708,120 +291,6 @@
 }
 
 /* Add Event Form */
-.bt-add-event-form {
-	background: #252525;
-	border: 1px solid #f80;
-	border-radius: 6px;
-	padding: 0.75rem;
-	margin-bottom: 0.75rem;
-}
-
-.bt-add-event-form .bt-form-row {
-	display: flex;
-	flex-direction: column;
-	gap: 0.35rem;
-	margin-bottom: 0.75rem;
-}
-
-.bt-add-event-form .bt-form-row:last-of-type {
-	margin-bottom: 0;
-}
-
-.bt-add-event-form label {
-	font-size: 0.75rem;
-	color: #888;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-}
-
-.bt-add-event-form .bt-select,
-.bt-add-event-form .bt-input {
-	padding: 0.5rem;
-	border: 1px solid #444;
-	border-radius: 4px;
-	background: #1a1a1a;
-	color: #e0e0e0;
-	font-size: 0.9rem;
-}
-
-.bt-add-event-form .bt-select:focus,
-.bt-add-event-form .bt-input:focus {
-	outline: none;
-	border-color: #f80;
-}
-
-.bt-add-event-form .bt-no-items {
-	color: #666;
-	font-style: italic;
-	font-size: 0.85rem;
-	padding: 0.5rem;
-}
-
-.bt-add-event-form .bt-form-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 0.5rem;
-	margin-top: 0.75rem;
-	padding-top: 0.75rem;
-	border-top: 1px solid #333;
-}
-
-.bt-add-event-form .bt-btn {
-	padding: 0.4rem 0.8rem;
-	border-radius: 4px;
-	font-size: 0.8rem;
-	cursor: pointer;
-	transition: all 0.15s;
-}
-
-.bt-add-event-form .bt-btn-secondary {
-	background: transparent;
-	border: 1px solid #666;
-	color: #ccc;
-}
-
-.bt-add-event-form .bt-btn-secondary:hover {
-	border-color: #888;
-	color: #fff;
-}
-
-.bt-add-event-form .bt-btn-primary {
-	background: #f80;
-	border: 1px solid #f80;
-	color: #1a1a1a;
-}
-
-.bt-add-event-form .bt-btn-primary:hover:not(:disabled) {
-	background: #ffa033;
-	border-color: #ffa033;
-}
-
-.bt-add-event-form .bt-btn-primary:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.bt-relationship-events-list {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-}
-
-.bt-events-list-empty {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	padding: 2rem;
-	color: #666;
-	text-align: center;
-	gap: 0.5rem;
-}
-
-.bt-events-list-empty i {
-	font-size: 2rem;
-	opacity: 0.5;
-}
 
 /* =============================================
    ProjectionPreview Styles
@@ -1109,11 +578,6 @@
 	white-space: nowrap;
 }
 
-.bt-event-card-detail {
-	font-size: 0.75rem;
-	color: #888;
-}
-
 /* Event action buttons */
 .bt-event-actions {
 	display: flex;
@@ -1206,26 +670,6 @@
 }
 
 /* Scrollbar for panes */
-.bt-events-pane::-webkit-scrollbar,
-.bt-projection-pane::-webkit-scrollbar {
-	width: 6px;
-}
-
-.bt-events-pane::-webkit-scrollbar-track,
-.bt-projection-pane::-webkit-scrollbar-track {
-	background: #1a1a1a;
-}
-
-.bt-events-pane::-webkit-scrollbar-thumb,
-.bt-projection-pane::-webkit-scrollbar-thumb {
-	background: #444;
-	border-radius: 3px;
-}
-
-.bt-events-pane::-webkit-scrollbar-thumb:hover,
-.bt-projection-pane::-webkit-scrollbar-thumb:hover {
-	background: #555;
-}
 
 /* =============================================
    Event Editor Inline Forms
@@ -1464,296 +908,19 @@
    Narrative Event Card
    ============================================= */
 
-.bt-narrative-event-card {
-	background: #1e1e1e;
-	border: 1px solid #333;
-	border-radius: 6px;
-	padding: 0.6rem;
-	margin-bottom: 0.5rem;
-}
-
-.bt-narrative-event-card.bt-compact {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 0.4rem 0.6rem;
-}
-
-.bt-narrative-event-card .bt-event-content {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	flex: 1;
-	min-width: 0;
-}
-
-.bt-narrative-event-card .bt-event-summary {
-	font-size: 0.85rem;
-	color: #ccc;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.bt-narrative-event-card .bt-state-event-header {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	margin-bottom: 0.4rem;
-}
-
-.bt-narrative-event-card .bt-event-tension-label {
-	font-size: 0.75rem;
-	color: #888;
-	text-transform: capitalize;
-}
-
-.bt-narrative-event-card .bt-event-chapter {
-	font-size: 0.7rem;
-	color: #666;
-	margin-left: auto;
-}
-
-.bt-narrative-event-card .bt-event-body {
-	padding-left: 1.5rem;
-}
-
-.bt-narrative-event-card .bt-event-body p {
-	margin: 0 0 0.4rem 0;
-	font-size: 0.9rem;
-	color: #ddd;
-}
-
-.bt-narrative-event-card .bt-event-location,
-.bt-narrative-event-card .bt-event-witnesses {
-	display: inline-block;
-	font-size: 0.75rem;
-	color: #888;
-	margin-right: 0.75rem;
-}
-
-.bt-narrative-event-card .bt-event-location i,
-.bt-narrative-event-card .bt-event-witnesses i {
-	margin-right: 0.25rem;
-}
-
-.bt-narrative-event-card .bt-event-types {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.35rem;
-	margin-top: 0.5rem;
-	padding-left: 1.5rem;
-}
-
-.bt-narrative-event-card .bt-event-type-tag {
-	font-size: 0.7rem;
-	padding: 0.15rem 0.4rem;
-	border: 1px solid;
-	border-radius: 3px;
-}
-
-.bt-narrative-event-card .bt-event-type-more {
-	font-size: 0.7rem;
-	color: #666;
-}
-
-.bt-narrative-event-card .bt-event-milestones {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.35rem;
-	margin-top: 0.5rem;
-	padding-left: 1.5rem;
-	color: #f59e0b;
-}
-
-.bt-narrative-event-card .bt-milestone-tag {
-	font-size: 0.7rem;
-	padding: 0.15rem 0.4rem;
-	background: rgba(245, 158, 11, 0.2);
-	border-radius: 3px;
-	text-transform: capitalize;
-}
-
-.bt-narrative-event-card .bt-event-actions {
-	display: flex;
-	gap: 0.25rem;
-	margin-left: 0.5rem;
-	flex-shrink: 0;
-}
-
-.bt-action-btn-tiny {
-	background: none;
-	border: none;
-	color: #666;
-	cursor: pointer;
-	padding: 0.2rem;
-	font-size: 0.7rem;
-	border-radius: 3px;
-}
-
-.bt-action-btn-tiny:hover {
-	color: #aaa;
-	background: #333;
-}
-
-.bt-action-btn-tiny.delete:hover {
-	color: #ef4444;
-}
-
-.bt-narrative-event-card.bt-editing {
-	background: #252525;
-}
-
-.bt-narrative-event-card .bt-event-summary-input {
-	width: 100%;
-	background: #1a1a1a;
-	border: 1px solid #444;
-	border-radius: 4px;
-	color: #ddd;
-	padding: 0.4rem;
-	font-size: 0.85rem;
-	resize: vertical;
-}
-
-.bt-narrative-event-card .bt-edit-actions {
-	display: flex;
-	gap: 0.5rem;
-	margin-top: 0.5rem;
-	justify-content: flex-end;
-}
-
 /* Events list compact */
-.bt-events-list-compact {
-	max-height: 300px;
-	overflow-y: auto;
-	padding-right: 0.25rem;
-}
-
-.bt-relationship-events,
-.bt-chapter-events.bt-derived-events {
-	margin-top: 1rem;
-	padding-top: 0.75rem;
-	border-top: 1px solid #333;
-}
-
-.bt-relationship-events .bt-events-header,
-.bt-chapter-events.bt-derived-events .bt-section-header {
-	font-size: 0.85rem;
-	color: #888;
-	margin-bottom: 0.5rem;
-}
-
-.bt-relationship-events .bt-events-header i,
-.bt-chapter-events.bt-derived-events .bt-section-header i {
-	color: #f59e0b;
-	margin-right: 0.4rem;
-}
 
 /* =============================================
    Relationship Split-Panel Editor
    ============================================= */
 
-.bt-relationship-split-editor {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 1rem;
-	height: calc(100% - 80px);
-	min-height: 300px;
-	margin-top: 0.75rem;
-}
-
-.bt-pane-header {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem;
-	font-size: 0.85rem;
-	font-weight: 600;
-	color: #f80;
-	border-bottom: 1px solid #333;
-	margin-bottom: 0.5rem;
-}
-
-.bt-pane-header i {
-	color: #888;
-}
-
 /* Relationship events list */
-.bt-relationship-events-list {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-	max-height: calc(100% - 40px);
-	overflow-y: auto;
-}
 
 /* Message group for events */
-.bt-events-message-group {
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
-}
-
-.bt-events-message-header {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.35rem 0.5rem;
-	background: #252525;
-	border-radius: 4px;
-	font-size: 0.8rem;
-	color: #888;
-	border-left: 2px solid #f80;
-	margin-top: 0.25rem;
-}
-
-.bt-events-message-header:first-child {
-	margin-top: 0;
-}
-
-.bt-events-message-header i {
-	font-size: 0.75rem;
-	color: #f80;
-}
-
-.bt-events-message-header .bt-events-count {
-	color: #666;
-	font-size: 0.75rem;
-}
 
 /* Message select dropdown in event editing */
-.bt-message-select {
-	padding: 0.25rem 0.5rem;
-	font-size: 0.8rem;
-	border-radius: 4px;
-	border: 1px solid #444;
-	background: #2a2a2a;
-	color: #e0e0e0;
-	min-width: 100px;
-}
-
-.bt-message-select:focus {
-	outline: none;
-	border-color: #f80;
-}
 
 /* Events list empty state */
-.bt-events-list-empty {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 0.75rem;
-	padding: 2rem;
-	color: #666;
-	text-align: center;
-}
-
-.bt-events-list-empty i {
-	font-size: 2rem;
-	opacity: 0.5;
-}
 
 /* Projected relationship display */
 .bt-projected-relationship {
@@ -1764,240 +931,25 @@
 	overflow-y: auto;
 }
 
-.bt-relationship-status-display {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-size: 1rem;
-	font-weight: 500;
-	text-transform: capitalize;
-}
-
-.bt-attitude-display {
-	display: flex;
-	flex-direction: column;
-	gap: 0.35rem;
-}
-
 .bt-attitude-row {
 	display: flex;
 	gap: 0.5rem;
 	font-size: 0.85rem;
 }
 
-.bt-attitude-row .bt-label {
-	color: #888;
-	min-width: 55px;
-}
-
-.bt-attitude-row .bt-value {
-	color: #ccc;
-}
-
-.bt-empty-attitude {
-	font-size: 0.85rem;
-	color: #666;
-	font-style: italic;
-}
-
 /* Milestones list */
-.bt-milestones-list {
-	list-style: none;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 0.35rem;
-}
-
-.bt-milestones-list li {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-size: 0.85rem;
-	padding: 0.35rem 0.5rem;
-	background: rgba(245, 158, 11, 0.1);
-	border-radius: 4px;
-}
-
-.bt-milestones-list .bt-milestone-type {
-	color: #f59e0b;
-	text-transform: capitalize;
-	font-weight: 500;
-}
-
-.bt-milestones-list .bt-milestone-desc {
-	color: #aaa;
-}
 
 /* Filter bar updates */
-.bt-filter-bar {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	flex-wrap: wrap;
-	padding: 0.5rem;
-	background: #252525;
-	border-radius: 4px;
-	margin-bottom: 0.5rem;
-}
-
-.bt-filter-bar label {
-	font-size: 0.8rem;
-	color: #888;
-}
-
-.bt-filter-bar select {
-	padding: 0.35rem 0.6rem;
-	font-size: 0.85rem;
-	background: #1a1a1a;
-	border: 1px solid #444;
-	border-radius: 4px;
-	color: #fff;
-}
-
-.bt-filter-bar select:focus {
-	outline: none;
-	border-color: #f80;
-}
 
 /* Chapter regeneration indicator */
-.bt-regeneration-pending {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.35rem;
-	font-size: 0.75rem;
-	color: #f59e0b;
-	background: rgba(245, 158, 11, 0.15);
-	padding: 0.2rem 0.5rem;
-	border-radius: 3px;
-	margin-left: auto;
-}
-
-.bt-regeneration-pending::before {
-	content: '\f021';
-	font-family: 'Font Awesome 6 Free';
-	font-weight: 900;
-}
 
 /* =============================================
    Narrative Event Card Inline Editing
    ============================================= */
 
-.bt-narrative-event-card.bt-event-card-editing {
-	background: #1a1a1a;
-	border: 1px solid #f80;
-	border-radius: 6px;
-	padding: 0.75rem;
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-}
-
-.bt-event-edit-header {
-	display: flex;
-	gap: 0.5rem;
-	align-items: center;
-}
-
-.bt-tension-select {
-	padding: 0.3rem 0.5rem;
-	font-size: 0.8rem;
-	background: #252525;
-	border: 1px solid #444;
-	border-radius: 4px;
-	color: #fff;
-}
-
-.bt-tension-select:focus {
-	outline: none;
-	border-color: #f80;
-}
-
-.bt-narrative-event-card .bt-event-summary-input {
-	width: 100%;
-	padding: 0.5rem;
-	font-size: 0.85rem;
-	background: #252525;
-	border: 1px solid #444;
-	border-radius: 4px;
-	color: #fff;
-	resize: vertical;
-	min-height: 50px;
-}
-
-.bt-narrative-event-card .bt-event-summary-input:focus {
-	outline: none;
-	border-color: #f80;
-}
-
 /* Event types toggle buttons */
-.bt-event-types-edit {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.35rem;
-}
-
-.bt-event-type-toggle {
-	padding: 0.25rem 0.5rem;
-	font-size: 0.7rem;
-	background: transparent;
-	border: 1px solid #444;
-	border-radius: 3px;
-	color: #888;
-	cursor: pointer;
-	display: inline-flex;
-	align-items: center;
-	gap: 0.25rem;
-	transition: all 0.15s ease;
-}
-
-.bt-event-type-toggle:hover {
-	border-color: #666;
-	color: #aaa;
-}
-
-.bt-event-type-toggle.selected {
-	background: var(--event-type-color, #f80);
-	border-color: var(--event-type-color, #f80);
-	color: #000;
-	font-weight: 500;
-}
-
-.bt-event-type-toggle i {
-	font-size: 0.65rem;
-}
 
 /* Edit actions at bottom of card */
-.bt-event-edit-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 0.5rem;
-	margin-top: 0.25rem;
-}
-
-.bt-event-edit-actions .bt-action-btn {
-	padding: 0.35rem 0.6rem;
-	background: #333;
-	border: 1px solid #555;
-	border-radius: 4px;
-	color: #fff;
-	cursor: pointer;
-	opacity: 1;
-}
-
-.bt-event-edit-actions .bt-action-btn:hover {
-	background: #444;
-}
-
-.bt-event-edit-actions .bt-action-btn:first-child {
-	background: #2a5a2a;
-	border-color: #3a7a3a;
-}
-
-.bt-event-edit-actions .bt-action-btn:first-child:hover {
-	background: #3a7a3a;
-}
 
 /* =============================================
    V2 Event Editor Modal
