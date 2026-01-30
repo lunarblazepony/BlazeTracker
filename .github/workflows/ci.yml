@@ -214,14 +214,15 @@ jobs:
 
       - name: Check dist is up-to-date
         run: |
-          if [[ -n $(git status dist/ --porcelain) ]]; then
+          # Ignore source maps as they can differ between build environments
+          if [[ -n $(git status dist/ --porcelain | grep -v '\.map$') ]]; then
             echo "::error::dist/ is out of date. Run 'npm run build' and commit the changes."
             echo ""
             echo "Changed files:"
-            git status dist/ --porcelain
+            git status dist/ --porcelain | grep -v '\.map$'
             echo ""
             echo "Diff summary:"
-            git diff --stat dist/
+            git diff --stat dist/ -- ':!*.map'
             exit 1
           fi
           echo "dist/ is up-to-date"
