@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    name: Bump Version & Release
+    runs-on: ubuntu-latest
+    # Skip if commit is from this workflow (prevents infinite loop)
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine version bump type
+        id: version_type
+        run: |
+          # Check for manual trigger first
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ inputs.version_type }}" >> $GITHUB_OUTPUT
+            echo "Version type from manual trigger: ${{ inputs.version_type }}"
+            exit 0
+          fi
+
+          # Check commit message for version keywords
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+
+          if echo "$COMMIT_MSG" | grep -qiE '\[major\]'; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "Version type from commit message: major"
+          elif echo "$COMMIT_MSG" | grep -qiE '\[minor\]'; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "Version type from commit message: minor"
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "Version type (default): patch"
+          fi
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT=$(node -pe "require('./package.json').version")
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT"
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT="${{ steps.current_version.outputs.version }}"
+          TYPE="${{ steps.version_type.outputs.type }}"
+
+          # Split version into parts
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case $TYPE in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update package.json version
+        run: |
+          npm version ${{ steps.new_version.outputs.version }} --no-git-tag-version
+
+      - name: Update manifest.json version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            manifest.version = '${{ steps.new_version.outputs.version }}';
+            fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, '\t') + '\n');
+          "
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit and tag
+        run: |
+          git add package.json manifest.json dist/
+          git commit -m "v${{ steps.new_version.outputs.version }} [skip ci]"
+          git tag "v${{ steps.new_version.outputs.version }}"
+
+      - name: Push changes
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "v${{ steps.new_version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.new_version.outputs.version }}
+          name: v${{ steps.new_version.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
