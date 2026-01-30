@@ -81,7 +81,7 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
-        run: npm run test:coverage -- --reporter=json --outputFile=coverage-report.json
+        run: npm run test:coverage -- --reporter=default --reporter=json --outputFile=coverage-report.json
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
