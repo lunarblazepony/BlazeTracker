@@ -317,7 +317,9 @@ export function formatStateForInjection(
 	// ========================================
 	// Current Scene State
 	// ========================================
-	let sceneOutput = `[Scene State]`;
+	const scenePrefix = `[Scene State]`;
+	const sceneSuffix = `\n[/Scene State]`;
+	let sceneOutput = ``;
 
 	// Scene info first - it's the narrative context
 	if (opts.includeScene && projection.scene) {
@@ -358,8 +360,9 @@ export function formatStateForInjection(
 		sceneOutput += `\nCharacters present:\n${characters}`;
 	}
 
-	sceneOutput += `\n[/Scene State]`;
-	sections.push(sceneOutput);
+	if (sceneOutput !== ``) {
+		sections.push(scenePrefix, sceneOutput, sceneSuffix);
+	}
 
 	// ========================================
 	// Recent Events in Current Chapter
