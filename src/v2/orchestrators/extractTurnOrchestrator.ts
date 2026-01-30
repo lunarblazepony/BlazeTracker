@@ -6,6 +6,7 @@ import type { MessageAndSwipe } from '../types';
 import { createSnapshotFromProjection } from '../types/snapshot';
 import { extractInitialSnapshot } from './extractInitialOrchestrator';
 import { extractEvents } from './extractEventsOrchestrator';
+import { buildSwipeContextFromExtraction } from '../extractors/utils';
 // Card Extensions
 import type { CardExtensions } from '../cardExtensions/types';
 import type { MacroContext } from '../cardExtensions';
@@ -182,9 +183,11 @@ export async function extractTurn(
 	if (result.chapterEnded) {
 		setStatus?.('Creating chapter snapshot...');
 
-		const projection = store.projectStateAtMessage(currentMessage.messageId, {
-			/* context */
-		} as any);
+		const swipeContext = buildSwipeContextFromExtraction(context);
+		const projection = store.projectStateAtMessage(
+			currentMessage.messageId,
+			swipeContext,
+		);
 		const chapterSnapshot = createSnapshotFromProjection(
 			projection,
 			projection.currentChapter,

@@ -101917,6 +101917,32 @@ async function init() {
         const swipeId = (0,_utils_messageState__WEBPACK_IMPORTED_MODULE_2__.getSwipeId)(message);
         log('Current swipe_id for message', messageId, 'is', swipeId);
         if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
+            const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore)();
+            const initialSnapshotMessageId = store.initialSnapshotMessageId;
+            // Check if the swiped message is where the initial snapshot was created
+            // This is rare (usually initial snapshot is on a user message which can't be swiped)
+            // but can happen in group chats or manual extraction scenarios
+            if (messageId === initialSnapshotMessageId) {
+                log('Swiped the initial snapshot message - clearing store and re-extracting');
+                // Clear the entire store since the baseline has changed
+                await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.clearV2EventStore)();
+                // Unmount all displays since state is now invalid
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.unmountAllV2ProjectionDisplays)();
+                // Auto-extract if enabled, otherwise user will need to manually extract
+                const v2Settings = (0,_v2_settings__WEBPACK_IMPORTED_MODULE_5__.getV2Settings)();
+                if (v2Settings.v2AutoExtract) {
+                    await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.runV2Extraction)(messageId, {
+                        onStatus: (status) => log('Re-extraction status:', status),
+                    });
+                    // Remount displays after extraction
+                    if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
+                        (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountAllV2ProjectionDisplays)();
+                        updateV2Injection(messageId + 1);
+                    }
+                }
+                return;
+            }
+            // Normal swipe handling for other messages
             // Unmount and remount to show projection for the new swipe
             (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.unmountV2ProjectionDisplay)(messageId);
             (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
@@ -105959,8 +105985,8 @@ const moodPhysicalChangeExtractor = {
             { kind: 'character', subkind: 'physical_removed' },
         ],
     },
-    // Every user message
-    runStrategy: { strategy: 'everyUserMessage' },
+    // Every 2 messages, offset=0 (default) fires on messageId 1, 3, 5... (user messages in normal chat)
+    runStrategy: { strategy: 'everyNMessages', n: 2 },
     shouldRun(context) {
         // Run if characters tracking is enabled AND the run strategy permits
         return (context.settings.track.characters &&
@@ -106183,8 +106209,8 @@ const positionActivityChangeExtractor = {
             { kind: 'character', subkind: 'activity_changed' },
         ],
     },
-    // Every assistant message
-    runStrategy: { strategy: 'everyAssistantMessage' },
+    // Every 2 messages starting at 1 (assistant messages in normal chat)
+    runStrategy: { strategy: 'everyNMessages', n: 2, offset: 1 },
     shouldRun(context) {
         // Run if character tracking is enabled AND run strategy allows it
         return (context.settings.track.characters &&
@@ -106460,7 +106486,8 @@ __webpack_require__.r(__webpack_exports__);
  * 2. Current time is beyond the forecast range
  */
 function customCheck(ctx) {
-    const projection = ctx.store.projectStateAtMessage(ctx.currentMessage.messageId);
+    const swipeContext = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildSwipeContextFromExtraction)(ctx.context);
+    const projection = ctx.store.projectStateAtMessage(ctx.currentMessage.messageId, swipeContext);
     const currentArea = projection.location?.area;
     const currentTime = projection.time;
     if (!currentArea || !currentTime) {
@@ -108094,7 +108121,8 @@ const subjectsExtractor = {
     defaultTemperature: 0.5,
     prompt: _prompts_events_subjectsPrompt__WEBPACK_IMPORTED_MODULE_0__.subjectsPrompt,
     messageStrategy: { strategy: 'fixedNumber', n: 2 },
-    runStrategy: { strategy: 'everyAssistantMessage' },
+    // Every 2 messages starting at 1 (assistant messages in normal chat)
+    runStrategy: { strategy: 'everyNMessages', n: 2, offset: 1 },
     shouldRun(context) {
         // Run if relationships tracking is enabled AND run strategy allows it
         return (context.settings.track.relationships &&
@@ -108264,7 +108292,8 @@ const tensionChangeExtractor = {
         strategy: 'sinceLastEventOfKind',
         kinds: [{ kind: 'tension' }],
     },
-    runStrategy: { strategy: 'everyAssistantMessage' },
+    // Every 2 messages starting at 1 (assistant messages in normal chat)
+    runStrategy: { strategy: 'everyNMessages', n: 2, offset: 1 },
     shouldRun(context) {
         // Run if scene tracking is enabled AND the run strategy permits
         return (context.settings.track.scene &&
@@ -111326,8 +111355,11 @@ function evaluateRunStrategy(strategy, context) {
         case 'everyAssistantMessage':
             return isAssistantMessage(context);
         case 'everyNMessages': {
-            // Run every N messages (count from start, 0-indexed)
-            return (context.currentMessage.messageId + 1) % strategy.n === 0;
+            // Run every N messages with optional offset
+            // offset=0 (default): fires when (messageId + 1) divisible by n
+            // offset=1: fires when (messageId + 1) % n === 1, etc.
+            const offset = strategy.offset ?? 0;
+            return (context.currentMessage.messageId + 1) % strategy.n === offset;
         }
         case 'nSinceLastProducedEvents': {
             // Run if N messages have passed since this extractor last produced events
@@ -113717,10 +113749,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../types/snapshot */ "./src/v2/types/snapshot.ts");
 /* harmony import */ var _extractInitialOrchestrator__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./extractInitialOrchestrator */ "./src/v2/orchestrators/extractInitialOrchestrator.ts");
 /* harmony import */ var _extractEventsOrchestrator__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./extractEventsOrchestrator */ "./src/v2/orchestrators/extractEventsOrchestrator.ts");
-/* harmony import */ var _cardExtensions__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../cardExtensions */ "./src/v2/cardExtensions/index.ts");
-/* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
-/* harmony import */ var _cardExtensions_personaMerger__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../cardExtensions/personaMerger */ "./src/v2/cardExtensions/personaMerger.ts");
-/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _extractors_utils__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../extractors/utils */ "./src/v2/extractors/utils/index.ts");
+/* harmony import */ var _cardExtensions__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../cardExtensions */ "./src/v2/cardExtensions/index.ts");
+/* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
+/* harmony import */ var _cardExtensions_personaMerger__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../cardExtensions/personaMerger */ "./src/v2/cardExtensions/personaMerger.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+
 
 
 
@@ -113762,7 +113796,7 @@ async function extractTurn(store, context, settings, setStatus, generator, abort
         };
         let cardExtensions = null;
         try {
-            cardExtensions = (0,_cardExtensions__WEBPACK_IMPORTED_MODULE_4__.readAndResolveCardExtensions)(macroContext, context.characterId);
+            cardExtensions = (0,_cardExtensions__WEBPACK_IMPORTED_MODULE_5__.readAndResolveCardExtensions)(macroContext, context.characterId);
         }
         catch (readError) {
             // Card extensions not available - this is fine, continue with extraction
@@ -113786,7 +113820,7 @@ async function extractTurn(store, context, settings, setStatus, generator, abort
         let finalSnapshot = snapshot;
         // Apply card extensions for {{char}}
         try {
-            if (cardExtensions && (0,_cardExtensions__WEBPACK_IMPORTED_MODULE_4__.hasEnabledExtensions)(cardExtensions)) {
+            if (cardExtensions && (0,_cardExtensions__WEBPACK_IMPORTED_MODULE_5__.hasEnabledExtensions)(cardExtensions)) {
                 // Only merge outfit, profile, and relationships (time/location already handled)
                 const partialExtensions = {
                     outfit: cardExtensions.outfit,
@@ -113798,30 +113832,30 @@ async function extractTurn(store, context, settings, setStatus, generator, abort
                     (partialExtensions.relationships &&
                         partialExtensions.relationships.length > 0)) {
                     setStatus?.('Applying card defaults...');
-                    finalSnapshot = await (0,_cardExtensions__WEBPACK_IMPORTED_MODULE_4__.mergeCardExtensionsIntoSnapshot)(finalSnapshot, partialExtensions, macroContext);
-                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Applied card extensions (outfit/profile/relationships) to initial snapshot');
+                    finalSnapshot = await (0,_cardExtensions__WEBPACK_IMPORTED_MODULE_5__.mergeCardExtensionsIntoSnapshot)(finalSnapshot, partialExtensions, macroContext);
+                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_8__.debugLog)('Applied card extensions (outfit/profile/relationships) to initial snapshot');
                 }
             }
         }
         catch (error) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Failed to apply card extensions:', error);
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_8__.debugWarn)('Failed to apply card extensions:', error);
             // Continue with unmerged snapshot - extraction still succeeded
         }
         // Apply persona defaults for {{user}}
         try {
             const personaName = getActivePersonaName();
             if (personaName) {
-                const personaDefaults = (0,_ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_5__.getPersonaDefaults)(personaName);
+                const personaDefaults = (0,_ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_6__.getPersonaDefaults)(personaName);
                 if (personaDefaults.outfit?.enabled ||
                     personaDefaults.profile?.enabled) {
                     setStatus?.('Applying persona defaults...');
-                    finalSnapshot = await (0,_cardExtensions_personaMerger__WEBPACK_IMPORTED_MODULE_6__.mergePersonaDefaultsIntoSnapshot)(finalSnapshot, personaDefaults, personaName);
-                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)(`Applied persona defaults for "${personaName}" to initial snapshot`);
+                    finalSnapshot = await (0,_cardExtensions_personaMerger__WEBPACK_IMPORTED_MODULE_7__.mergePersonaDefaultsIntoSnapshot)(finalSnapshot, personaDefaults, personaName);
+                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_8__.debugLog)(`Applied persona defaults for "${personaName}" to initial snapshot`);
                 }
             }
         }
         catch (error) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Failed to apply persona defaults:', error);
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_8__.debugWarn)('Failed to apply persona defaults:', error);
             // Continue with unmerged snapshot - extraction still succeeded
         }
         // Store initial snapshot
@@ -113838,9 +113872,8 @@ async function extractTurn(store, context, settings, setStatus, generator, abort
     // If chapter ended, create chapter snapshot
     if (result.chapterEnded) {
         setStatus?.('Creating chapter snapshot...');
-        const projection = store.projectStateAtMessage(currentMessage.messageId, {
-        /* context */
-        });
+        const swipeContext = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_4__.buildSwipeContextFromExtraction)(context);
+        const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
         const chapterSnapshot = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_1__.createSnapshotFromProjection)(projection, projection.currentChapter);
         store.addChapterSnapshot(chapterSnapshot);
     }
@@ -136419,11 +136452,16 @@ class EventStore {
      * Get the best snapshot to use for projecting state at a message.
      * Returns the most recent snapshot at or before the message.
      *
+     * Initial snapshots skip swipe validation when projecting at LATER messages,
+     * since they serve as the baseline regardless of swipe context at those messages.
+     * However, if projecting at the SAME message as the initial snapshot, swipe
+     * validation still applies (to handle when user swipes that message).
+     *
      * @param messageId - Target message
-     * @param context - Swipe context for invalidation checking
+     * @param context - Swipe context for invalidation checking (required)
      * @returns The best snapshot, or null if none available
      */
-    getLatestSnapshot(messageId, context = _projection__WEBPACK_IMPORTED_MODULE_2__.NoSwipeFiltering) {
+    getLatestSnapshot(messageId, context) {
         let best = null;
         for (const snapshot of this._snapshots) {
             // Skip snapshots after target message
@@ -136431,8 +136469,16 @@ class EventStore {
                 continue;
             // Check if snapshot is invalidated by swipe change
             const canonicalSwipe = context.getCanonicalSwipeId(snapshot.source.messageId);
-            if (snapshot.swipeId !== canonicalSwipe)
+            // For initial snapshots projecting at LATER messages, skip swipe validation.
+            // This fixes group chat scenarios where initial extraction happens on swipe N
+            // but subsequent messages don't have that swipe context.
+            // However, if projecting at the SAME message, still validate swipe
+            // (handles when user swipes to a different response on that message).
+            const isProjectingAtLaterMessage = messageId > snapshot.source.messageId;
+            const skipSwipeValidation = snapshot.type === 'initial' && isProjectingAtLaterMessage;
+            if (!skipSwipeValidation && snapshot.swipeId !== canonicalSwipe) {
                 continue;
+            }
             // This snapshot is valid - check if it's better than current best
             if (!best || snapshot.source.messageId > best.source.messageId) {
                 best = snapshot;
@@ -136459,12 +136505,12 @@ class EventStore {
      * Project state at a specific message.
      *
      * @param messageId - The message to project state at
-     * @param context - Swipe context for canonical swipe filtering
+     * @param context - Swipe context for canonical swipe filtering (required)
      * @param useSnapshots - Whether to use snapshots for optimization (default true)
      * @returns The projected state
      * @throws Error if no initial snapshot exists
      */
-    projectStateAtMessage(messageId, context = _projection__WEBPACK_IMPORTED_MODULE_2__.NoSwipeFiltering, useSnapshots = true) {
+    projectStateAtMessage(messageId, context, useSnapshots = true) {
         // Get the best snapshot
         const snapshot = useSnapshots
             ? this.getLatestSnapshot(messageId, context)
@@ -136581,10 +136627,10 @@ class EventStore {
      * Get all canonical, active relationship events for a specific character pair.
      *
      * @param pair - Character pair [name1, name2] (will be normalized)
-     * @param context - Swipe context for canonical path filtering
+     * @param context - Swipe context for canonical path filtering (required)
      * @returns Array of relationship events for the pair
      */
-    getRelationshipEventsForPair(pair, context = _projection__WEBPACK_IMPORTED_MODULE_2__.NoSwipeFiltering) {
+    getRelationshipEventsForPair(pair, context) {
         const normalizedPair = (0,_projection__WEBPACK_IMPORTED_MODULE_2__.normalizePair)(pair[0], pair[1]);
         const pairKey = `${normalizedPair[0]}|${normalizedPair[1]}`;
         // Filter to canonical, active events
@@ -140649,7 +140695,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function V2ProjectionPreview({ projection, compact = false, events, swipeContext = _store_projection__WEBPACK_IMPORTED_MODULE_3__.NoSwipeFiltering, }) {
+function V2ProjectionPreview({ projection, compact = false, events, swipeContext, }) {
     const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_2__.getV2Settings)();
     const characters = Object.values(projection.characters);
     const relationships = Object.values(projection.relationships);
@@ -141050,7 +141096,8 @@ function V2SettingsPanel() {
                                         return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PromptListItem, { definition: def, isCustomized: isCustomized, hasCustomTemperature: hasCustomTemp, customTemperature: customTemp, onClick: () => setEditingPrompt(def) }, def.name));
                                     }) })) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Advanced Settings" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "LLM configuration and category temperature defaults" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-advanced-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxtokens", children: "Max Tokens" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum tokens for LLM extraction responses" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxtokens", type: "number", className: "text_pole", min: "256", max: "16384", step: "256", value: settings.v2MaxTokens, onChange: e => {
                                                     const value = parseInt(e.target.value, 10);
-                                                    if (!isNaN(value) && value >= 256) {
+                                                    if (!isNaN(value) &&
+                                                        value >= 256) {
                                                         handleUpdate('v2MaxTokens', value);
                                                     }
                                                 }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));

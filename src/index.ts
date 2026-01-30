@@ -20,6 +20,7 @@ import {
 	cleanupV2EventsAfterMessage,
 	wasExtractionAborted,
 	abortExtraction,
+	clearV2EventStore,
 } from './v2Bridge';
 // V2 Injection
 import { injectState as v2InjectState } from './v2';
@@ -418,6 +419,39 @@ async function init() {
 		log('Current swipe_id for message', messageId, 'is', swipeId);
 
 		if (hasV2InitialSnapshot()) {
+			const store = getV2EventStore();
+			const initialSnapshotMessageId = store.initialSnapshotMessageId;
+
+			// Check if the swiped message is where the initial snapshot was created
+			// This is rare (usually initial snapshot is on a user message which can't be swiped)
+			// but can happen in group chats or manual extraction scenarios
+			if (messageId === initialSnapshotMessageId) {
+				log('Swiped the initial snapshot message - clearing store and re-extracting');
+
+				// Clear the entire store since the baseline has changed
+				await clearV2EventStore();
+
+				// Unmount all displays since state is now invalid
+				unmountAllV2ProjectionDisplays();
+
+				// Auto-extract if enabled, otherwise user will need to manually extract
+				const v2Settings = getV2Settings();
+				if (v2Settings.v2AutoExtract) {
+					await runV2Extraction(messageId, {
+						onStatus: (status) => log('Re-extraction status:', status),
+					});
+
+					// Remount displays after extraction
+					if (hasV2InitialSnapshot()) {
+						mountAllV2ProjectionDisplays();
+						updateV2Injection(messageId + 1);
+					}
+				}
+
+				return;
+			}
+
+			// Normal swipe handling for other messages
 			// Unmount and remount to show projection for the new swipe
 			unmountV2ProjectionDisplay(messageId);
 			mountV2ProjectionDisplay(messageId);

@@ -53,8 +53,8 @@ export const positionActivityChangeExtractor: PerCharacterExtractor<ExtractedPos
 				{ kind: 'character', subkind: 'activity_changed' },
 			],
 		},
-		// Every assistant message
-		runStrategy: { strategy: 'everyAssistantMessage' },
+		// Every 2 messages starting at 1 (assistant messages in normal chat)
+		runStrategy: { strategy: 'everyNMessages', n: 2, offset: 1 },
 
 		shouldRun(context: RunStrategyContext): boolean {
 			// Run if character tracking is enabled AND run strategy allows it

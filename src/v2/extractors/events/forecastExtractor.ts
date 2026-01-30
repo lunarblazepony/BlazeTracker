@@ -19,7 +19,11 @@ import type {
 	MessageStrategy,
 } from '../types';
 import { noPrompt } from '../../prompts/initial/noPrompt';
-import { evaluateRunStrategy, projectWithTurnEvents } from '../utils';
+import {
+	evaluateRunStrategy,
+	projectWithTurnEvents,
+	buildSwipeContextFromExtraction,
+} from '../utils';
 import type { EventStore } from '../../store';
 import { mapLocation } from '../../../weather/locationMapper';
 import { fetchClimateNormals } from '../../../weather/climateApi';
@@ -40,7 +44,11 @@ import { debugLog, errorLog } from '../../../utils/debug';
  * 2. Current time is beyond the forecast range
  */
 function customCheck(ctx: RunStrategyContext): boolean {
-	const projection = ctx.store.projectStateAtMessage(ctx.currentMessage.messageId);
+	const swipeContext = buildSwipeContextFromExtraction(ctx.context);
+	const projection = ctx.store.projectStateAtMessage(
+		ctx.currentMessage.messageId,
+		swipeContext,
+	);
 
 	const currentArea = projection.location?.area;
 	const currentTime = projection.time;

@@ -61,8 +61,8 @@ export const moodPhysicalChangeExtractor: PerCharacterExtractor<ExtractedMoodPhy
 			{ kind: 'character', subkind: 'physical_removed' },
 		],
 	},
-	// Every user message
-	runStrategy: { strategy: 'everyUserMessage' },
+	// Every 2 messages, offset=0 (default) fires on messageId 1, 3, 5... (user messages in normal chat)
+	runStrategy: { strategy: 'everyNMessages', n: 2 },
 
 	shouldRun(context: RunStrategyContext): boolean {
 		// Run if characters tracking is enabled AND the run strategy permits

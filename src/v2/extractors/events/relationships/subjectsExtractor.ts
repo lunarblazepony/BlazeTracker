@@ -37,7 +37,8 @@ export const subjectsExtractor: EventExtractor<ExtractedSubjects> = {
 	prompt: subjectsPrompt,
 
 	messageStrategy: { strategy: 'fixedNumber', n: 2 },
-	runStrategy: { strategy: 'everyAssistantMessage' },
+	// Every 2 messages starting at 1 (assistant messages in normal chat)
+	runStrategy: { strategy: 'everyNMessages', n: 2, offset: 1 },
 
 	shouldRun(context: RunStrategyContext): boolean {
 		// Run if relationships tracking is enabled AND run strategy allows it

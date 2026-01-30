@@ -14,7 +14,6 @@ import {
 	getMilestonesForPair as getMilestonesFromEvents,
 	getMilestoneDisplayName,
 	type SwipeContext,
-	NoSwipeFiltering,
 } from '../store/projection';
 
 interface V2ProjectionPreviewProps {
@@ -23,8 +22,8 @@ interface V2ProjectionPreviewProps {
 	compact?: boolean;
 	/** All active events from the EventStore (for querying milestones) */
 	events?: readonly Event[];
-	/** Swipe context for canonical path filtering */
-	swipeContext?: SwipeContext;
+	/** Swipe context for canonical path filtering (required when events are provided) */
+	swipeContext: SwipeContext;
 }
 
 interface RelationshipMilestone {
@@ -36,7 +35,7 @@ export function V2ProjectionPreview({
 	projection,
 	compact = false,
 	events,
-	swipeContext = NoSwipeFiltering,
+	swipeContext,
 }: V2ProjectionPreviewProps) {
 	const settings = getV2Settings();
 	const characters = Object.values(projection.characters);
