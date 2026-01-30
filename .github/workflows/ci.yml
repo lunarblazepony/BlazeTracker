@@ -206,3 +206,17 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check dist is up-to-date
+        run: |
+          if [[ -n $(git status dist/ --porcelain) ]]; then
+            echo "::error::dist/ is out of date. Run 'npm run build' and commit the changes."
+            echo ""
+            echo "Changed files:"
+            git status dist/ --porcelain
+            echo ""
+            echo "Diff summary:"
+            git diff --stat dist/
+            exit 1
+          fi
+          echo "dist/ is up-to-date"
