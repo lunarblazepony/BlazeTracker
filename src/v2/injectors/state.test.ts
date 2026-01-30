@@ -287,8 +287,7 @@ describe('formatStateForInjection', () => {
 	it('returns empty scene state for minimal projection', () => {
 		const projection = createTestProjection();
 		const result = formatStateForInjection(projection, store, swipeContext);
-		expect(result).toContain('');
-		expect(result).toContain('');
+		expect(result).toBe('');
 	});
 
 	describe('time formatting', () => {
