@@ -12,7 +12,6 @@ import { cloneSnapshot, createSnapshotFromProjection } from '../types/snapshot';
 import type { MessageAndSwipe } from '../types/common';
 import {
 	type SwipeContext,
-	NoSwipeFiltering,
 	filterCanonicalEvents,
 	filterEventsUpToMessage,
 	filterActiveEvents,
@@ -230,14 +229,16 @@ export class EventStore {
 	 * Get the best snapshot to use for projecting state at a message.
 	 * Returns the most recent snapshot at or before the message.
 	 *
+	 * Initial snapshots skip swipe validation when projecting at LATER messages,
+	 * since they serve as the baseline regardless of swipe context at those messages.
+	 * However, if projecting at the SAME message as the initial snapshot, swipe
+	 * validation still applies (to handle when user swipes that message).
+	 *
 	 * @param messageId - Target message
-	 * @param context - Swipe context for invalidation checking
+	 * @param context - Swipe context for invalidation checking (required)
 	 * @returns The best snapshot, or null if none available
 	 */
-	getLatestSnapshot(
-		messageId: number,
-		context: SwipeContext = NoSwipeFiltering,
-	): Snapshot | null {
+	getLatestSnapshot(messageId: number, context: SwipeContext): Snapshot | null {
 		let best: Snapshot | null = null;
 
 		for (const snapshot of this._snapshots) {
@@ -248,7 +249,19 @@ export class EventStore {
 			const canonicalSwipe = context.getCanonicalSwipeId(
 				snapshot.source.messageId,
 			);
-			if (snapshot.swipeId !== canonicalSwipe) continue;
+
+			// For initial snapshots projecting at LATER messages, skip swipe validation.
+			// This fixes group chat scenarios where initial extraction happens on swipe N
+			// but subsequent messages don't have that swipe context.
+			// However, if projecting at the SAME message, still validate swipe
+			// (handles when user swipes to a different response on that message).
+			const isProjectingAtLaterMessage = messageId > snapshot.source.messageId;
+			const skipSwipeValidation =
+				snapshot.type === 'initial' && isProjectingAtLaterMessage;
+
+			if (!skipSwipeValidation && snapshot.swipeId !== canonicalSwipe) {
+				continue;
+			}
 
 			// This snapshot is valid - check if it's better than current best
 			if (!best || snapshot.source.messageId > best.source.messageId) {
@@ -279,14 +292,14 @@ export class EventStore {
 	 * Project state at a specific message.
 	 *
 	 * @param messageId - The message to project state at
-	 * @param context - Swipe context for canonical swipe filtering
+	 * @param context - Swipe context for canonical swipe filtering (required)
 	 * @param useSnapshots - Whether to use snapshots for optimization (default true)
 	 * @returns The projected state
 	 * @throws Error if no initial snapshot exists
 	 */
 	projectStateAtMessage(
 		messageId: number,
-		context: SwipeContext = NoSwipeFiltering,
+		context: SwipeContext,
 		useSnapshots: boolean = true,
 	): Projection {
 		// Get the best snapshot
@@ -432,12 +445,12 @@ export class EventStore {
 	 * Get all canonical, active relationship events for a specific character pair.
 	 *
 	 * @param pair - Character pair [name1, name2] (will be normalized)
-	 * @param context - Swipe context for canonical path filtering
+	 * @param context - Swipe context for canonical path filtering (required)
 	 * @returns Array of relationship events for the pair
 	 */
 	getRelationshipEventsForPair(
 		pair: [string, string],
-		context: SwipeContext = NoSwipeFiltering,
+		context: SwipeContext,
 	): RelationshipEvent[] {
 		const normalizedPair = normalizePair(pair[0], pair[1]);
 		const pairKey = `${normalizedPair[0]}|${normalizedPair[1]}`;

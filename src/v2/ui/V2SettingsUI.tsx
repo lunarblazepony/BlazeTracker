@@ -914,10 +914,16 @@ function V2SettingsPanel() {
 					</small>
 					<div className="bt-advanced-content">
 						{/* Max Tokens */}
-						<div className="flex-container flexFlowColumn" style={{ marginBottom: '1em' }}>
-							<label htmlFor="bt-v2-maxtokens">Max Tokens</label>
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-maxtokens">
+								Max Tokens
+							</label>
 							<small>
-								Maximum tokens for LLM extraction responses
+								Maximum tokens for LLM extraction
+								responses
 							</small>
 							<input
 								id="bt-v2-maxtokens"
@@ -928,9 +934,18 @@ function V2SettingsPanel() {
 								step="256"
 								value={settings.v2MaxTokens}
 								onChange={e => {
-									const value = parseInt(e.target.value, 10);
-									if (!isNaN(value) && value >= 256) {
-										handleUpdate('v2MaxTokens', value);
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 256
+									) {
+										handleUpdate(
+											'v2MaxTokens',
+											value,
+										);
 									}
 								}}
 								style={{ width: '120px' }}

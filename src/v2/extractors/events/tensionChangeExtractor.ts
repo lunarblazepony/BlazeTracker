@@ -46,7 +46,8 @@ export const tensionChangeExtractor: EventExtractor<ExtractedTensionChange> = {
 		strategy: 'sinceLastEventOfKind',
 		kinds: [{ kind: 'tension' }],
 	} as MessageStrategy,
-	runStrategy: { strategy: 'everyAssistantMessage' } as RunStrategy,
+	// Every 2 messages starting at 1 (assistant messages in normal chat)
+	runStrategy: { strategy: 'everyNMessages', n: 2, offset: 1 } as RunStrategy,
 
 	shouldRun(context: RunStrategyContext): boolean {
 		// Run if scene tracking is enabled AND the run strategy permits

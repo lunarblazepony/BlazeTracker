@@ -151,7 +151,10 @@ describe('V2 Settings', () => {
 		});
 
 		it('returns false when v2MaxTokens is wrong type', () => {
-			const settings = createDefaultV2Settings() as unknown as Record<string, unknown>;
+			const settings = createDefaultV2Settings() as unknown as Record<
+				string,
+				unknown
+			>;
 			settings.v2MaxTokens = 'not a number';
 			expect(isV2Settings(settings)).toBe(false);
 		});

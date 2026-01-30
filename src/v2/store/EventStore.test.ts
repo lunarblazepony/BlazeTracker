@@ -2,10 +2,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import moment from 'moment';
 import { EventStore, createEventStore } from './EventStore';
 import type { SwipeContext } from './projection';
+import { NoSwipeFiltering } from './projection';
 import type { TimeInitialEvent, TimeDeltaEvent, CharacterAppearedEvent } from '../types/event';
 import type { Snapshot } from '../types/snapshot';
 import { createEmptySnapshot } from '../types/snapshot';
 import { serializeMoment } from '../types/common';
+
+/**
+ * Default SwipeContext for tests - returns swipe 0 for all messages.
+ */
+const defaultSwipeContext: SwipeContext = NoSwipeFiltering;
 
 function createBaseEvent(id: string, messageId: number, swipeId: number = 0) {
 	return {
@@ -213,11 +219,11 @@ describe('EventStore', () => {
 			});
 
 			// At message 7, should use chapter 0 snapshot (at message 5)
-			const snapshot = store.getLatestSnapshot(7);
+			const snapshot = store.getLatestSnapshot(7, defaultSwipeContext);
 			expect(snapshot?.source.messageId).toBe(5);
 
 			// At message 3, should use initial snapshot
-			const initial = store.getLatestSnapshot(3);
+			const initial = store.getLatestSnapshot(3, defaultSwipeContext);
 			expect(initial?.source.messageId).toBe(0);
 		});
 
@@ -305,7 +311,7 @@ describe('EventStore', () => {
 				createCharacterAppearedEvent('2', 2, 'Alice'),
 			]);
 
-			const projection = store.projectStateAtMessage(2);
+			const projection = store.projectStateAtMessage(2, defaultSwipeContext);
 
 			expect(projection.time?.hour()).toBe(12); // 10 + 2
 			expect(projection.charactersPresent).toContain('Alice');
@@ -337,14 +343,14 @@ describe('EventStore', () => {
 			store.addChapterSnapshot(chapterSnapshot);
 
 			// Project at message 6 - should use chapter snapshot, not initial
-			const projection = store.projectStateAtMessage(6);
+			const projection = store.projectStateAtMessage(6, defaultSwipeContext);
 
 			// Should be 15 + 1 = 16, not 10 + 2 + 3 + 1 = 16 (same result but different path)
 			expect(projection.time?.hour()).toBe(16);
 		});
 
 		it('throws error when no snapshot available', () => {
-			expect(() => store.projectStateAtMessage(1)).toThrow(
+			expect(() => store.projectStateAtMessage(1, defaultSwipeContext)).toThrow(
 				'No snapshot available for projection',
 			);
 		});
@@ -562,6 +568,183 @@ describe('EventStore', () => {
 
 			expect(store.events).toHaveLength(0);
 			expect(store.snapshots).toHaveLength(0);
+		});
+	});
+
+	describe('initial snapshot never invalidated by swipe mismatch', () => {
+		/**
+		 * Helper to create a snapshot with specific swipeId.
+		 */
+		function createSnapshotWithSwipe(
+			messageId: number,
+			swipeId: number,
+			type: 'initial' | 'chapter' = 'initial',
+		): Snapshot {
+			const snapshot = createInitialSnapshot(messageId);
+			snapshot.type = type;
+			snapshot.swipeId = swipeId;
+			snapshot.source.swipeId = swipeId;
+			if (type === 'chapter') {
+				snapshot.chapterIndex = 0;
+			}
+			return snapshot;
+		}
+
+		it('finds initial snapshot even when canonical swipe differs', () => {
+			// Initial snapshot created at message 1, swipe 4 (group chat scenario)
+			store.replaceInitialSnapshot(createSnapshotWithSwipe(1, 4, 'initial'));
+
+			// SwipeContext returns swipe 0 for message 1
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: () => 0,
+			};
+
+			// Should still find the initial snapshot - it's never invalidated
+			const snapshot = store.getLatestSnapshot(2, swipeContext);
+			expect(snapshot).not.toBeNull();
+			expect(snapshot?.type).toBe('initial');
+			expect(snapshot?.source.messageId).toBe(1);
+		});
+
+		it('allows projection when initial snapshot swipeId differs from canonical', () => {
+			// This is the bug scenario: initial extraction at message 1, swipe 4
+			// User does NOT switch swipes, attempts to project at message 2+
+			store.replaceInitialSnapshot(createSnapshotWithSwipe(1, 4, 'initial'));
+
+			// SwipeContext returns 0 for all messages (simulating missing swipe info)
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: () => 0,
+			};
+
+			// Should NOT throw - initial snapshots bypass swipe validation
+			expect(() => {
+				store.projectStateAtMessage(2, swipeContext);
+			}).not.toThrow();
+
+			const projection = store.projectStateAtMessage(2, swipeContext);
+			expect(projection).toBeDefined();
+			expect(projection.source.messageId).toBe(2);
+		});
+
+		it('invalidates chapter snapshots when swipe differs', () => {
+			// Initial snapshot at message 1
+			store.replaceInitialSnapshot(createSnapshotWithSwipe(1, 0, 'initial'));
+
+			// Chapter snapshot at message 5, swipe 2
+			store.addChapterSnapshot(createSnapshotWithSwipe(5, 2, 'chapter'));
+
+			// SwipeContext returns swipe 0 for all messages
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: () => 0,
+			};
+
+			// Should fall back to initial snapshot (chapter snapshot invalidated)
+			const snapshot = store.getLatestSnapshot(6, swipeContext);
+			expect(snapshot).not.toBeNull();
+			expect(snapshot?.type).toBe('initial');
+			expect(snapshot?.source.messageId).toBe(1);
+		});
+
+		it('uses chapter snapshot when swipe matches', () => {
+			// Initial snapshot at message 1
+			store.replaceInitialSnapshot(createSnapshotWithSwipe(1, 0, 'initial'));
+
+			// Chapter snapshot at message 5, swipe 0
+			store.addChapterSnapshot(createSnapshotWithSwipe(5, 0, 'chapter'));
+
+			// SwipeContext returns swipe 0 for all messages
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: () => 0,
+			};
+
+			// Should use chapter snapshot (swipe matches)
+			const snapshot = store.getLatestSnapshot(6, swipeContext);
+			expect(snapshot).not.toBeNull();
+			expect(snapshot?.type).toBe('chapter');
+			expect(snapshot?.source.messageId).toBe(5);
+		});
+
+		it('handles the exact group chat bug scenario', () => {
+			// The exact bug scenario:
+			// 1. Initial extraction happens on message 1, swipe 4
+			// 2. User does NOT switch swipes
+			// 3. Attempting to project state for message 2+ should NOT fail
+
+			// Initial snapshot at message 1, swipe 4 (created during group chat initial extraction)
+			const initialSnapshot = createSnapshotWithSwipe(1, 4, 'initial');
+			store.replaceInitialSnapshot(initialSnapshot);
+
+			// Simulating what happens when SwipeContext is built from chat where
+			// later messages don't have swipe_id set (returns 0)
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: (msgId: number) => {
+					// Message 1 had swipe 4, but we're looking at message 2
+					// which doesn't exist yet in the chat
+					if (msgId === 1) return 4; // Original swipe
+					return 0; // Default for messages not in chat yet
+				},
+			};
+
+			// Projection at message 2 should work
+			const snapshot = store.getLatestSnapshot(2, swipeContext);
+			expect(snapshot).not.toBeNull();
+			expect(snapshot?.type).toBe('initial');
+
+			// Projection should not throw
+			expect(() => store.projectStateAtMessage(2, swipeContext)).not.toThrow();
+		});
+
+		it('invalidates initial snapshot when user swipes the same message', () => {
+			// Scenario: user swipes message 1 after initial extraction
+			// The initial snapshot should be invalidated because the content changed
+
+			// Initial snapshot at message 1, swipe 0
+			store.replaceInitialSnapshot(createSnapshotWithSwipe(1, 0, 'initial'));
+
+			// User swipes to swipe 1 on message 1
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: (msgId: number) => {
+					if (msgId === 1) return 1; // User swiped to swipe 1
+					return 0;
+				},
+			};
+
+			// When projecting at message 1 (same as snapshot), swipe validation applies
+			const snapshot = store.getLatestSnapshot(1, swipeContext);
+			expect(snapshot).toBeNull(); // Invalidated because swipe changed
+
+			// Projection should throw because no valid snapshot
+			expect(() => store.projectStateAtMessage(1, swipeContext)).toThrow(
+				'No snapshot available for projection',
+			);
+		});
+
+		it('still uses initial snapshot for later messages even when swipe differs', () => {
+			// This is the key distinction: swipe validation only applies when
+			// projecting at the SAME message as the snapshot
+
+			// Initial snapshot at message 1, swipe 0
+			store.replaceInitialSnapshot(createSnapshotWithSwipe(1, 0, 'initial'));
+
+			// SwipeContext returns different swipe for message 1
+			const swipeContext: SwipeContext = {
+				getCanonicalSwipeId: (msgId: number) => {
+					if (msgId === 1) return 1; // Different swipe
+					return 0;
+				},
+			};
+
+			// When projecting at message 1: snapshot is invalidated
+			expect(store.getLatestSnapshot(1, swipeContext)).toBeNull();
+
+			// But when projecting at message 2+: snapshot is still valid
+			// (the swipe mismatch at message 1 doesn't matter for projecting later)
+			const snapshot = store.getLatestSnapshot(2, swipeContext);
+			expect(snapshot).not.toBeNull();
+			expect(snapshot?.type).toBe('initial');
+
+			// Projection at message 2 should work
+			expect(() => store.projectStateAtMessage(2, swipeContext)).not.toThrow();
 		});
 	});
 });
