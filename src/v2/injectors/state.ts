@@ -361,7 +361,7 @@ export function formatStateForInjection(
 	}
 
 	if (sceneOutput !== ``) {
-		sections.push(scenePrefix + sceneOutput + sceneSuffix)
+		sections.push(scenePrefix, sceneOutput, sceneSuffix)
 	}
 
 	// ========================================
