@@ -360,7 +360,9 @@ export function formatStateForInjection(
 		sceneOutput += `\nCharacters present:\n${characters}`;
 	}
 
-	sceneOutput !== `` ? sections.push(scenePrefix + sceneOutput + sceneSuffix) : null;
+	if (sceneOutput !== ``) {
+		sections.push(scenePrefix + sceneOutput + sceneSuffix)
+	}
 
 	// ========================================
 	// Recent Events in Current Chapter
