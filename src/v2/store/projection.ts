@@ -123,14 +123,6 @@ export interface SwipeContext {
 }
 
 /**
- * A simple swipe context that treats all swipes as canonical.
- * Useful for testing or when swipe filtering is not needed.
- */
-export const NoSwipeFiltering: SwipeContext = {
-	getCanonicalSwipeId: () => 0,
-};
-
-/**
  * Filter events to only include those from canonical swipes.
  *
  * @param events - All events

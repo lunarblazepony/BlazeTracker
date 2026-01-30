@@ -33,7 +33,7 @@ export type { MessageAndSwipe, LocationState, TimeDelta, ClimateForecast } from 
 export type { Subject } from './types/subject';
 
 // Store
-export { EventStore, NoSwipeFiltering } from './store';
+export { EventStore } from './store';
 
 // Generator
 export type { Generator, GeneratorPrompt, GeneratorSettings } from './generator';

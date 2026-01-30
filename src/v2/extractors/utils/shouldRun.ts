@@ -74,8 +74,11 @@ export function evaluateRunStrategy(strategy: RunStrategy, context: RunStrategyC
 			return isAssistantMessage(context);
 
 		case 'everyNMessages': {
-			// Run every N messages (count from start, 0-indexed)
-			return (context.currentMessage.messageId + 1) % strategy.n === 0;
+			// Run every N messages with optional offset
+			// offset=0 (default): fires when (messageId + 1) divisible by n
+			// offset=1: fires when (messageId + 1) % n === 1, etc.
+			const offset = strategy.offset ?? 0;
+			return (context.currentMessage.messageId + 1) % strategy.n === offset;
 		}
 
 		case 'nSinceLastProducedEvents': {

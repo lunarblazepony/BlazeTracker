@@ -13,7 +13,6 @@ export { applyEventToProjection } from './eventApplication';
 // Projection helpers
 export type { SwipeContext } from './projection';
 export {
-	NoSwipeFiltering,
 	filterCanonicalEvents,
 	filterEventsUpToMessage,
 	filterEventsForMessage,

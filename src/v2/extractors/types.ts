@@ -152,7 +152,7 @@ export type RunStrategy =
 	| { strategy: 'everyMessage' }
 	| { strategy: 'everyUserMessage' }
 	| { strategy: 'everyAssistantMessage' }
-	| { strategy: 'everyNMessages'; n: number }
+	| { strategy: 'everyNMessages'; n: number; offset?: number }
 	| { strategy: 'nSinceLastProducedEvents'; n: number }
 	| { strategy: 'nSinceLastEventOfKind'; n: number; kinds: KindAndSubkind[] }
 	| { strategy: 'newEventsOfKind'; kinds: KindAndSubkind[] }
