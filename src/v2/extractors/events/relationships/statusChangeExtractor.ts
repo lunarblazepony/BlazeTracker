@@ -120,7 +120,9 @@ export const statusChangeExtractor: PerPairExtractor<ExtractedStatusChange> = {
 
 		// Handle parsing failure
 		if (!result.success || !result.data) {
-			debugWarn(`statusChange extraction failed for pair ${pair[0]} and ${pair[1]}`);
+			debugWarn(
+				`statusChange extraction failed for pair ${pair[0]} and ${pair[1]}`,
+			);
 			return [];
 		}
 

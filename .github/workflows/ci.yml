@@ -1,0 +1,208 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master, main]
+  push:
+    branches: [master, main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript check
+        run: npm run typecheck
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage -- --reporter=json --outputFile=coverage-report.json
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            coverage-report.json
+          retention-days: 5
+
+  coverage-gate:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download PR coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: pr-coverage
+
+      - name: Get base branch coverage
+        run: |
+          git checkout ${{ github.event.pull_request.base.sha }}
+          npm ci
+          npm run test:coverage -- --reporter=json --outputFile=base-coverage-report.json || true
+          mkdir -p base-coverage
+          cp -r coverage/* base-coverage/ 2>/dev/null || true
+          cp base-coverage-report.json base-coverage/ 2>/dev/null || true
+          git checkout ${{ github.event.pull_request.head.sha }}
+
+      - name: Compare coverage
+        run: |
+          echo "Comparing coverage between base and PR..."
+
+          # Extract coverage percentages from coverage-summary.json
+          if [ -f "base-coverage/coverage-summary.json" ]; then
+            BASE_LINES=$(cat base-coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.lines.pct")
+            BASE_STATEMENTS=$(cat base-coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.statements.pct")
+            BASE_FUNCTIONS=$(cat base-coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.functions.pct")
+            BASE_BRANCHES=$(cat base-coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.branches.pct")
+          else
+            echo "No base coverage found, skipping comparison"
+            exit 0
+          fi
+
+          if [ -f "pr-coverage/coverage/coverage-summary.json" ]; then
+            PR_LINES=$(cat pr-coverage/coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.lines.pct")
+            PR_STATEMENTS=$(cat pr-coverage/coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.statements.pct")
+            PR_FUNCTIONS=$(cat pr-coverage/coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.functions.pct")
+            PR_BRANCHES=$(cat pr-coverage/coverage/coverage-summary.json | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin').toString()).total.branches.pct")
+          else
+            echo "No PR coverage found"
+            exit 1
+          fi
+
+          echo "=== Coverage Report ==="
+          echo "              Base     PR       Delta"
+          echo "Lines:        ${BASE_LINES}%    ${PR_LINES}%    $(echo "$PR_LINES - $BASE_LINES" | bc)%"
+          echo "Statements:   ${BASE_STATEMENTS}%    ${PR_STATEMENTS}%    $(echo "$PR_STATEMENTS - $BASE_STATEMENTS" | bc)%"
+          echo "Functions:    ${BASE_FUNCTIONS}%    ${PR_FUNCTIONS}%    $(echo "$PR_FUNCTIONS - $BASE_FUNCTIONS" | bc)%"
+          echo "Branches:     ${BASE_BRANCHES}%    ${PR_BRANCHES}%    $(echo "$PR_BRANCHES - $BASE_BRANCHES" | bc)%"
+          echo "======================="
+
+          # Check if any coverage decreased (allowing 0.5% tolerance for rounding)
+          TOLERANCE=0.5
+
+          check_coverage() {
+            local name=$1
+            local base=$2
+            local pr=$3
+            local diff=$(echo "$pr - $base" | bc)
+            local threshold=$(echo "-$TOLERANCE" | bc)
+
+            if (( $(echo "$diff < $threshold" | bc -l) )); then
+              echo "ERROR: $name coverage decreased by more than ${TOLERANCE}% (${diff}%)"
+              return 1
+            fi
+            return 0
+          }
+
+          FAILED=0
+          check_coverage "Lines" "$BASE_LINES" "$PR_LINES" || FAILED=1
+          check_coverage "Statements" "$BASE_STATEMENTS" "$PR_STATEMENTS" || FAILED=1
+          check_coverage "Functions" "$BASE_FUNCTIONS" "$PR_FUNCTIONS" || FAILED=1
+          check_coverage "Branches" "$BASE_BRANCHES" "$PR_BRANCHES" || FAILED=1
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Coverage gate failed! Please add tests to maintain or improve coverage."
+            exit 1
+          fi
+
+          echo ""
+          echo "Coverage gate passed!"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, format, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

@@ -96,10 +96,7 @@ export const initialCharacterOutfitsExtractor: InitialExtractor<ExtractedCharact
 		);
 
 		if (!result.success || !result.data) {
-			debugWarn(
-				'initialCharacterOutfits extraction failed:',
-				result.error,
-			);
+			debugWarn('initialCharacterOutfits extraction failed:', result.error);
 			return {};
 		}
 

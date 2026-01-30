@@ -57,7 +57,6 @@ export async function extractTurn(
 	if (store.initialSnapshot && settings.track.chapters) {
 		const swipeContext = buildSwipeContextFromExtraction(context);
 		// Use the raw chapterSnapshots getter to check ALL snapshots for invalidation
-		// eslint-disable-next-line deprecation/deprecation
 		for (const snapshot of store.chapterSnapshots) {
 			if (snapshot.chapterIndex === undefined || snapshot.chapterIndex === null)
 				continue;

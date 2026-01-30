@@ -49,7 +49,9 @@ export class RateLimiter {
 				const lastRequest = this.timestamps[this.timestamps.length - 1];
 				if (lastRequest && now - lastRequest < this.bufferMs) {
 					const waitTime = this.bufferMs - (now - lastRequest);
-					debugLog(`Rate limit: waiting ${waitTime}ms for buffer between requests`);
+					debugLog(
+						`Rate limit: waiting ${waitTime}ms for buffer between requests`,
+					);
 					await this.sleep(waitTime, abortSignal);
 					continue;
 				}

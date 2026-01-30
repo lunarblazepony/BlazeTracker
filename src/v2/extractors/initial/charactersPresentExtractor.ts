@@ -77,10 +77,7 @@ export const initialCharactersPresentExtractor: InitialExtractor<ExtractedCharac
 
 		// If parsing failed, return empty object
 		if (!result.success || !result.data) {
-			debugWarn(
-				'initialCharactersPresent extraction failed:',
-				result.error,
-			);
+			debugWarn('initialCharactersPresent extraction failed:', result.error);
 			return {};
 		}
 
