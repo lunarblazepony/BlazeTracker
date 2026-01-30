@@ -21,8 +21,11 @@ import {
 	deleteV2EventsForSwipe,
 	runV2Extraction,
 	getInitialSnapshotMessageId,
+	recalculateV2Chapter,
+	getV2EventStore,
 	type V2ExtractionProgress,
 } from '../../v2Bridge';
+import { computeChapterData } from '../narrative/computeChapters';
 import { setManualExtractionInProgress } from '../../index';
 import type { STContext } from '../../types/st';
 import { getV2Settings } from '../settings';
@@ -156,8 +159,11 @@ function closeNarrativeModal(): void {
 
 /**
  * Handle opening the V2 narrative modal (book button).
+ *
+ * @param messageId - The message ID to open the modal for
+ * @param targetChapter - Optional chapter index to scroll to and highlight
  */
-function handleOpenNarrativeModal(messageId: number): void {
+function handleOpenNarrativeModal(messageId: number, targetChapter?: number): void {
 	const store = getV2EventStoreForEditor();
 	if (!store) {
 		debugWarn('No event store available for narrative modal');
@@ -178,6 +184,17 @@ function handleOpenNarrativeModal(messageId: number): void {
 		narrativeModalRoot = ReactDOM.createRoot(narrativeModalContainer);
 	}
 
+	// Handler for recalculating a chapter
+	const handleRecalculateChapter = async (
+		localStore: typeof store,
+		chapterIndex: number,
+	): Promise<typeof store> => {
+		const updatedStore = await recalculateV2Chapter(localStore, chapterIndex, status =>
+			debugLog(`[Chapter Recalculation] ${status}`),
+		);
+		return updatedStore;
+	};
+
 	// Render the modal
 	narrativeModalRoot.render(
 		<V2NarrativeModal
@@ -190,6 +207,9 @@ function handleOpenNarrativeModal(messageId: number): void {
 				mountAllV2ProjectionDisplays();
 				closeNarrativeModal();
 			}}
+			onRecalculateChapter={handleRecalculateChapter}
+			initialTab={targetChapter !== undefined ? 'chapters' : 'relationships'}
+			targetChapter={targetChapter}
 		/>,
 	);
 }
@@ -337,6 +357,22 @@ export function mountV2ProjectionDisplay(messageId: number): void {
 	// Determine if this is the latest message (for showing retry button)
 	const isLatestMessage = messageId === context.chat.length - 1;
 
+	// Compute previous chapter if we're in a new chapter
+	let previousChapter = null;
+	if (projection && projection.currentChapter > 0) {
+		try {
+			const store = getV2EventStore();
+			const swipeContext = buildSwipeContext(context);
+			previousChapter = computeChapterData(
+				store,
+				projection.currentChapter - 1,
+				swipeContext,
+			);
+		} catch (e) {
+			debugWarn('Failed to compute previous chapter:', e);
+		}
+	}
+
 	// Render the component
 	root.render(
 		<ProjectionDisplay
@@ -354,6 +390,10 @@ export function mountV2ProjectionDisplay(messageId: number): void {
 			isInitialSnapshotMessage={isInitialSnapshotMessage}
 			isLatestMessage={isLatestMessage}
 			onRetry={() => handleRetryExtraction(messageId, swipeId)}
+			previousChapter={previousChapter}
+			onViewChapterDetails={chapterIndex =>
+				handleOpenNarrativeModal(messageId, chapterIndex)
+			}
 		/>,
 	);
 }

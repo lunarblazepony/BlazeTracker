@@ -7,3 +7,7 @@
 export { extractInitialSnapshot } from './extractInitialOrchestrator';
 export { extractEvents, resetExtractorStates } from './extractEventsOrchestrator';
 export { extractTurn, reextractFromMessage } from './extractTurnOrchestrator';
+export {
+	handleChapterInvalidation,
+	recalculateChapterDescription,
+} from './chapterInvalidationHandler';

@@ -182,6 +182,8 @@ export interface Snapshot {
 	type: 'initial' | 'chapter';
 	/** For chapter snapshots, the chapter index */
 	chapterIndex?: number;
+	/** For chapter snapshots: the message that triggered chapter end */
+	chapterTriggerMessage?: MessageAndSwipe;
 	/** Message/swipe this snapshot is for */
 	source: MessageAndSwipe;
 	/** Real-world timestamp when snapshot was created */

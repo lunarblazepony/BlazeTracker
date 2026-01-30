@@ -19,6 +19,7 @@ import {
 	getExtractorTemperature,
 } from '../utils';
 import { buildPrompt } from '../../prompts';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Initial relationships extractor.
@@ -127,8 +128,8 @@ export const initialRelationshipsExtractor: InitialExtractor<ExtractedInitialRel
 
 			// If we can't match both names, skip this relationship
 			if (!actualName1 || !actualName2) {
-				console.warn(
-					`[BlazeTracker] Could not match relationship pair: ${rel.pair[0]}, ${rel.pair[1]}`,
+				debugWarn(
+					`Could not match relationship pair: ${rel.pair[0]}, ${rel.pair[1]}`,
 				);
 				continue;
 			}

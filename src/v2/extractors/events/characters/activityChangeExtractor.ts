@@ -23,6 +23,7 @@ import {
 	getExtractorTemperature,
 } from '../../utils';
 import type { EventStore } from '../../../store';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Activity change per-character extractor.
@@ -100,10 +101,7 @@ export const activityChangeExtractor: PerCharacterExtractor<ExtractedActivityCha
 
 		// If parsing failed, return empty array
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] activityChange extraction failed:',
-				result.error,
-			);
+			debugWarn('activityChange extraction failed:', result.error);
 			return [];
 		}
 

@@ -34,6 +34,7 @@ import {
 	projectWithTurnEvents,
 	getExtractorTemperature,
 } from '../../utils';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Secrets change per-pair event extractor.
@@ -115,9 +116,7 @@ export const secretsChangeExtractor: PerPairExtractor<ExtractedSecretsChange> = 
 
 		// Handle parsing failure
 		if (!result.success || !result.data) {
-			console.warn(
-				`[BlazeTracker] secretsChange extraction failed for ${pair[0]} and ${pair[1]}`,
-			);
+			debugWarn(`secretsChange extraction failed for ${pair[0]} and ${pair[1]}`);
 			return [];
 		}
 

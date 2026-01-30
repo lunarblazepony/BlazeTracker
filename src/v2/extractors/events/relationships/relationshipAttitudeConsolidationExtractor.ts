@@ -36,6 +36,7 @@ import {
 	getExtractorTemperature,
 } from '../../utils';
 import { buildPrompt } from '../../../prompts';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Map consolidation results to events by diffing old vs new lists for one direction.
@@ -168,8 +169,8 @@ async function consolidateDirection(
 	);
 
 	if (!result.success || !result.data) {
-		console.warn(
-			`[BlazeTracker] relationshipAttitudeConsolidation extraction failed for ${fromCharacter} -> ${towardCharacter}`,
+		debugWarn(
+			`relationshipAttitudeConsolidation extraction failed for ${fromCharacter} -> ${towardCharacter}`,
 		);
 		return [];
 	}
@@ -235,8 +236,8 @@ export const relationshipAttitudeConsolidationExtractor: PerPairExtractor<Extrac
 			const key = pair.join('|');
 			const rel = projection.relationships[key];
 			if (!rel) {
-				console.warn(
-					`[BlazeTracker] relationshipAttitudeConsolidation: relationship ${key} not found`,
+				debugWarn(
+					`relationshipAttitudeConsolidation: relationship ${key} not found`,
 				);
 				return [];
 			}

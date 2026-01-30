@@ -33,7 +33,7 @@ import {
 } from '../../utils';
 import { buildPrompt } from '../../../prompts';
 import { generateEventId } from '../../../store/serialization';
-import { debugLog } from '../../../../utils/debug';
+import { debugLog, debugWarn } from '../../../../utils/debug';
 
 const OUTFIT_SLOTS: OutfitSlot[] = [
 	'head',
@@ -133,8 +133,8 @@ export const appearedCharacterOutfitExtractor: EventExtractor<ExtractedCharacter
 			);
 
 			if (!result.success || !result.data) {
-				console.warn(
-					`[BlazeTracker] appearedCharacterOutfit extraction failed for ${appearedCharacter}:`,
+				debugWarn(
+					`appearedCharacterOutfit extraction failed for ${appearedCharacter}:`,
 					result.error,
 				);
 				continue;

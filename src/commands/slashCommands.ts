@@ -25,6 +25,7 @@ import {
 } from '../v2/ui/mountV2Display';
 import { openEventStoreModal } from './eventStoreModal';
 import { getV2Settings } from '../v2/settings';
+import { debugWarn } from '../utils/debug';
 
 // Slash command types are retrieved from SillyTavern context at registration time
 
@@ -433,9 +434,7 @@ export function registerSlashCommands(): void {
 		const ARGUMENT_TYPE = context.ARGUMENT_TYPE;
 
 		if (!SlashCommandParser || !SlashCommand) {
-			console.warn(
-				`[${EXTENSION_NAME}] Slash command API not available, skipping registration`,
-			);
+			debugWarn('Slash command API not available, skipping registration');
 			return;
 		}
 

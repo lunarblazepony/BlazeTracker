@@ -26,6 +26,7 @@ import {
 	getExtractorTemperature,
 } from '../../utils';
 import type { EventStore } from '../../../store';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Outfit change event extractor.
@@ -106,8 +107,8 @@ export const outfitChangeExtractor: PerCharacterExtractor<ExtractedOutfitChange>
 
 		// If parsing failed, return empty array
 		if (!result.success || !result.data) {
-			console.warn(
-				`[BlazeTracker] outfitChange extraction failed for ${targetCharacter}:`,
+			debugWarn(
+				`outfitChange extraction failed for ${targetCharacter}:`,
 				result.error,
 			);
 			return [];

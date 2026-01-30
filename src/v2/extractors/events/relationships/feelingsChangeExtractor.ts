@@ -34,6 +34,7 @@ import {
 	projectWithTurnEvents,
 	getExtractorTemperature,
 } from '../../utils';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Feelings change per-pair event extractor.
@@ -115,8 +116,8 @@ export const feelingsChangeExtractor: PerPairExtractor<ExtractedFeelingsChange> 
 
 		// Handle parsing failure
 		if (!result.success || !result.data) {
-			console.warn(
-				`[BlazeTracker] feelingsChange extraction failed for pair ${pair[0]} and ${pair[1]}`,
+			debugWarn(
+				`feelingsChange extraction failed for pair ${pair[0]} and ${pair[1]}`,
 			);
 			return [];
 		}

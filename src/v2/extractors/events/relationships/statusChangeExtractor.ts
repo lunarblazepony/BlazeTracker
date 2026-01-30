@@ -36,7 +36,7 @@ import {
 import { applyStatusGating } from '../../utils/statusGating';
 import { sortPair, getRelationshipKey } from '../../../types/snapshot';
 import { getMilestonesForPair, createSwipeContext } from '../../../store/projection';
-import { debugLog } from '../../../../utils/debug';
+import { debugLog, debugWarn } from '../../../../utils/debug';
 
 /**
  * Status change per-pair event extractor.
@@ -120,9 +120,7 @@ export const statusChangeExtractor: PerPairExtractor<ExtractedStatusChange> = {
 
 		// Handle parsing failure
 		if (!result.success || !result.data) {
-			console.warn(
-				`[BlazeTracker] statusChange extraction failed for pair ${pair[0]} and ${pair[1]}`,
-			);
+			debugWarn(`statusChange extraction failed for pair ${pair[0]} and ${pair[1]}`);
 			return [];
 		}
 

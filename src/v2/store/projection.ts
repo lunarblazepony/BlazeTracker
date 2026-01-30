@@ -177,16 +177,55 @@ interface MessageStateSnapshot {
 }
 
 /**
+ * Get the chapter index for a message based on ChapterEndedEvents.
+ *
+ * Logic: An event belongs to chapter N if it's at or before the message
+ * where chapter N ends (ChapterEndedEvent with chapterIndex N).
+ */
+function getChapterIndexForMessage(
+	messageId: number,
+	chapterEnds: Array<{ messageId: number; chapterIndex: number }>,
+	currentChapter: number,
+): number {
+	// Find the first chapter that ends at or after this message
+	for (const end of chapterEnds) {
+		if (messageId <= end.messageId) {
+			return end.chapterIndex;
+		}
+	}
+	// Event is after all chapter ends, so it's in the current chapter
+	return currentChapter;
+}
+
+/**
  * Compute narrative events from a list of events.
  * Groups events by message and builds NarrativeEvent objects from
  * NarrativeDescriptionEvent, TensionEvent, and RelationshipSubjectEvent.
  * Witnesses and location are derived from the state at each message.
+ * Chapter index is determined by checking ChapterEndedEvents in the event list.
  */
 function computeNarrativeEventsFromEvents(
 	events: readonly Event[],
 	currentChapter: number,
+	allEventsForChapterBoundaries: readonly Event[],
 	getStateAtMessage: (messageId: number) => MessageStateSnapshot,
 ): NarrativeEvent[] {
+	// Build chapter boundaries from ChapterEndedEvents
+	const chapterEnds: Array<{ messageId: number; chapterIndex: number }> = [];
+	for (const event of allEventsForChapterBoundaries) {
+		if (event.kind === 'chapter' && 'subkind' in event && event.subkind === 'ended') {
+			const chapterEvent = event as {
+				chapterIndex: number;
+				source: { messageId: number };
+			};
+			chapterEnds.push({
+				messageId: chapterEvent.source.messageId,
+				chapterIndex: chapterEvent.chapterIndex,
+			});
+		}
+	}
+	chapterEnds.sort((a, b) => a.messageId - b.messageId);
+
 	// Group events by messageId
 	const eventsByMessage = new Map<number, Event[]>();
 	for (const event of events) {
@@ -223,6 +262,13 @@ function computeNarrativeEventsFromEvents(
 		// Get state at this message to derive witnesses and location
 		const stateSnapshot = getStateAtMessage(messageId);
 
+		// Get chapter index for this message
+		const chapterIndex = getChapterIndexForMessage(
+			messageId,
+			chapterEnds,
+			currentChapter,
+		);
+
 		narrativeEvents.push({
 			source: descEvent.source,
 			description: descEvent.description,
@@ -233,7 +279,7 @@ function computeNarrativeEventsFromEvents(
 				type: stateSnapshot.tensionType ?? 'conversation',
 			},
 			subjects,
-			chapterIndex: currentChapter,
+			chapterIndex,
 			narrativeTime: stateSnapshot.time,
 		});
 	}
@@ -250,12 +296,14 @@ function computeNarrativeEventsFromEvents(
  * @param snapshot - Starting snapshot
  * @param events - Events to apply (should be pre-filtered for canonical swipes and sorted)
  * @param source - The message/swipe we're projecting to
+ * @param allCanonicalEvents - ALL canonical events (for building chapter boundaries)
  * @returns The projected state
  */
 export function projectFromSnapshot(
 	snapshot: Snapshot,
 	events: readonly Event[],
 	source: MessageAndSwipe,
+	allCanonicalEvents: readonly Event[] = [],
 ): Projection {
 	const projection = createProjectionFromSnapshot(snapshot, source);
 
@@ -299,10 +347,12 @@ export function projectFromSnapshot(
 	// If computedClimate is null, projection.climate keeps its value from the snapshot
 
 	// Compute narrative events from the applied events and add to projection
+	// Pass all canonical events to build chapter boundaries from ChapterEndedEvents
 	const newNarrativeEvents = computeNarrativeEventsFromEvents(
 		events,
 		projection.currentChapter,
-		msgId =>
+		allCanonicalEvents,
+		(msgId: number) =>
 			stateAtMessage.get(msgId) ?? {
 				time: null,
 				charactersPresent: [],

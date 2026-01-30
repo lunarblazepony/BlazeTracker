@@ -19,6 +19,7 @@ import {
 	getExtractorTemperature,
 } from '../utils';
 import { buildPrompt } from '../../prompts';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Initial character profiles extractor.
@@ -108,8 +109,8 @@ export const initialCharacterProfilesExtractor: InitialExtractor<ExtractedCharac
 			);
 
 			if (!result.success || !result.data) {
-				console.warn(
-					`[BlazeTracker] initialCharacterProfiles extraction failed for ${characterName}:`,
+				debugWarn(
+					`initialCharacterProfiles extraction failed for ${characterName}:`,
 					result.error,
 				);
 				continue;
@@ -124,8 +125,8 @@ export const initialCharacterProfilesExtractor: InitialExtractor<ExtractedCharac
 			);
 
 			if (!matchingKey) {
-				console.warn(
-					`[BlazeTracker] Character "${extracted.character}" from profile extraction not found in present characters`,
+				debugWarn(
+					`Character "${extracted.character}" from profile extraction not found in present characters`,
 				);
 				continue;
 			}

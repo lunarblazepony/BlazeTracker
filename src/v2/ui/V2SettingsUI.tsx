@@ -952,6 +952,45 @@ function V2SettingsPanel() {
 							/>
 						</div>
 
+						{/* Max Requests Per Minute */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-maxreqs">
+								Max Requests/Minute
+							</label>
+							<small>
+								Rate limit for LLM calls (0 = no
+								limit)
+							</small>
+							<input
+								id="bt-v2-maxreqs"
+								type="number"
+								className="text_pole"
+								min="0"
+								max="300"
+								step="1"
+								value={settings.v2MaxReqsPerMinute}
+								onChange={e => {
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 0
+									) {
+										handleUpdate(
+											'v2MaxReqsPerMinute',
+											value,
+										);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+
 						{/* Temperature Sliders */}
 						<div className="bt-temperature-section">
 							<div className="bt-section-header">

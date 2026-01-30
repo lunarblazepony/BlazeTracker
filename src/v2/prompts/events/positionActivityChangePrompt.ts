@@ -254,6 +254,8 @@ export const positionActivityChangePrompt: PromptTemplate<ExtractedPositionActiv
 - Moving to different location (room to room, spot to spot)
 - Standing up, sitting down, lying down
 - Moving closer to or away from someone/something
+- Be specific: 'on top of Lightning Dust, on the bed, facing her' not 'in the bedroom'
+- If the previous position is not specific enough, change it
 
 ## NOT Position Changes:
 - Gestures, facial expressions
@@ -264,6 +266,8 @@ export const positionActivityChangePrompt: PromptTemplate<ExtractedPositionActiv
 - Starting a new action
 - Stopping an action (becomes null)
 - Switching from one action to another
+- Be specific: 'kissing Lightning Dust deeply', not 'kiss'
+- If the previous activity is stale or not specific, change it
 
 ## NOT Activity Changes:
 - Different steps of same activity (measuring then mixing = still cooking)

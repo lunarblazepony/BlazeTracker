@@ -11,6 +11,7 @@ import type { InitialExtractor, ExtractionContext, ExtractionSettings } from '..
 import { initialLocationPrompt } from '../../prompts/initial/locationPrompt';
 import { buildExtractorPrompt, generateAndParse, getExtractorTemperature } from '../utils';
 import { createEmptySnapshot, createProjectionFromSnapshot } from '../../types/snapshot';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Initial location extractor.
@@ -79,9 +80,7 @@ export const locationExtractor: InitialExtractor = {
 
 		// Handle parse failure
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] initialLocation extraction failed, returning empty',
-			);
+			debugWarn('initialLocation extraction failed, returning empty');
 			return {};
 		}
 

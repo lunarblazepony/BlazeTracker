@@ -7,6 +7,7 @@
 import type { Event } from '../types/event';
 import type { Snapshot } from '../types/snapshot';
 import { cloneSnapshot } from '../types/snapshot';
+import { debugWarn } from '../../utils/debug';
 
 /**
  * Serialized event store format for JSON storage.
@@ -89,9 +90,7 @@ export function deserializeEventStore(
 
 	// For now, only support version 1
 	if (obj.version !== STORE_VERSION) {
-		console.warn(
-			`Unknown event store version: ${obj.version}, expected ${STORE_VERSION}`,
-		);
+		debugWarn(`Unknown event store version: ${obj.version}, expected ${STORE_VERSION}`);
 		// Could implement migration here in the future
 	}
 

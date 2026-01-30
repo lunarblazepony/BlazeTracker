@@ -11,6 +11,7 @@ import { OUTFIT_SLOTS } from '../types/common';
 import type { PersonaDefaults } from '../../ui/cardDefaultsModal';
 import type { BTOutfitExtension, BTProfileExtension } from './types';
 import { resolveCharacterName } from './nameResolver';
+import { debugLog, debugWarn } from '../../utils/debug';
 
 /**
  * Merge persona defaults into an initial snapshot.
@@ -68,8 +69,8 @@ async function mergePersonaOutfit(
 	);
 
 	if (resolution.skipped || !resolution.matchedName) {
-		console.log(
-			`[BlazeTracker] Skipping persona outfit merge for "${personaName}" (user skipped or no match)`,
+		debugLog(
+			`Skipping persona outfit merge for "${personaName}" (user skipped or no match)`,
 		);
 		return snapshot;
 	}
@@ -78,9 +79,7 @@ async function mergePersonaOutfit(
 	const existingChar = snapshot.characters[matchingCharacterKey];
 
 	if (!existingChar) {
-		console.warn(
-			`[BlazeTracker] Character "${matchingCharacterKey}" not found in snapshot`,
-		);
+		debugWarn(`Character "${matchingCharacterKey}" not found in snapshot`);
 		return snapshot;
 	}
 
@@ -135,8 +134,8 @@ async function mergePersonaProfile(
 	);
 
 	if (resolution.skipped || !resolution.matchedName) {
-		console.log(
-			`[BlazeTracker] Skipping persona profile merge for "${personaName}" (user skipped or no match)`,
+		debugLog(
+			`Skipping persona profile merge for "${personaName}" (user skipped or no match)`,
 		);
 		return snapshot;
 	}
@@ -145,18 +144,14 @@ async function mergePersonaProfile(
 	const existingChar = snapshot.characters[matchingCharacterKey];
 
 	if (!existingChar) {
-		console.warn(
-			`[BlazeTracker] Character "${matchingCharacterKey}" not found in snapshot`,
-		);
+		debugWarn(`Character "${matchingCharacterKey}" not found in snapshot`);
 		return snapshot;
 	}
 
 	// If no existing profile, cannot merge partial data
 	const existingProfile = existingChar.profile;
 	if (!existingProfile) {
-		console.log(
-			`[BlazeTracker] Skipping persona profile merge - no existing profile to merge into`,
-		);
+		debugLog(`Skipping persona profile merge - no existing profile to merge into`);
 		return snapshot;
 	}
 

@@ -15,6 +15,7 @@ import {
 } from '../../types';
 import { initialCharactersPresentPrompt } from '../../prompts/initial/charactersPresentPrompt';
 import { buildExtractorPrompt, generateAndParse, getExtractorTemperature } from '../utils';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Initial characters present extractor.
@@ -76,8 +77,8 @@ export const initialCharactersPresentExtractor: InitialExtractor<ExtractedCharac
 
 		// If parsing failed, return empty object
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] initialCharactersPresent extraction failed:',
+			debugWarn(
+				'initialCharactersPresent extraction failed:',
 				result.error,
 			);
 			return {};

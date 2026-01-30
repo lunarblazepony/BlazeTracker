@@ -426,7 +426,9 @@ async function init() {
 			// This is rare (usually initial snapshot is on a user message which can't be swiped)
 			// but can happen in group chats or manual extraction scenarios
 			if (messageId === initialSnapshotMessageId) {
-				log('Swiped the initial snapshot message - clearing store and re-extracting');
+				log(
+					'Swiped the initial snapshot message - clearing store and re-extracting',
+				);
 
 				// Clear the entire store since the baseline has changed
 				await clearV2EventStore();
@@ -438,7 +440,8 @@ async function init() {
 				const v2Settings = getV2Settings();
 				if (v2Settings.v2AutoExtract) {
 					await runV2Extraction(messageId, {
-						onStatus: (status) => log('Re-extraction status:', status),
+						onStatus: status =>
+							log('Re-extraction status:', status),
 					});
 
 					// Remount displays after extraction

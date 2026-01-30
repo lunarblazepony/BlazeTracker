@@ -17,6 +17,7 @@ import {
 	getExtractorTemperature,
 } from '../utils';
 import { createEmptySnapshot, createProjectionFromSnapshot } from '../../types/snapshot';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Infer a WeatherCondition from the conditions string.
@@ -134,9 +135,7 @@ export const climateExtractor: InitialExtractor = {
 
 		// Handle parse failure
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] initialClimate extraction failed, returning empty',
-			);
+			debugWarn('initialClimate extraction failed, returning empty');
 			return {};
 		}
 

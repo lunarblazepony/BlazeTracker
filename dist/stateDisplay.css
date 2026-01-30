@@ -657,6 +657,48 @@
 	border-radius: 3px;
 }
 
+/* Chapter Summary Card (styled like event item) */
+.bt-chapter-summary-item {
+	background: rgba(91, 141, 217, 0.1);
+	margin-top: 8px;
+}
+
+.bt-chapter-summary-item .bt-event-time strong {
+	color: #5b8dd9;
+}
+
+.bt-chapter-time-range {
+	font-weight: normal;
+	opacity: 0.8;
+	font-size: 0.9em;
+}
+
+.bt-chapter-summary-read-more {
+	margin-top: 4px;
+}
+
+.bt-v2-chapter-read-more {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: none;
+	border: none;
+	color: #5b8dd9;
+	font-size: 0.85em;
+	cursor: pointer;
+	padding: 4px 0;
+	opacity: 0.9;
+}
+
+.bt-v2-chapter-read-more:hover {
+	opacity: 1;
+	text-decoration: underline;
+}
+
+.bt-v2-chapter-read-more i {
+	font-size: 0.9em;
+}
+
 /* Event type icons */
 
 /* Event milestones row */

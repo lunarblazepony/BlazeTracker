@@ -27,6 +27,7 @@ import {
 	projectWithTurnEvents,
 	getExtractorTemperature,
 } from '../utils';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Check if there's a location moved event in turn events.
@@ -147,10 +148,7 @@ export const chapterEndedExtractor: EventExtractor<ExtractedChapterEnded> = {
 
 		// If parsing failed, return empty
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] chapterEnded extraction failed:',
-				result.error,
-			);
+			debugWarn('chapterEnded extraction failed:', result.error);
 			return [];
 		}
 

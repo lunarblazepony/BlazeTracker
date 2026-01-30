@@ -17,6 +17,7 @@ import {
 	type ExtractionResult,
 	type Projection,
 } from './v2';
+import { recalculateChapterDescription } from './v2/orchestrators/chapterInvalidationHandler';
 import type { SwipeContext } from './v2/store/projection';
 import type { MilestoneInfo } from './v2/store/projection';
 import { isMilestoneWorthy, type Subject } from './v2/types/subject';
@@ -754,4 +755,61 @@ function isFirstOccurrenceOfSubject(
 	}
 
 	return true; // This is the first
+}
+
+// ============================================
+// Chapter Recalculation
+// ============================================
+
+/**
+ * Recalculate chapter description for a specific chapter.
+ * Only regenerates the description and rebuilds the snapshot - does NOT re-run
+ * chapter end detection.
+ *
+ * @param store - The event store to update (will be modified in place)
+ * @param chapterIndex - The chapter index to recalculate
+ * @param onStatus - Optional status callback
+ * @returns The updated store after recalculation
+ */
+export async function recalculateV2Chapter(
+	store: V2EventStore,
+	chapterIndex: number,
+	onStatus?: (status: string) => void,
+): Promise<V2EventStore> {
+	const stContext = SillyTavern.getContext() as unknown as STContext;
+	const v2Settings = getV2Settings();
+
+	if (!v2Settings.v2ProfileId) {
+		debugWarn('No profile ID configured for chapter recalculation');
+		return store;
+	}
+
+	// Build extraction context and settings
+	const extractionContext = buildExtractionContext(stContext);
+	const extractionSettings = buildExtractionSettingsFromV2(v2Settings);
+
+	// Create generator
+	const generator = new SillyTavernGenerator({ profileId: v2Settings.v2ProfileId });
+
+	// Create abort controller (allow cancellation)
+	const abortController = new AbortController();
+
+	try {
+		await recalculateChapterDescription(
+			generator,
+			store,
+			extractionContext,
+			extractionSettings,
+			chapterIndex,
+			onStatus,
+			abortController.signal,
+		);
+
+		debugLog(`Chapter ${chapterIndex} recalculation complete`);
+		// Return a deep clone so React detects the state change
+		return store.getDeepClone();
+	} catch (error) {
+		errorLog(`Failed to recalculate chapter ${chapterIndex}:`, error);
+		throw error;
+	}
 }

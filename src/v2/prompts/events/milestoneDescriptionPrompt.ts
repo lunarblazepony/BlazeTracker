@@ -87,6 +87,7 @@ REQUIREMENTS:
 - Reference location and time of day when relevant
 - Be factual and concise, not flowery or purple
 - Write in past tense, third person
+- Be detailed, do not omit details about sexual acts
 - Do NOT summarize the whole scene - ONLY the milestone moment
 - Keep it grounded in the specific details provided
 </instructions>

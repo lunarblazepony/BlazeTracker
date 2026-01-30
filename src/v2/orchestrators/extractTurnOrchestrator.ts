@@ -6,6 +6,7 @@ import type { MessageAndSwipe } from '../types';
 import { createSnapshotFromProjection } from '../types/snapshot';
 import { extractInitialSnapshot } from './extractInitialOrchestrator';
 import { extractEvents } from './extractEventsOrchestrator';
+import { handleChapterInvalidation } from './chapterInvalidationHandler';
 import { buildSwipeContextFromExtraction } from '../extractors/utils';
 // Card Extensions
 import type { CardExtensions } from '../cardExtensions/types';
@@ -49,6 +50,39 @@ export async function extractTurn(
 
 	// Delete existing events for this message (re-extraction)
 	store.deleteEventsAtMessage(currentMessage);
+
+	// Check for invalidated chapter snapshots (only if we have an initial snapshot)
+	// We check ALL chapter snapshots (not just canonical ones) because we need to detect
+	// when a snapshot was created on a different swipe path and is now invalidated
+	if (store.initialSnapshot && settings.track.chapters) {
+		const swipeContext = buildSwipeContextFromExtraction(context);
+		// Use the raw chapterSnapshots getter to check ALL snapshots for invalidation
+		// eslint-disable-next-line deprecation/deprecation
+		for (const snapshot of store.chapterSnapshots) {
+			if (snapshot.chapterIndex === undefined || snapshot.chapterIndex === null)
+				continue;
+
+			const invalidation = store.isChapterSnapshotInvalidated(
+				snapshot.chapterIndex,
+				swipeContext,
+			);
+			if (invalidation) {
+				debugLog(
+					`Chapter ${snapshot.chapterIndex} invalidated: ${invalidation}`,
+				);
+				await handleChapterInvalidation(
+					gen,
+					store,
+					context,
+					settings,
+					snapshot.chapterIndex,
+					swipeContext,
+					setStatus,
+					abortSignal,
+				);
+			}
+		}
+	}
 
 	// Check if we need initial extraction
 	if (!store.initialSnapshot) {
@@ -192,6 +226,8 @@ export async function extractTurn(
 			projection,
 			projection.currentChapter,
 		);
+		// Store the message that triggered the chapter end for invalidation tracking
+		chapterSnapshot.chapterTriggerMessage = { ...currentMessage };
 		store.addChapterSnapshot(chapterSnapshot);
 	}
 

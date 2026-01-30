@@ -9,6 +9,28 @@ import { Generator as STGenerator } from 'sillytavern-utils-lib';
 import type { Generator } from './Generator';
 import { GeneratorAbortError, GeneratorError } from './Generator';
 import type { GeneratorPrompt, GeneratorSettings, GeneratorConfig } from './types';
+import { RateLimiter } from '../utils/rateLimiter';
+import { getV2Settings } from '../settings';
+
+// Module-level rate limiter instance
+let rateLimiter: RateLimiter | null = null;
+let lastMaxReqsPerMinute: number | null = null;
+
+/**
+ * Get or create the rate limiter instance.
+ * Re-creates if settings have changed.
+ */
+function getRateLimiter(): RateLimiter {
+	const settings = getV2Settings();
+	const maxReqs = settings.v2MaxReqsPerMinute;
+
+	if (!rateLimiter || lastMaxReqsPerMinute !== maxReqs) {
+		rateLimiter = new RateLimiter(maxReqs);
+		lastMaxReqsPerMinute = maxReqs;
+	}
+
+	return rateLimiter;
+}
 
 /**
  * Production generator using SillyTavern's API.
@@ -29,6 +51,18 @@ export class SillyTavernGenerator implements Generator {
 		// Check if already aborted
 		if (abortSignal?.aborted) {
 			throw new GeneratorAbortError('Generation aborted before start');
+		}
+
+		// Wait for rate limit slot
+		try {
+			await getRateLimiter().waitForSlot(abortSignal);
+		} catch (e) {
+			if (e instanceof Error && e.message === 'Aborted') {
+				throw new GeneratorAbortError(
+					'Generation aborted while waiting for rate limit',
+				);
+			}
+			throw e;
 		}
 
 		return new Promise<string>((resolve, reject) => {
@@ -80,6 +114,9 @@ export class SillyTavernGenerator implements Generator {
 								),
 							);
 						}
+
+						// Record successful request for rate limiting
+						getRateLimiter().recordRequest();
 
 						const content = (data as ExtractedData).content;
 						if (typeof content === 'string') {

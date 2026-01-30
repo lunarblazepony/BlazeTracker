@@ -19,6 +19,7 @@ import {
 	getExtractorTemperature,
 } from '../utils';
 import { buildPrompt } from '../../prompts';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Initial character outfits extractor.
@@ -95,8 +96,8 @@ export const initialCharacterOutfitsExtractor: InitialExtractor<ExtractedCharact
 		);
 
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] initialCharacterOutfits extraction failed:',
+			debugWarn(
+				'initialCharacterOutfits extraction failed:',
 				result.error,
 			);
 			return {};
@@ -127,8 +128,8 @@ export const initialCharacterOutfitsExtractor: InitialExtractor<ExtractedCharact
 
 			if (!matchingKey) {
 				// Character from extraction not found in our characters list
-				console.warn(
-					`[BlazeTracker] Character "${characterName}" from outfit extraction not found in present characters`,
+				debugWarn(
+					`Character "${characterName}" from outfit extraction not found in present characters`,
 				);
 				continue;
 			}

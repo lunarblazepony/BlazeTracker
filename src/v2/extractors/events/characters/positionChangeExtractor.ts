@@ -25,6 +25,7 @@ import {
 	getExtractorTemperature,
 } from '../../utils';
 import type { EventStore } from '../../../store';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Character position change event extractor.
@@ -72,8 +73,8 @@ export const positionChangeExtractor: PerCharacterExtractor = {
 		// Get the character's current state from projection
 		const characterState = projection.characters[targetCharacter];
 		if (!characterState) {
-			console.warn(
-				`[BlazeTracker] positionChange: Character "${targetCharacter}" not found in projection`,
+			debugWarn(
+				`positionChange: Character "${targetCharacter}" not found in projection`,
 			);
 			return [];
 		}
@@ -111,9 +112,7 @@ export const positionChangeExtractor: PerCharacterExtractor = {
 
 		// Handle parse failure
 		if (!result.success || !result.data) {
-			console.warn(
-				'[BlazeTracker] positionChange extraction failed, returning empty',
-			);
+			debugWarn('positionChange extraction failed, returning empty');
 			return [];
 		}
 

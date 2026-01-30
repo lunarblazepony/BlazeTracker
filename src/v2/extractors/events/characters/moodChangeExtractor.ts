@@ -34,6 +34,7 @@ import {
 	projectWithTurnEvents,
 	getExtractorTemperature,
 } from '../../utils';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Mood change per-character event extractor.
@@ -116,9 +117,7 @@ export const moodChangeExtractor: PerCharacterExtractor<ExtractedMoodChange> = {
 
 		// Handle parsing failure
 		if (!result.success || !result.data) {
-			console.warn(
-				`[BlazeTracker] moodChange extraction failed for ${targetCharacter}`,
-			);
+			debugWarn(`moodChange extraction failed for ${targetCharacter}`);
 			return [];
 		}
 

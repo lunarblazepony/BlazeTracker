@@ -52,6 +52,8 @@ export interface V2Settings {
 	v2AutoExtract: boolean;
 	/** Maximum tokens for LLM responses */
 	v2MaxTokens: number;
+	/** Max LLM requests per minute (0 = no limit) */
+	v2MaxReqsPerMinute: number;
 
 	// Debug & Display
 	/** Enable debug logging to console */
@@ -96,6 +98,7 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		typeof s.v2ProfileId === 'string' &&
 		typeof s.v2AutoExtract === 'boolean' &&
 		(typeof s.v2MaxTokens === 'number' || s.v2MaxTokens === undefined) &&
+		(typeof s.v2MaxReqsPerMinute === 'number' || s.v2MaxReqsPerMinute === undefined) &&
 		typeof s.v2DebugLogging === 'boolean' &&
 		typeof s.v2DisplayPosition === 'string' &&
 		typeof s.v2TemperatureUnit === 'string' &&

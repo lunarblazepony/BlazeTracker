@@ -14,6 +14,7 @@ import { V2RelationshipsTab } from './tabs/V2RelationshipsTab';
 import { V2ChaptersTab } from './tabs/V2ChaptersTab';
 import { V2EventsTab } from './tabs/V2EventsTab';
 import { V2RelationshipEditor } from './components/V2RelationshipEditor';
+import { debugWarn } from '../../utils/debug';
 
 export interface V2NarrativeModalProps {
 	eventStore: EventStore;
@@ -22,6 +23,10 @@ export interface V2NarrativeModalProps {
 	onSave: (eventStore: EventStore) => Promise<void>;
 	initialTab?: 'chapters' | 'relationships' | 'events';
 	latestMessageId: number;
+	/** Callback to recalculate chapter description (returns updated store) */
+	onRecalculateChapter?: (store: EventStore, chapterIndex: number) => Promise<EventStore>;
+	/** Target chapter to scroll to and highlight (for "Read full summary") */
+	targetChapter?: number;
 }
 
 type TabType = 'chapters' | 'relationships' | 'events';
@@ -33,6 +38,8 @@ export function V2NarrativeModal({
 	onSave,
 	initialTab = 'relationships',
 	latestMessageId,
+	onRecalculateChapter,
+	targetChapter,
 }: V2NarrativeModalProps): React.ReactElement | null {
 	const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 	const [localStore, setLocalStore] = useState(() => eventStore.getDeepClone());
@@ -98,6 +105,34 @@ export function V2NarrativeModal({
 			onClose();
 		}
 	}, [hasChanges, onClose]);
+
+	// Handle chapter recalculation
+	const handleRecalculateChapter = useCallback(
+		async (chapterIndex: number) => {
+			if (!onRecalculateChapter) {
+				debugWarn('No recalculate callback provided');
+				return;
+			}
+
+			try {
+				const updatedStore = await onRecalculateChapter(
+					localStore,
+					chapterIndex,
+				);
+				setLocalStore(updatedStore);
+				setHasChanges(true);
+			} catch (error) {
+				console.error(
+					`[BlazeTracker] Failed to recalculate chapter ${chapterIndex}:`,
+					error,
+				);
+				window.alert(
+					`Failed to recalculate chapter: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				);
+			}
+		},
+		[localStore, onRecalculateChapter],
+	);
 
 	// Handle backdrop click (close modal)
 	const handleBackdropClick = useCallback(
@@ -202,6 +237,10 @@ export function V2NarrativeModal({
 							projection={projection}
 							eventStore={localStore}
 							swipeContext={swipeContext}
+							onRecalculateChapter={
+								handleRecalculateChapter
+							}
+							targetChapter={targetChapter}
 						/>
 					)}
 				</div>

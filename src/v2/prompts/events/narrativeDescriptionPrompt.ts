@@ -129,6 +129,7 @@ Respond with a JSON object containing:
 ## Guidelines
 - Be concise - one sentence is ideal
 - Be factual - describe what happened, not how it felt
+- Do not omit details about sexual acts
 - Include key actions and reactions
 - Use semicolons to separate multiple events in one description
 - Don't editorialize or add interpretation

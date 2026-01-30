@@ -11,3 +11,4 @@ export { V2CharacterReadOnly, type V2CharacterReadOnlyProps } from './V2Characte
 export { V2EventCard, type V2EventCardProps } from './V2EventCard';
 export { V2WeatherForecast, type V2WeatherForecastProps } from './V2WeatherForecast';
 export { V2WeatherForecastModal, type V2WeatherForecastModalProps } from './V2WeatherForecastModal';
+export { V2ChapterSummaryCard, type V2ChapterSummaryCardProps } from './V2ChapterSummaryCard';

@@ -72,10 +72,114 @@ export class EventStore {
 	}
 
 	/**
-	 * Get all chapter snapshots.
+	 * Get all chapter snapshots (unfiltered - includes all swipe paths).
+	 * @deprecated Use getCanonicalChapterSnapshots for swipe-aware access
 	 */
 	get chapterSnapshots(): Snapshot[] {
 		return this._snapshots.filter(s => s.type === 'chapter');
+	}
+
+	/**
+	 * Get chapter snapshots on the canonical swipe path.
+	 * Only returns snapshots where the trigger message is on the current canonical path.
+	 */
+	getCanonicalChapterSnapshots(swipeContext: SwipeContext): Snapshot[] {
+		return this._snapshots.filter(s => {
+			if (s.type !== 'chapter') return false;
+			if (!s.chapterTriggerMessage) return false;
+
+			const canonicalSwipeId = swipeContext.getCanonicalSwipeId(
+				s.chapterTriggerMessage.messageId,
+			);
+			return s.chapterTriggerMessage.swipeId === canonicalSwipeId;
+		});
+	}
+
+	/**
+	 * Get a chapter snapshot by chapter index (not swipe-aware).
+	 * @deprecated Use getChapterSnapshotOnCanonicalPath for swipe-aware access
+	 */
+	getChapterSnapshot(chapterIndex: number): Snapshot | null {
+		return (
+			this._snapshots.find(
+				s => s.type === 'chapter' && s.chapterIndex === chapterIndex,
+			) ?? null
+		);
+	}
+
+	/**
+	 * Get a chapter snapshot by chapter index on the canonical swipe path.
+	 * Only returns a snapshot if it's on the current canonical path.
+	 */
+	getChapterSnapshotOnCanonicalPath(
+		chapterIndex: number,
+		swipeContext: SwipeContext,
+	): Snapshot | null {
+		return (
+			this._snapshots.find(s => {
+				if (s.type !== 'chapter') return false;
+				if (s.chapterIndex !== chapterIndex) return false;
+				if (!s.chapterTriggerMessage) return false;
+
+				const canonicalSwipeId = swipeContext.getCanonicalSwipeId(
+					s.chapterTriggerMessage.messageId,
+				);
+				return s.chapterTriggerMessage.swipeId === canonicalSwipeId;
+			}) ?? null
+		);
+	}
+
+	/**
+	 * Remove a chapter snapshot by chapter index.
+	 * @deprecated Use removeChapterSnapshotAtMessage for swipe-aware removal
+	 */
+	removeChapterSnapshot(chapterIndex: number): void {
+		this._snapshots = this._snapshots.filter(
+			s => !(s.type === 'chapter' && s.chapterIndex === chapterIndex),
+		);
+	}
+
+	/**
+	 * Remove a chapter snapshot at a specific message/swipe.
+	 * This is swipe-aware and only removes the snapshot at the exact message/swipe.
+	 */
+	removeChapterSnapshotAtMessage(messageId: number, swipeId: number): void {
+		this._snapshots = this._snapshots.filter(
+			s =>
+				!(
+					s.type === 'chapter' &&
+					s.source.messageId === messageId &&
+					s.source.swipeId === swipeId
+				),
+		);
+	}
+
+	/**
+	 * Check if a chapter snapshot is invalidated due to swipe changes.
+	 *
+	 * @param chapterIndex - The chapter to check
+	 * @param context - Swipe context for canonical swipe lookup
+	 * @returns 'trigger_changed' if trigger message swipe changed, null if valid
+	 */
+	isChapterSnapshotInvalidated(
+		chapterIndex: number,
+		context: SwipeContext,
+	): 'trigger_changed' | null {
+		// Find any snapshot for this chapter (may be on non-canonical path)
+		const snapshot = this._snapshots.find(
+			s => s.type === 'chapter' && s.chapterIndex === chapterIndex,
+		);
+		if (!snapshot?.chapterTriggerMessage) return null;
+
+		// Check if trigger message swipe changed
+		const currentSwipe = context.getCanonicalSwipeId(
+			snapshot.chapterTriggerMessage.messageId,
+		);
+		if (currentSwipe !== snapshot.chapterTriggerMessage.swipeId) {
+			return 'trigger_changed';
+		}
+
+		return null;
 	}
 
 	// ============================================
@@ -330,7 +434,8 @@ export class EventStore {
 			swipeId: context.getCanonicalSwipeId(messageId),
 		};
 
-		return projectFromSnapshot(snapshot, eventsToApply, source);
+		// Pass all canonical events for chapter boundary detection
+		return projectFromSnapshot(snapshot, eventsToApply, source, canonicalEvents);
 	}
 
 	/**

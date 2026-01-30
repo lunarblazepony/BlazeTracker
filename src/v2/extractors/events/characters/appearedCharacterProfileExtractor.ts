@@ -23,7 +23,7 @@ import { appearedCharacterProfilePrompt } from '../../../prompts/events/appeared
 import { formatMessages, generateAndParse, getExtractorTemperature } from '../../utils';
 import { buildPrompt } from '../../../prompts';
 import { generateEventId } from '../../../store/serialization';
-import { debugLog } from '../../../../utils/debug';
+import { debugLog, debugWarn } from '../../../../utils/debug';
 
 /**
  * Appeared Character Profile Extractor
@@ -110,8 +110,8 @@ export const appearedCharacterProfileExtractor: EventExtractor<ExtractedCharacte
 			);
 
 			if (!result.success || !result.data) {
-				console.warn(
-					`[BlazeTracker] appearedCharacterProfile extraction failed for ${appearedCharacter}:`,
+				debugWarn(
+					`appearedCharacterProfile extraction failed for ${appearedCharacter}:`,
 					result.error,
 				);
 				continue;
@@ -121,8 +121,8 @@ export const appearedCharacterProfileExtractor: EventExtractor<ExtractedCharacte
 
 			// Verify it's the character we asked for (case-insensitive)
 			if (extracted.character.toLowerCase() !== appearedCharacter.toLowerCase()) {
-				console.warn(
-					`[BlazeTracker] Profile extraction returned wrong character: expected "${appearedCharacter}", got "${extracted.character}"`,
+				debugWarn(
+					`Profile extraction returned wrong character: expected "${appearedCharacter}", got "${extracted.character}"`,
 				);
 				continue;
 			}

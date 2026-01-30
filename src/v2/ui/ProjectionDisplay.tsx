@@ -5,7 +5,7 @@
  * Works with v2 types directly - no legacy dependencies.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type moment from 'moment';
 import type { Projection, RelationshipState, SceneState, NarrativeEvent } from '../types/snapshot';
 import { getMilestoneDisplayName, type MilestoneInfo } from '../store/projection';
@@ -15,9 +15,11 @@ import {
 	V2TensionBadges,
 	V2CharacterCard,
 	V2WeatherForecastModal,
+	V2ChapterSummaryCard,
 } from './components';
 import type { LocationForecast } from '../../weather/types';
 import { getTensionLevelIcon, getTensionColor, getTensionIcon, getTensionTypeColor } from './icons';
+import type { ComputedChapter } from '../narrative/computeChapters';
 
 export interface ExtractionProgress {
 	step: string;
@@ -49,6 +51,10 @@ export interface ProjectionDisplayProps {
 	isLatestMessage?: boolean;
 	/** Callback to retry extraction (delete events and re-extract) */
 	onRetry?: () => void;
+	/** Previous chapter data (for chapter summary card display) */
+	previousChapter?: ComputedChapter | null;
+	/** Callback to view chapter details in narrative modal */
+	onViewChapterDetails?: (chapterIndex: number) => void;
 }
 
 /**
@@ -296,9 +302,25 @@ export function ProjectionDisplay({
 	isInitialSnapshotMessage = false,
 	isLatestMessage = false,
 	onRetry,
+	previousChapter = null,
+	onViewChapterDetails,
 }: ProjectionDisplayProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [showForecastModal, setShowForecastModal] = useState(false);
+
+	// Filter narrative events to current chapter only
+	const currentChapterEvents = useMemo(() => {
+		if (!projection) return [];
+		const currentChapter = projection.currentChapter;
+		return projection.narrativeEvents.filter(e => e.chapterIndex === currentChapter);
+	}, [projection]);
+
+	// Determine if we should show the chapter summary card
+	// Show when: < 3 events in current chapter AND previous chapter exists
+	const showChapterSummary = useMemo(() => {
+		if (!projection || !previousChapter) return false;
+		return currentChapterEvents.length < 3 && previousChapter.summary !== '';
+	}, [projection, previousChapter, currentChapterEvents]);
 
 	// Show loading state while extracting
 	if (isExtracting && extractionProgress) {
@@ -340,8 +362,8 @@ export function ProjectionDisplay({
 		);
 	}
 
-	// Get latest 3 narrative events up to current message (projection already filtered)
-	const recentNarrativeEvents = projection.narrativeEvents.slice(-3);
+	// Get latest 3 narrative events from current chapter only
+	const recentNarrativeEvents = currentChapterEvents.slice(-3);
 
 	// Check what we have to display
 	const hasTime = projection.time !== null;
@@ -438,10 +460,19 @@ export function ProjectionDisplay({
 				/>
 			)}
 
-			{/* Latest 3 narrative events up to this message */}
+			{/* Latest 3 narrative events from current chapter */}
 			{hasNarrativeEvents && (
 				<NarrativeEventsSection
 					events={recentNarrativeEvents}
+					timeFormat={timeFormat}
+				/>
+			)}
+
+			{/* Chapter summary card (shows when 0-2 events in new chapter, below narrative events) */}
+			{showChapterSummary && previousChapter && (
+				<V2ChapterSummaryCard
+					chapter={previousChapter}
+					onViewDetails={onViewChapterDetails}
 					timeFormat={timeFormat}
 				/>
 			)}

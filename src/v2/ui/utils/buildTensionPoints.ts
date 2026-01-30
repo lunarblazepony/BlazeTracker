@@ -33,6 +33,8 @@ export interface TensionPoint {
 	direction: TensionDirection;
 	/** Numeric value 1-7 for Y-axis */
 	levelValue: number;
+	/** Chapter index this tension point belongs to */
+	chapterIndex: number;
 }
 
 /**
@@ -77,6 +79,7 @@ export function buildTensionPoints(
 			type: initialSnapshot.scene.tension.type,
 			direction: initialSnapshot.scene.tension.direction,
 			levelValue: getTensionLevelValue(initialSnapshot.scene.tension.level),
+			chapterIndex: initialSnapshot.chapterIndex ?? 0,
 		});
 	}
 
@@ -110,6 +113,7 @@ export function buildTensionPoints(
 					type: event.type,
 					direction: event.direction,
 					levelValue: getTensionLevelValue(event.level),
+					chapterIndex: projection.currentChapter,
 				});
 			}
 		} catch {

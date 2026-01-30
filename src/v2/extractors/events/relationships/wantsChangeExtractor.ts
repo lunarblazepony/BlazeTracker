@@ -34,6 +34,7 @@ import {
 	projectWithTurnEvents,
 	getExtractorTemperature,
 } from '../../utils';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Wants change per-pair event extractor.
@@ -116,9 +117,7 @@ export const wantsChangeExtractor: PerPairExtractor<ExtractedWantsChange> = {
 
 		// Handle parsing failure
 		if (!result.success || !result.data) {
-			console.warn(
-				`[BlazeTracker] wantsChange extraction failed for ${pair[0]} -> ${pair[1]}`,
-			);
+			debugWarn(`wantsChange extraction failed for ${pair[0]} -> ${pair[1]}`);
 			return [];
 		}
 

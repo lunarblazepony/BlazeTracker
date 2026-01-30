@@ -33,6 +33,7 @@ import {
 	baseEvent,
 	getExtractorTemperature,
 } from '../../utils';
+import { debugWarn } from '../../../../utils/debug';
 
 /**
  * Map consolidation results to events by diffing old vs new lists.
@@ -167,8 +168,8 @@ export const characterStateConsolidationExtractor: PerCharacterExtractor<Extract
 			// Get character's current state
 			const characterState = projection.characters[targetCharacter];
 			if (!characterState) {
-				console.warn(
-					`[BlazeTracker] characterStateConsolidation: character ${targetCharacter} not found in projection`,
+				debugWarn(
+					`characterStateConsolidation: character ${targetCharacter} not found in projection`,
 				);
 				return [];
 			}
@@ -214,8 +215,8 @@ export const characterStateConsolidationExtractor: PerCharacterExtractor<Extract
 
 			// Handle parsing failure
 			if (!result.success || !result.data) {
-				console.warn(
-					`[BlazeTracker] characterStateConsolidation extraction failed for ${targetCharacter}`,
+				debugWarn(
+					`characterStateConsolidation extraction failed for ${targetCharacter}`,
 				);
 				return [];
 			}

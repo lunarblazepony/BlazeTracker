@@ -32,6 +32,8 @@ export interface V2TensionGraphProps {
 	upToMessage?: number;
 	/** Graph height in pixels (default 250) */
 	height?: number;
+	/** Only show events from this chapter index (optional filter) */
+	chapterFilter?: number;
 }
 
 // ============================================
@@ -264,6 +266,7 @@ export function V2TensionGraph({
 	swipeContext,
 	upToMessage,
 	height = DEFAULT_HEIGHT,
+	chapterFilter,
 }: V2TensionGraphProps): React.ReactElement {
 	const containerRef = useRef<HTMLDivElement>(null);
 	// Track container width with ResizeObserver (for future responsive features)
@@ -281,10 +284,16 @@ export function V2TensionGraph({
 	}, []);
 
 	// Build tension points from events
-	const points = useMemo(
+	const allPoints = useMemo(
 		() => buildTensionPoints(store, swipeContext, upToMessage),
 		[store, swipeContext, upToMessage],
 	);
+
+	// Filter by chapter if specified
+	const points = useMemo(() => {
+		if (chapterFilter === undefined) return allPoints;
+		return allPoints.filter(p => p.chapterIndex === chapterFilter);
+	}, [allPoints, chapterFilter]);
 
 	// Calculate time domain and ticks for X-axis
 	const { timeTicks, timeDomain, minTime, maxTime } = useMemo(() => {

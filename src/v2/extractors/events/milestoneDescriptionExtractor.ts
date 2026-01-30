@@ -33,6 +33,7 @@ import type { EventStore } from '../../store';
 import type { Projection } from '../../types';
 import { buildPrompt as fillPrompt, type BuiltPrompt } from '../../prompts';
 import { getMilestonesForPair, normalizePair } from '../../store/projection';
+import { debugWarn } from '../../../utils/debug';
 
 /**
  * Get time of day from projection.
@@ -260,8 +261,8 @@ export const milestoneDescriptionExtractor: EventExtractor<ExtractedMilestoneDes
 			if (result.success && result.data) {
 				event.milestoneDescription = result.data.description;
 			} else {
-				console.warn(
-					`[BlazeTracker] milestoneDescription extraction failed for ${event.subject}:`,
+				debugWarn(
+					`milestoneDescription extraction failed for ${event.subject}:`,
 					result.error,
 				);
 			}

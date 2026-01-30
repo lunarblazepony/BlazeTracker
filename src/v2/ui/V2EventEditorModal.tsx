@@ -13,6 +13,7 @@ import type { EventStore } from '../store/EventStore';
 import type { SwipeContext } from '../store/projection';
 import { V2EventEditor, V2AddEventMenu, type V2EventEditorHandle } from './V2EventEditor';
 import { V2ProjectionPreview } from './V2ProjectionPreview';
+import { debugWarn } from '../../utils/debug';
 
 export interface V2EventEditorModalProps {
 	/** The event store to edit */
@@ -74,7 +75,7 @@ export function V2EventEditorModal({
 			const proj = tempStore.projectStateAtMessage(messageId, swipeContext);
 			return { projection: proj, activeEvents: tempStore.getActiveEvents() };
 		} catch (e) {
-			console.warn('[V2EventEditorModal] Failed to compute projection:', e);
+			debugWarn('V2EventEditorModal: Failed to compute projection:', e);
 			return { projection: null, activeEvents: [] };
 		}
 	}, [localEvents, clonedStore, messageId, swipeId, swipeContext]);
