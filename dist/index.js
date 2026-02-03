@@ -136733,7 +136733,7 @@ function createDefaultV2Settings() {
         v2MaxChapterMessagesToSend: 24,
         // Injection Methodology
         v2UseMacro: false,
-        v2InjectionDepth: 0
+        v2InjectionDepth: 0,
     };
 }
 /**
@@ -136947,7 +136947,7 @@ function isV2Settings(obj) {
         (typeof s.v2MaxChapterMessagesToSend === 'number' ||
             s.v2MaxChapterMessagesToSend === undefined) &&
         typeof s.v2UseMacro === 'boolean' &&
-        typeof s.v2UseMacro === 'number');
+        typeof s.v2InjectionDepth === 'number');
 }
 /**
  * Track toggle dependency rules.
