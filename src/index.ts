@@ -143,16 +143,23 @@ function updateV2Injection(forMessageId: number): void {
 	const swipeContext = buildSwipeContext(stContext);
 
 	const settings = getV2Settings();
-	v2InjectState(projection, store, swipeContext, {
-		includeTime: settings.v2Track.time,
-		includeLocation: settings.v2Track.location,
-		includeClimate: settings.v2Track.climate,
-		includeCharacters: settings.v2Track.characters,
-		includeRelationships: settings.v2Track.relationships,
-		includeScene: settings.v2Track.scene,
-		includeChapters: true,
-		includeEvents: settings.v2Track.narrative,
-	}, settings.v2InjectionDepth, settings.v2UseMacro);
+	v2InjectState(
+		projection,
+		store,
+		swipeContext,
+		{
+			includeTime: settings.v2Track.time,
+			includeLocation: settings.v2Track.location,
+			includeClimate: settings.v2Track.climate,
+			includeCharacters: settings.v2Track.characters,
+			includeRelationships: settings.v2Track.relationships,
+			includeScene: settings.v2Track.scene,
+			includeChapters: true,
+			includeEvents: settings.v2Track.narrative,
+		},
+		settings.v2InjectionDepth,
+		settings.v2UseMacro,
+	);
 }
 
 async function init() {

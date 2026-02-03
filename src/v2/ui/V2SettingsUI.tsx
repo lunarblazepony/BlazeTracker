@@ -843,7 +843,8 @@ function V2SettingsPanel() {
 								Injection Depth
 							</label>
 							<small>
-								Chat depth that the tracker will be injected at
+								Chat depth that the tracker will be
+								injected at
 							</small>
 							<input
 								id="bt-v2-injectiondepth"
@@ -880,7 +881,9 @@ function V2SettingsPanel() {
 							label="Use macros for injection"
 							description="Switch injection method to the macro engine (Macros v2.0 must be enabled)"
 							checked={settings.v2UseMacro}
-							onChange={checked => handleUpdate('v2UseMacro', checked)}
+							onChange={checked =>
+								handleUpdate('v2UseMacro', checked)
+							}
 						/>
 					</div>
 				</div>

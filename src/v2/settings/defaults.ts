@@ -72,7 +72,7 @@ export function createDefaultV2Settings(): V2Settings {
 
 		// Injection Methodology
 		v2UseMacro: false,
-		v2InjectionDepth: 0
+		v2InjectionDepth: 0,
 	};
 }
 
