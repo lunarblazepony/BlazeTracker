@@ -823,6 +823,69 @@ function V2SettingsPanel() {
 
 			<hr />
 
+			{/* Injection Methodology Section - uses ST inline-drawer */}
+			<div className="inline-drawer">
+				<div className="inline-drawer-toggle inline-drawer-header">
+					<b>Injection Methodology</b>
+					<div className="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+				</div>
+				<div className="inline-drawer-content" style={{ display: 'none' }}>
+					<small className="bt-drawer-description">
+						Adjust prompt injection method and behaviour
+					</small>
+					<div className="bt-injection-content">
+						{/* Injection Depth */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-injectdepth">
+								Injection Depth
+							</label>
+							<small>
+								Chat depth that the tracker will be injected at
+							</small>
+							<input
+								id="bt-v2-injectiondepth"
+								type="number"
+								className="text_pole"
+								min="0"
+								max="999"
+								step="1"
+								value={settings.v2InjectionDepth}
+								onChange={e => {
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 0
+									) {
+										handleUpdate(
+											'v2InjectionDepth',
+											value,
+										);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+
+						<hr />
+
+						{/* Macro Injection */}
+						<CheckboxField
+							id="bt-v2-macro"
+							label="Use macros for injection"
+							description="Switch injection method to the macro engine (Macros v2.0 must be enabled)"
+							checked={settings.v2UseMacro}
+							onChange={checked => handleUpdate('v2UseMacro', checked)}
+						/>
+					</div>
+				</div>
+			</div>
+
 			{/* Custom Prompts Section - uses ST inline-drawer */}
 			<div className="inline-drawer">
 				<div className="inline-drawer-toggle inline-drawer-header">

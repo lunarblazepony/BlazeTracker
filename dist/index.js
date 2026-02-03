@@ -101690,13 +101690,13 @@ function updateV2Injection(forMessageId) {
     const stContext = SillyTavern.getContext();
     const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore)();
     if (!store || !(0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 });
+        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0, false);
         return;
     }
     // Always project to the message BEFORE the one we're extracting for
     const projectionMessageId = forMessageId - 1;
     if (projectionMessageId < 0) {
-        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 });
+        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0, false);
         return;
     }
     const projection = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getProjectionForMessage)(projectionMessageId);
@@ -101711,7 +101711,7 @@ function updateV2Injection(forMessageId) {
         includeScene: settings.v2Track.scene,
         includeChapters: true,
         includeEvents: settings.v2Track.narrative,
-    });
+    }, settings.v2InjectionDepth, settings.v2UseMacro);
 }
 async function init() {
     const context = SillyTavern.getContext();
@@ -103198,7 +103198,7 @@ function cleanupPersonaDefaultsButtons() {
   \*****************************/
 (module, __unused_webpack_exports, __webpack_require__) {
 
-module.exports = __webpack_require__.p + "2c4f623992c4e87f706e.css";
+module.exports = __webpack_require__.p + "c32e5db889affcd01d16.css";
 
 /***/ },
 
@@ -112887,6 +112887,8 @@ __webpack_require__.r(__webpack_exports__);
  * This is the v2-only injector - no legacy types.
  */
 
+//import { macros } from '../../../../../../macros/macro-system.js';
+//import { power_user } from '../../../../../../power-user.js';
 const EXTENSION_KEY = 'blazetracker';
 const DEFAULT_OPTIONS = {
     includeTime: true,
@@ -113183,14 +113185,35 @@ function formatStateForInjection(projection, store, swipeContext, options = {}) 
  * @param store - The event store for chapters/events
  * @param swipeContext - Context for swipe filtering
  * @param options - Injection options
+ * @param injDepth - Prompt injection depth
+ * @param useMacro -
  */
-function injectState(projection, store, swipeContext, options = {}) {
+function injectState(projection, store, swipeContext, options = {}, injDepth = 0, useMacro) {
+    // function macroHandler(bool: boolean) {
+    // 	if (!projection || !store) {
+    // 		return '';
+    // 	} else {
+    // 		return bool ? formatStateForInjection(projection, store, swipeContext, options) : '';
+    // 	}
+    // }
+    //
+    // function regStateMacro(bool: boolean) {
+    // 	if (power_user.experimental_macro_engine) {
+    // 		macros.register('btTracker', {
+    // 			category: 'BlazeTracker',
+    // 			description: 'Gets replaced with the current tracker state if \'Macro\' is the current injection method.',
+    // 			handler: () => macroHandler(bool)
+    // 		});
+    // 	}
+    // }
     const context = SillyTavern.getContext();
-    if (!projection || !store) {
+    if (!projection || !store || useMacro) {
+        // regStateMacro(true);
         context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);
         return;
     }
     const formatted = formatStateForInjection(projection, store, swipeContext, options);
+    // regStateMacro(false);
     if (!formatted) {
         context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);
         return;
@@ -113199,7 +113222,7 @@ function injectState(projection, store, swipeContext, options = {}) {
     // Position 1 = after main prompt, before chat
     // Depth 0 = at the end (near most recent messages)
     context.setExtensionPrompt(EXTENSION_KEY, formatted, 1, // extension_prompt_types.IN_CHAT
-    0);
+    injDepth);
 }
 /**
  * Clear the injection.
@@ -136708,6 +136731,9 @@ function createDefaultV2Settings() {
         // Message limits
         v2MaxMessagesToSend: 10,
         v2MaxChapterMessagesToSend: 24,
+        // Injection Methodology
+        v2UseMacro: false,
+        v2InjectionDepth: 0
     };
 }
 /**
@@ -136755,6 +136781,9 @@ function mergeV2WithDefaults(partial) {
         // Message limits
         v2MaxMessagesToSend: partial.v2MaxMessagesToSend ?? defaults.v2MaxMessagesToSend,
         v2MaxChapterMessagesToSend: partial.v2MaxChapterMessagesToSend ?? defaults.v2MaxChapterMessagesToSend,
+        // Injection Methodology
+        v2UseMacro: partial.v2UseMacro ?? defaults.v2UseMacro,
+        v2InjectionDepth: partial.v2InjectionDepth ?? defaults.v2InjectionDepth,
     };
 }
 
@@ -136916,7 +136945,9 @@ function isV2Settings(obj) {
         (typeof s.v2MaxMessagesToSend === 'number' ||
             s.v2MaxMessagesToSend === undefined) &&
         (typeof s.v2MaxChapterMessagesToSend === 'number' ||
-            s.v2MaxChapterMessagesToSend === undefined));
+            s.v2MaxChapterMessagesToSend === undefined) &&
+        typeof s.v2UseMacro === 'boolean' &&
+        typeof s.v2UseMacro === 'number');
 }
 /**
  * Track toggle dependency rules.
@@ -141975,7 +142006,13 @@ function V2SettingsPanel() {
                 ], onChange: v => handleUpdate('v2TemperatureUnit', v) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.SelectField, { id: "bt-v2-timeformat", label: "Time Format", description: "Display time in 12-hour or 24-hour format", value: settings.v2TimeFormat, options: [
                     { value: '12h', label: '12-hour (2:30 PM)' },
                     { value: '24h', label: '24-hour (14:30)' },
-                ], onChange: v => handleUpdate('v2TimeFormat', v) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Tracking" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Enable or disable specific extraction modules" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-track-toggles", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-time", label: "Time", description: "Track narrative date and time", trackKey: "time", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-location", label: "Location", description: "Track area, place, and position", trackKey: "location", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-props", label: "Props", description: "Track nearby objects and items", trackKey: "props", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-climate", label: "Climate", description: "Track weather and temperature", trackKey: "climate", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-characters", label: "Characters", description: "Track character positions, moods, and outfits", trackKey: "characters", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-relationships", label: "Relationships", description: "Track character relationships and attitudes", trackKey: "relationships", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-scene", label: "Scene", description: "Track scene topic, tone, and tension", trackKey: "scene", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-narrative", label: "Narrative", description: "Track events, milestones, and chapters", trackKey: "narrative", track: settings.v2Track, onChange: handleTrackChange })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-debug", label: "Debug Logging", description: "Log debug information to browser console", checked: settings.v2DebugLogging, onChange: checked => handleUpdate('v2DebugLogging', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Custom Prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "Override default extraction prompts and temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-prompts-content", children: editingPrompt ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PromptEditor, { definition: editingPrompt, customPrompts: settings.v2CustomPrompts, promptTemperatures: settings.v2PromptTemperatures, categoryTemperatures: settings.v2Temperatures, onSavePrompt: handlePromptUpdate, onSaveTemperature: handlePromptTemperatureUpdate, onClose: () => setEditingPrompt(null) })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-prompts-list", children: promptDefinitions.map(def => {
+                ], onChange: v => handleUpdate('v2TimeFormat', v) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Tracking" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Enable or disable specific extraction modules" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-track-toggles", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-time", label: "Time", description: "Track narrative date and time", trackKey: "time", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-location", label: "Location", description: "Track area, place, and position", trackKey: "location", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-props", label: "Props", description: "Track nearby objects and items", trackKey: "props", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-climate", label: "Climate", description: "Track weather and temperature", trackKey: "climate", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-characters", label: "Characters", description: "Track character positions, moods, and outfits", trackKey: "characters", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-relationships", label: "Relationships", description: "Track character relationships and attitudes", trackKey: "relationships", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-scene", label: "Scene", description: "Track scene topic, tone, and tension", trackKey: "scene", track: settings.v2Track, onChange: handleTrackChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrackToggle, { id: "bt-v2-track-narrative", label: "Narrative", description: "Track events, milestones, and chapters", trackKey: "narrative", track: settings.v2Track, onChange: handleTrackChange })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-debug", label: "Debug Logging", description: "Log debug information to browser console", checked: settings.v2DebugLogging, onChange: checked => handleUpdate('v2DebugLogging', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Injection Methodology" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "Adjust prompt injection method and behaviour" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-injection-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectdepth", children: "Injection Depth" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Chat depth that the tracker will be injected at" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectiondepth", type: "number", className: "text_pole", min: "0", max: "999", step: "1", value: settings.v2InjectionDepth, onChange: e => {
+                                                    const value = parseInt(e.target.value, 10);
+                                                    if (!isNaN(value) &&
+                                                        value >= 0) {
+                                                        handleUpdate('v2InjectionDepth', value);
+                                                    }
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-macro", label: "Use macros for injection", description: "Switch injection method to the macro engine (Macros v2.0 must be enabled)", checked: settings.v2UseMacro, onChange: checked => handleUpdate('v2UseMacro', checked) })] })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Custom Prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "Override default extraction prompts and temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-prompts-content", children: editingPrompt ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PromptEditor, { definition: editingPrompt, customPrompts: settings.v2CustomPrompts, promptTemperatures: settings.v2PromptTemperatures, categoryTemperatures: settings.v2Temperatures, onSavePrompt: handlePromptUpdate, onSaveTemperature: handlePromptTemperatureUpdate, onClose: () => setEditingPrompt(null) })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-prompts-list", children: promptDefinitions.map(def => {
                                         const isCustomized = !!settings
                                             .v2CustomPrompts[def.name];
                                         const customTemp = settings

@@ -69,6 +69,10 @@ export function createDefaultV2Settings(): V2Settings {
 		// Message limits
 		v2MaxMessagesToSend: 10,
 		v2MaxChapterMessagesToSend: 24,
+
+		// Injection Methodology
+		v2UseMacro: false,
+		v2InjectionDepth: 0
 	};
 }
 
@@ -126,5 +130,9 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2MaxMessagesToSend: partial.v2MaxMessagesToSend ?? defaults.v2MaxMessagesToSend,
 		v2MaxChapterMessagesToSend:
 			partial.v2MaxChapterMessagesToSend ?? defaults.v2MaxChapterMessagesToSend,
+
+		// Injection Methodology
+		v2UseMacro: partial.v2UseMacro ?? defaults.v2UseMacro,
+		v2InjectionDepth: partial.v2InjectionDepth ?? defaults.v2InjectionDepth,
 	};
 }

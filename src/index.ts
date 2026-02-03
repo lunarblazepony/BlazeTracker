@@ -127,7 +127,7 @@ function updateV2Injection(forMessageId: number): void {
 	const store = getV2EventStore();
 
 	if (!store || !hasV2InitialSnapshot()) {
-		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 });
+		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0, false);
 		return;
 	}
 
@@ -135,7 +135,7 @@ function updateV2Injection(forMessageId: number): void {
 	const projectionMessageId = forMessageId - 1;
 
 	if (projectionMessageId < 0) {
-		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 });
+		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0, false);
 		return;
 	}
 
@@ -152,7 +152,7 @@ function updateV2Injection(forMessageId: number): void {
 		includeScene: settings.v2Track.scene,
 		includeChapters: true,
 		includeEvents: settings.v2Track.narrative,
-	});
+	}, settings.v2InjectionDepth, settings.v2UseMacro);
 }
 
 async function init() {

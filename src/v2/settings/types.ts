@@ -92,6 +92,10 @@ export interface V2Settings {
 	v2MaxMessagesToSend: number;
 	/** Max messages to send to chapter description extractor (default 24) */
 	v2MaxChapterMessagesToSend: number;
+
+	// Injection Methodology
+	v2UseMacro: boolean;
+	v2InjectionDepth: number;
 }
 
 /**
@@ -117,7 +121,9 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		(typeof s.v2MaxMessagesToSend === 'number' ||
 			s.v2MaxMessagesToSend === undefined) &&
 		(typeof s.v2MaxChapterMessagesToSend === 'number' ||
-			s.v2MaxChapterMessagesToSend === undefined)
+			s.v2MaxChapterMessagesToSend === undefined) &&
+		typeof s.v2UseMacro === 'boolean' &&
+		typeof s.v2UseMacro === 'number'
 	);
 }
 

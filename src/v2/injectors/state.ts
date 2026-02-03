@@ -15,6 +15,9 @@ import type { EventStore } from '../store/EventStore';
 import type { SwipeContext } from '../store/projection';
 import { computeNarrativeEvents, computeChapters } from '../narrative';
 
+//import { macros } from '../../../../../../macros/macro-system.js';
+//import { power_user } from '../../../../../../power-user.js';
+
 const EXTENSION_KEY = 'blazetracker';
 
 /**
@@ -426,21 +429,45 @@ export function formatStateForInjection(
  * @param store - The event store for chapters/events
  * @param swipeContext - Context for swipe filtering
  * @param options - Injection options
+ * @param injDepth - Prompt injection depth
+ * @param useMacro -
  */
 export function injectState(
 	projection: Projection | null,
 	store: EventStore | null,
 	swipeContext: SwipeContext,
 	options: InjectOptions = {},
+	injDepth: number = 0,
+	useMacro: boolean,
 ): void {
+	// function macroHandler(bool: boolean) {
+	// 	if (!projection || !store) {
+	// 		return '';
+	// 	} else {
+	// 		return bool ? formatStateForInjection(projection, store, swipeContext, options) : '';
+	// 	}
+	// }
+	//
+	// function regStateMacro(bool: boolean) {
+	// 	if (power_user.experimental_macro_engine) {
+	// 		macros.register('btTracker', {
+	// 			category: 'BlazeTracker',
+	// 			description: 'Gets replaced with the current tracker state if \'Macro\' is the current injection method.',
+	// 			handler: () => macroHandler(bool)
+	// 		});
+	// 	}
+	// }
+
 	const context = SillyTavern.getContext();
 
-	if (!projection || !store) {
+	if (!projection || !store || useMacro) {
+		// regStateMacro(true);
 		context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);
 		return;
 	}
 
 	const formatted = formatStateForInjection(projection, store, swipeContext, options);
+	// regStateMacro(false);
 
 	if (!formatted) {
 		context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);
@@ -454,7 +481,7 @@ export function injectState(
 		EXTENSION_KEY,
 		formatted,
 		1, // extension_prompt_types.IN_CHAT
-		0, // depth - 0 means at the bottom
+		injDepth, // depth - 0 means at the bottom
 	);
 }
 
