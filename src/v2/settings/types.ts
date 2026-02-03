@@ -123,7 +123,7 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		(typeof s.v2MaxChapterMessagesToSend === 'number' ||
 			s.v2MaxChapterMessagesToSend === undefined) &&
 		typeof s.v2UseMacro === 'boolean' &&
-		typeof s.v2UseMacro === 'number'
+		typeof s.v2InjectionDepth === 'number'
 	);
 }
 
