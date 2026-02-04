@@ -873,10 +873,10 @@ function V2SettingsPanel() {
 							/>
 						</div>
 
-						<hr />
+						{/* <hr /> */}
 
 						{/* Macro Injection */}
-						<CheckboxField
+						{/* <CheckboxField
 							id="bt-v2-macro"
 							label="Use macros for injection"
 							description="Switch injection method to the macro engine (Macros v2.0 must be enabled)"
@@ -884,7 +884,7 @@ function V2SettingsPanel() {
 							onChange={checked =>
 								handleUpdate('v2UseMacro', checked)
 							}
-						/>
+						/> */}
 					</div>
 				</div>
 			</div>
