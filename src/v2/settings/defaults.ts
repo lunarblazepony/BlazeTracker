@@ -78,7 +78,7 @@ export function createDefaultV2Settings(): V2Settings {
 		// Context-aware injection settings
 		v2MaxRecentChapters: 5,
 		v2MaxRecentEvents: 15,
-		v2InjectionTokenBudget: 0, // 0 = use ST's context size
+		v2InjectionTokenBudget: -1, // 0 = use ST's context size
 	};
 }
 
