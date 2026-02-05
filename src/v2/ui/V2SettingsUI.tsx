@@ -1071,6 +1071,196 @@ function V2SettingsPanel() {
 							/>
 						</div>
 
+						<hr />
+
+						{/* Context Injection Settings Section */}
+						<div className="bt-section-header">
+							<strong>Context Injection</strong>
+							<small>
+								Settings for injecting story context
+								into prompts
+							</small>
+						</div>
+
+						{/* Max Recent Chapters */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-maxrecentchapters">
+								Max Recent Chapters
+							</label>
+							<small>
+								Maximum past chapters to include in
+								"Story So Far" (0-10)
+							</small>
+							<input
+								id="bt-v2-maxrecentchapters"
+								type="number"
+								className="text_pole"
+								min="0"
+								max="10"
+								step="1"
+								value={settings.v2MaxRecentChapters}
+								onChange={e => {
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 0 &&
+										value <= 10
+									) {
+										handleUpdate(
+											'v2MaxRecentChapters',
+											value,
+										);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+
+						{/* Max Recent Events */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-maxrecentevents">
+								Max Recent Events
+							</label>
+							<small>
+								Maximum out-of-context events from
+								current chapter to include (0-50)
+							</small>
+							<input
+								id="bt-v2-maxrecentevents"
+								type="number"
+								className="text_pole"
+								min="0"
+								max="50"
+								step="1"
+								value={settings.v2MaxRecentEvents}
+								onChange={e => {
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 0 &&
+										value <= 50
+									) {
+										handleUpdate(
+											'v2MaxRecentEvents',
+											value,
+										);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+
+						{/* Injection Token Budget */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-injectionbudget">
+								Injection Token Budget
+							</label>
+							<small>
+								Token budget for context injection
+								(0 = auto-detect from ST settings)
+							</small>
+							<input
+								id="bt-v2-injectionbudget"
+								type="number"
+								className="text_pole"
+								min="0"
+								max="100000"
+								step="100"
+								value={
+									settings.v2InjectionTokenBudget
+								}
+								onChange={e => {
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 0
+									) {
+										handleUpdate(
+											'v2InjectionTokenBudget',
+											value,
+										);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+
+						<hr />
+
+						{/* Prompt Prefix */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-promptprefix">
+								Prompt Prefix
+							</label>
+							<small>
+								Text to prepend to all extraction
+								prompts (e.g., /nothink)
+							</small>
+							<input
+								id="bt-v2-promptprefix"
+								type="text"
+								className="text_pole"
+								value={settings.v2PromptPrefix}
+								onChange={e =>
+									handleUpdate(
+										'v2PromptPrefix',
+										e.target.value,
+									)
+								}
+								placeholder="e.g., /nothink"
+								style={{ width: '200px' }}
+							/>
+						</div>
+
+						{/* Prompt Suffix */}
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-promptsuffix">
+								Prompt Suffix
+							</label>
+							<small>
+								Text to append to all extraction
+								prompts
+							</small>
+							<input
+								id="bt-v2-promptsuffix"
+								type="text"
+								className="text_pole"
+								value={settings.v2PromptSuffix}
+								onChange={e =>
+									handleUpdate(
+										'v2PromptSuffix',
+										e.target.value,
+									)
+								}
+								placeholder="e.g., additional instructions"
+								style={{ width: '200px' }}
+							/>
+						</div>
+
 						{/* Temperature Sliders */}
 						<div className="bt-temperature-section">
 							<div className="bt-section-header">

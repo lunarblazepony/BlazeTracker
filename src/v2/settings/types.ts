@@ -92,6 +92,20 @@ export interface V2Settings {
 	v2MaxMessagesToSend: number;
 	/** Max messages to send to chapter description extractor (default 24) */
 	v2MaxChapterMessagesToSend: number;
+
+	// Prompt customization
+	/** String to prepend to the user part of all prompts (e.g., "/nothink") */
+	v2PromptPrefix: string;
+	/** String to append to the user part of all prompts */
+	v2PromptSuffix: string;
+
+	// Context-aware injection settings
+	/** Max past chapters to include in Story So Far (default: 5) */
+	v2MaxRecentChapters: number;
+	/** Max out-of-context events from current chapter to include (default: 15) */
+	v2MaxRecentEvents: number;
+	/** Token budget for injection (0 = use ST's context size) */
+	v2InjectionTokenBudget: number;
 }
 
 /**
@@ -117,7 +131,14 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		(typeof s.v2MaxMessagesToSend === 'number' ||
 			s.v2MaxMessagesToSend === undefined) &&
 		(typeof s.v2MaxChapterMessagesToSend === 'number' ||
-			s.v2MaxChapterMessagesToSend === undefined)
+			s.v2MaxChapterMessagesToSend === undefined) &&
+		(typeof s.v2PromptPrefix === 'string' || s.v2PromptPrefix === undefined) &&
+		(typeof s.v2PromptSuffix === 'string' || s.v2PromptSuffix === undefined) &&
+		(typeof s.v2MaxRecentChapters === 'number' ||
+			s.v2MaxRecentChapters === undefined) &&
+		(typeof s.v2MaxRecentEvents === 'number' || s.v2MaxRecentEvents === undefined) &&
+		(typeof s.v2InjectionTokenBudget === 'number' ||
+			s.v2InjectionTokenBudget === undefined)
 	);
 }
 

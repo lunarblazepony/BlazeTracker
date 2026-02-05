@@ -101597,6 +101597,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./ui/cardDefaultsButton */ "./src/ui/cardDefaultsButton.ts");
 /* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
 /* harmony import */ var _ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./ui/personaDefaultsButton */ "./src/ui/personaDefaultsButton.ts");
+/* harmony import */ var _v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./v2/injectors/promptHook */ "./src/v2/injectors/promptHook.ts");
 
 
 
@@ -101616,6 +101617,8 @@ __webpack_require__.r(__webpack_exports__);
 // Card Defaults UI
 
 
+
+// V2 Prompt Hook
 
 // Use debugLog instead of local log function
 const log = _utils_debug__WEBPACK_IMPORTED_MODULE_4__.debugLog;
@@ -101684,9 +101687,18 @@ function setManualExtractionInProgress(value) {
  * Update v2 injection from the current chat state.
  * Projects state BEFORE the target message for injection into the prompt.
  *
+ * NOTE: When prompt hooks are registered, this function does nothing.
+ * The prompt hooks (CHAT_COMPLETION_PROMPT_READY / GENERATE_BEFORE_COMBINE_PROMPTS)
+ * handle all injection with proper budget management.
+ *
  * @param forMessageId - The message ID we're injecting state FOR (the message being extracted/generated).
  */
 function updateV2Injection(forMessageId) {
+    // Skip if prompt hooks are handling injection
+    // The prompt hooks inject at the right positions with budget awareness
+    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.isPromptHookRegistered)()) {
+        return;
+    }
     const stContext = SillyTavern.getContext();
     const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore)();
     if (!store || !(0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
@@ -101728,6 +101740,21 @@ async function init() {
     (0,_ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_10__.initCardDefaultsButton)(_ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_11__.openCardDefaultsModal);
     // Initialize persona defaults buttons in persona management UI
     (0,_ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_12__.initPersonaDefaultsButtons)();
+    // Register bridge functions for the prompt hook (avoids circular dependency)
+    (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.registerBridgeFunctions)({
+        getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
+        hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
+        buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
+    });
+    // Register the context-aware prompt hook if available
+    // This hooks into CHAT_COMPLETION_PROMPT_READY to inject chapters, events, and state
+    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.isPromptHookAvailable)()) {
+        (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.registerPromptHook)();
+        log('Context-aware prompt hook registered');
+    }
+    else {
+        log('CHAT_COMPLETION_PROMPT_READY not available - using fallback setExtensionPrompt injection');
+    }
     const autoExtract = v2Settings.v2AutoExtract;
     // Hook user messages
     context.eventSource.on(context.event_types.USER_MESSAGE_RENDERED, (async (messageId) => {
@@ -110619,8 +110646,11 @@ function buildPlaceholderValues(context, projection, messageStart, messageEnd, o
  */
 function buildExtractorPrompt(prompt, context, projection, settings, messageStart, messageEnd, options) {
     const values = buildPlaceholderValues(context, projection, messageStart, messageEnd, options);
-    const overrides = settings.customPrompts;
-    return (0,_prompts__WEBPACK_IMPORTED_MODULE_0__.buildPrompt)(prompt, values, overrides);
+    return (0,_prompts__WEBPACK_IMPORTED_MODULE_0__.buildPrompt)(prompt, values, {
+        overrides: settings.customPrompts,
+        prefix: settings.promptPrefix,
+        suffix: settings.promptSuffix,
+    });
 }
 
 
@@ -112844,6 +112874,531 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ },
 
+/***/ "./src/v2/injectors/chapters.ts"
+/*!**************************************!*\
+  !*** ./src/v2/injectors/chapters.ts ***!
+  \**************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   formatMilestones: () => (/* binding */ formatMilestones),
+/* harmony export */   formatPastChapter: () => (/* binding */ formatPastChapter),
+/* harmony export */   formatPastChapters: () => (/* binding */ formatPastChapters),
+/* harmony export */   formatPastChaptersWithTags: () => (/* binding */ formatPastChaptersWithTags),
+/* harmony export */   formatPrecomputedChapters: () => (/* binding */ formatPrecomputedChapters)
+/* harmony export */ });
+/* harmony import */ var _store_projection__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../store/projection */ "./src/v2/store/projection.ts");
+/* harmony import */ var _narrative_computeChapters__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../narrative/computeChapters */ "./src/v2/narrative/computeChapters.ts");
+/**
+ * Chapter Formatting for Injection
+ *
+ * Formats past chapters with programmatic milestone summaries
+ * for injection into the "Story So Far" section.
+ */
+
+
+/**
+ * Format a character pair for display.
+ */
+function formatPair(pair) {
+    return `${pair[0]} & ${pair[1]}`;
+}
+/**
+ * Format milestones for a chapter using MILESTONE_DISPLAY_NAMES.
+ * Groups milestones by pair for cleaner output.
+ *
+ * @param milestones - Milestones to format
+ * @returns Formatted milestone string (e.g., "Jane & John: First Kiss, Confession; Bob & Alice: First Date")
+ */
+function formatMilestones(milestones) {
+    if (milestones.length === 0)
+        return '';
+    // Group milestones by pair
+    const byPair = new Map();
+    for (const milestone of milestones) {
+        const pairKey = `${milestone.pair[0]}|${milestone.pair[1]}`;
+        const displayName = (0,_store_projection__WEBPACK_IMPORTED_MODULE_0__.getMilestoneDisplayName)(milestone.subject);
+        if (!byPair.has(pairKey)) {
+            byPair.set(pairKey, []);
+        }
+        byPair.get(pairKey).push(displayName);
+    }
+    // Format each pair's milestones
+    const parts = [];
+    for (const [pairKey, names] of byPair) {
+        const [a, b] = pairKey.split('|');
+        parts.push(`${formatPair([a, b])}: ${names.join(', ')}`);
+    }
+    return parts.join('; ');
+}
+/**
+ * Format a single past chapter for injection.
+ *
+ * @param chapter - The computed chapter data
+ * @returns Formatted chapter string
+ */
+function formatPastChapter(chapter) {
+    const lines = [];
+    // Chapter header with title
+    lines.push(`Chapter ${chapter.index + 1}: ${chapter.title}`);
+    // Summary if available
+    if (chapter.summary) {
+        lines.push(`  ${chapter.summary}`);
+    }
+    // Milestones if available
+    const milestonesStr = formatMilestones(chapter.milestones);
+    if (milestonesStr) {
+        lines.push(`  Milestones: ${milestonesStr}`);
+    }
+    return lines.join('\n');
+}
+/**
+ * Format pre-computed chapters for injection.
+ * Use this when you already have the chapters from computeOptimalContext.
+ *
+ * @param chapters - Array of pre-computed chapters
+ * @returns Formatted chapters string, or empty string if no chapters
+ */
+function formatPrecomputedChapters(chapters) {
+    if (chapters.length === 0) {
+        return '';
+    }
+    // Format each chapter
+    const formattedChapters = chapters.map(formatPastChapter);
+    return formattedChapters.join('\n');
+}
+/**
+ * Format past chapters for injection into "Story So Far".
+ * Only includes completed chapters (those with endReason).
+ *
+ * @param store - The event store
+ * @param swipeContext - Swipe context for filtering
+ * @param maxChapters - Maximum number of past chapters to include
+ * @returns Formatted chapters string, or empty string if no completed chapters
+ */
+function formatPastChapters(store, swipeContext, maxChapters) {
+    const allChapters = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_1__.computeAllChapters)(store, swipeContext);
+    // Filter to completed chapters only (those with end reason)
+    const completedChapters = allChapters.filter(ch => ch.endReason !== null);
+    if (completedChapters.length === 0) {
+        return '';
+    }
+    // Take the most recent chapters
+    const recentChapters = completedChapters.slice(-maxChapters);
+    // Format each chapter
+    const formattedChapters = recentChapters.map(formatPastChapter);
+    return formattedChapters.join('\n');
+}
+/**
+ * Format past chapters with wrapper tags for injection.
+ *
+ * @param store - The event store
+ * @param swipeContext - Swipe context for filtering
+ * @param maxChapters - Maximum number of past chapters to include
+ * @returns Formatted chapters with [Story So Far] tags, or empty string if none
+ */
+function formatPastChaptersWithTags(store, swipeContext, maxChapters) {
+    const content = formatPastChapters(store, swipeContext, maxChapters);
+    if (!content) {
+        return '';
+    }
+    return `[Story So Far]\n${content}\n[/Story So Far]`;
+}
+
+
+/***/ },
+
+/***/ "./src/v2/injectors/contextBudget.ts"
+/*!*******************************************!*\
+  !*** ./src/v2/injectors/contextBudget.ts ***!
+  \*******************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   computeOptimalContext: () => (/* binding */ computeOptimalContext),
+/* harmony export */   computeSimpleContext: () => (/* binding */ computeSimpleContext),
+/* harmony export */   estimateMessageTokens: () => (/* binding */ estimateMessageTokens),
+/* harmony export */   getChapterAtMessage: () => (/* binding */ getChapterAtMessage)
+/* harmony export */ });
+/* harmony import */ var _utils_tokenCount__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../utils/tokenCount */ "./src/v2/utils/tokenCount.ts");
+/* harmony import */ var _chapters__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./chapters */ "./src/v2/injectors/chapters.ts");
+/* harmony import */ var _events__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./events */ "./src/v2/injectors/events.ts");
+/* harmony import */ var _narrative_computeChapters__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../narrative/computeChapters */ "./src/v2/narrative/computeChapters.ts");
+/**
+ * Context Budget Calculator
+ *
+ * Computes the optimal context for injection based on available token budget.
+ * Uses an iterative algorithm to fit chapters, events, and messages into context.
+ */
+
+
+
+
+/**
+ * Get the chapter index for a given message ID.
+ * A message belongs to chapter N if it's at or before the message where chapter N ends.
+ *
+ * @param messageId - The message ID to check
+ * @param chapters - All computed chapters
+ * @returns The chapter index the message belongs to
+ */
+function getChapterAtMessage(messageId, chapters) {
+    // Find the chapter this message belongs to
+    for (const chapter of chapters) {
+        // If chapter has ended, check if message is at or before end
+        if (chapter.endedAtMessage !== null) {
+            if (messageId <= chapter.endedAtMessage.messageId) {
+                return chapter.index;
+            }
+        }
+        else {
+            // Current chapter (hasn't ended) - message is in this chapter
+            return chapter.index;
+        }
+    }
+    // Fallback: return last chapter index
+    return chapters.length > 0 ? chapters[chapters.length - 1].index : 0;
+}
+/**
+ * Calculate token cost for a chapter.
+ */
+async function getChapterTokenCost(chapter, tokenCounter) {
+    const formatted = (0,_chapters__WEBPACK_IMPORTED_MODULE_1__.formatPastChapter)(chapter);
+    return tokenCounter.countTokens(formatted);
+}
+/**
+ * Calculate token cost for an event.
+ */
+async function getEventTokenCost(event, tokenCounter) {
+    const formatted = (0,_events__WEBPACK_IMPORTED_MODULE_2__.formatEventForInjection)(event, true);
+    return tokenCounter.countTokens(formatted);
+}
+/**
+ * Compute the optimal context plan given a token budget.
+ *
+ * Algorithm:
+ * 1. Start with all messages in context
+ * 2. Iteratively push out oldest messages until we fit in budget
+ * 3. When messages are pushed out, we may need to add chapter summaries/events
+ * 4. Repeat until stable
+ *
+ * @param options - Configuration options
+ * @returns The optimal context plan
+ */
+async function computeOptimalContext(options) {
+    const { budget, stateTokens, messageTokens, store, swipeContext, maxPastChapters, maxEvents, totalMessages, tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_0__.getDefaultTokenCounter)(), } = options;
+    // Edge case: no messages
+    if (totalMessages === 0) {
+        return {
+            firstMessageInContext: 0,
+            pastChapters: [],
+            currentChapterEvents: [],
+            effectiveCurrentChapter: 0,
+            totalTokens: stateTokens,
+            breakdown: {
+                pastChaptersTokens: 0,
+                currentChapterEventsTokens: 0,
+                stateTokens,
+            },
+        };
+    }
+    // Get all chapters
+    const allChapters = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_3__.computeAllChapters)(store, swipeContext);
+    const currentChapterIndex = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_3__.getCurrentChapterIndex)(store, swipeContext);
+    // Pre-compute chapter token costs (we may need these multiple times)
+    const chapterTokenCosts = new Map();
+    for (const chapter of allChapters) {
+        if (chapter.endReason !== null) {
+            // Only completed chapters
+            const cost = await getChapterTokenCost(chapter, tokenCounter);
+            chapterTokenCosts.set(chapter.index, cost);
+        }
+    }
+    // Start with all messages in context
+    let firstMessageInContext = 0;
+    let previousFirstMessage = -1; // Track for convergence detection
+    let iterations = 0;
+    const maxIterations = totalMessages + 10; // Safety limit
+    while (iterations < maxIterations) {
+        iterations++;
+        // Check for convergence
+        if (firstMessageInContext === previousFirstMessage) {
+            break;
+        }
+        previousFirstMessage = firstMessageInContext;
+        // 1. Determine effective current chapter (chapter of first message in context)
+        const effectiveCurrentChapter = getChapterAtMessage(firstMessageInContext, allChapters);
+        // 2. Calculate past chapters to include (chapters < effectiveCurrentChapter)
+        const pastChapters = allChapters
+            .filter(ch => ch.endReason !== null && ch.index < effectiveCurrentChapter)
+            .slice(-maxPastChapters);
+        // 3. Calculate out-of-context events from current chapter
+        const outOfContextEvents = (0,_events__WEBPACK_IMPORTED_MODULE_2__.getOutOfContextEvents)(store, swipeContext, effectiveCurrentChapter, firstMessageInContext).slice(-maxEvents);
+        // 4. Calculate token costs
+        let pastChaptersTokens = 0;
+        for (const ch of pastChapters) {
+            pastChaptersTokens += chapterTokenCosts.get(ch.index) ?? 0;
+        }
+        let currentChapterEventsTokens = 0;
+        for (const event of outOfContextEvents) {
+            currentChapterEventsTokens += await getEventTokenCost(event, tokenCounter);
+        }
+        // Add section tags overhead
+        if (pastChapters.length > 0) {
+            // [Story So Far] ... [/Story So Far] tags
+            pastChaptersTokens += await tokenCounter.countTokens('[Story So Far]\n\n[/Story So Far]');
+        }
+        if (outOfContextEvents.length > 0) {
+            // [Recent Events] ... [/Recent Events] tags
+            currentChapterEventsTokens += await tokenCounter.countTokens('[Recent Events]\n\n[/Recent Events]');
+        }
+        // 5. Calculate message token cost
+        let messageTokensTotal = 0;
+        for (let i = firstMessageInContext; i < totalMessages; i++) {
+            messageTokensTotal += messageTokens.get(i) ?? 0;
+        }
+        // 6. Total cost
+        const totalCost = stateTokens +
+            pastChaptersTokens +
+            currentChapterEventsTokens +
+            messageTokensTotal;
+        // 7. Check if we're within budget
+        if (totalCost <= budget) {
+            // We fit! Return this plan
+            return {
+                firstMessageInContext,
+                pastChapters,
+                currentChapterEvents: outOfContextEvents,
+                effectiveCurrentChapter,
+                totalTokens: totalCost,
+                breakdown: {
+                    pastChaptersTokens,
+                    currentChapterEventsTokens,
+                    stateTokens,
+                },
+            };
+        }
+        // 8. Over budget - push out oldest message
+        firstMessageInContext++;
+        // Check if we've pushed out all messages
+        if (firstMessageInContext >= totalMessages) {
+            // Can't fit any messages - return minimal plan
+            return {
+                firstMessageInContext: totalMessages,
+                pastChapters: [],
+                currentChapterEvents: [],
+                effectiveCurrentChapter: currentChapterIndex,
+                totalTokens: stateTokens,
+                breakdown: {
+                    pastChaptersTokens: 0,
+                    currentChapterEventsTokens: 0,
+                    stateTokens,
+                },
+            };
+        }
+    }
+    // Convergence not reached within max iterations - return best effort
+    // This shouldn't happen in practice, but we handle it gracefully
+    return {
+        firstMessageInContext,
+        pastChapters: [],
+        currentChapterEvents: [],
+        effectiveCurrentChapter: currentChapterIndex,
+        totalTokens: stateTokens,
+        breakdown: {
+            pastChaptersTokens: 0,
+            currentChapterEventsTokens: 0,
+            stateTokens,
+        },
+    };
+}
+/**
+ * Simple context computation for cases where we don't need full optimization.
+ * Just returns all chapters and events up to limits.
+ *
+ * @param store - The event store
+ * @param swipeContext - Swipe context for filtering
+ * @param maxPastChapters - Maximum past chapters
+ * @param maxEvents - Maximum events
+ * @returns Basic context plan without budget optimization
+ */
+function computeSimpleContext(store, swipeContext, maxPastChapters) {
+    const allChapters = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_3__.computeAllChapters)(store, swipeContext);
+    const currentChapterIndex = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_3__.getCurrentChapterIndex)(store, swipeContext);
+    // Get completed chapters
+    const pastChapters = allChapters
+        .filter(ch => ch.endReason !== null && ch.index < currentChapterIndex)
+        .slice(-maxPastChapters);
+    return {
+        pastChapters,
+        currentChapterIndex,
+    };
+}
+/**
+ * Estimate message token counts for a chat.
+ * Uses pre-calculated counts if available, otherwise estimates.
+ *
+ * @param messages - Array of messages with optional token counts
+ * @param tokenCounter - Token counter to use for estimation
+ * @returns Map of message ID to token count
+ */
+async function estimateMessageTokens(messages, tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_0__.getDefaultTokenCounter)()) {
+    const tokenMap = new Map();
+    for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        if (msg.extra?.token_count !== undefined) {
+            // Use pre-calculated count
+            tokenMap.set(i, msg.extra.token_count);
+        }
+        else {
+            // Estimate
+            const count = await tokenCounter.countTokens(msg.mes);
+            tokenMap.set(i, count);
+        }
+    }
+    return tokenMap;
+}
+
+
+/***/ },
+
+/***/ "./src/v2/injectors/events.ts"
+/*!************************************!*\
+  !*** ./src/v2/injectors/events.ts ***!
+  \************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   formatEventForInjection: () => (/* binding */ formatEventForInjection),
+/* harmony export */   formatMilestoneSubject: () => (/* binding */ formatMilestoneSubject),
+/* harmony export */   formatOutOfContextEvents: () => (/* binding */ formatOutOfContextEvents),
+/* harmony export */   formatOutOfContextEventsWithTags: () => (/* binding */ formatOutOfContextEventsWithTags),
+/* harmony export */   getAllCurrentChapterEvents: () => (/* binding */ getAllCurrentChapterEvents),
+/* harmony export */   getOutOfContextEvents: () => (/* binding */ getOutOfContextEvents)
+/* harmony export */ });
+/* harmony import */ var _store_projection__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../store/projection */ "./src/v2/store/projection.ts");
+/* harmony import */ var _narrative__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../narrative */ "./src/v2/narrative/index.ts");
+/**
+ * Event Formatting for Injection
+ *
+ * Formats out-of-context events from the current chapter
+ * for injection into the "Recent Events" section.
+ */
+
+
+/**
+ * Format a milestone subject for an event.
+ * Uses the full LLM-generated description if available.
+ *
+ * @param subject - The narrative event subject
+ * @returns Formatted milestone string, or empty if not a milestone
+ */
+function formatMilestoneSubject(subject) {
+    if (!subject.isMilestone) {
+        return '';
+    }
+    const pairStr = `${subject.pair[0]} & ${subject.pair[1]}`;
+    const displayName = (0,_store_projection__WEBPACK_IMPORTED_MODULE_0__.getMilestoneDisplayName)(subject.subject);
+    // Use full description if available, otherwise just the display name
+    if (subject.milestoneDescription) {
+        return `${pairStr} - ${displayName}: ${subject.milestoneDescription}`;
+    }
+    return `${pairStr}: ${displayName}`;
+}
+/**
+ * Format a single narrative event for injection.
+ * Includes full milestone descriptions for current chapter events.
+ *
+ * @param event - The narrative event
+ * @param includeFullMilestones - Whether to include full milestone descriptions
+ * @returns Formatted event string
+ */
+function formatEventForInjection(event, includeFullMilestones = true) {
+    const parts = [`- ${event.description}`];
+    // Add milestone details if any
+    if (includeFullMilestones) {
+        const milestones = event.subjects
+            .filter(s => s.isMilestone)
+            .map(formatMilestoneSubject)
+            .filter(Boolean);
+        if (milestones.length > 0) {
+            for (const milestone of milestones) {
+                parts.push(`  [Milestone: ${milestone}]`);
+            }
+        }
+    }
+    return parts.join('\n');
+}
+/**
+ * Get out-of-context events from the current chapter.
+ * These are events whose messages are before the firstMessageInContext.
+ *
+ * @param store - The event store
+ * @param swipeContext - Swipe context for filtering
+ * @param currentChapter - The current chapter index
+ * @param firstMessageInContext - The first message ID that's in context
+ * @returns Array of events that are out of context
+ */
+function getOutOfContextEvents(store, swipeContext, currentChapter, firstMessageInContext) {
+    // Get all events for the current chapter
+    const allEvents = (0,_narrative__WEBPACK_IMPORTED_MODULE_1__.computeNarrativeEvents)(store, swipeContext, currentChapter);
+    // Filter to events whose messages are before firstMessageInContext
+    return allEvents.filter(event => event.source.messageId < firstMessageInContext);
+}
+/**
+ * Format out-of-context events for injection.
+ *
+ * @param events - The events to format
+ * @param maxEvents - Maximum number of events to include
+ * @returns Formatted events string, or empty string if no events
+ */
+function formatOutOfContextEvents(events, maxEvents) {
+    if (events.length === 0) {
+        return '';
+    }
+    // Take the most recent events (closest to context)
+    const recentEvents = events.slice(-maxEvents);
+    // Format each event with full milestone descriptions
+    const formattedEvents = recentEvents.map(e => formatEventForInjection(e, true));
+    return formattedEvents.join('\n');
+}
+/**
+ * Format out-of-context events with wrapper tags for injection.
+ *
+ * @param store - The event store
+ * @param swipeContext - Swipe context for filtering
+ * @param currentChapter - The current chapter index
+ * @param firstMessageInContext - The first message ID that's in context
+ * @param maxEvents - Maximum number of events to include
+ * @returns Formatted events with [Recent Events] tags, or empty string if none
+ */
+function formatOutOfContextEventsWithTags(store, swipeContext, currentChapter, firstMessageInContext, maxEvents) {
+    const events = getOutOfContextEvents(store, swipeContext, currentChapter, firstMessageInContext);
+    const content = formatOutOfContextEvents(events, maxEvents);
+    if (!content) {
+        return '';
+    }
+    return `[Recent Events]\n${content}\n[/Recent Events]`;
+}
+/**
+ * Get all narrative events for the current chapter.
+ * Useful when all events are in context (no need to filter).
+ *
+ * @param store - The event store
+ * @param swipeContext - Swipe context for filtering
+ * @param currentChapter - The current chapter index
+ * @returns Array of all narrative events in the current chapter
+ */
+function getAllCurrentChapterEvents(store, swipeContext, currentChapter) {
+    return (0,_narrative__WEBPACK_IMPORTED_MODULE_1__.computeNarrativeEvents)(store, swipeContext, currentChapter);
+}
+
+
+/***/ },
+
 /***/ "./src/v2/injectors/index.ts"
 /*!***********************************!*\
   !*** ./src/v2/injectors/index.ts ***!
@@ -112862,6 +113417,582 @@ __webpack_require__.r(__webpack_exports__);
  * Exports state injection functions.
  */
 
+
+
+/***/ },
+
+/***/ "./src/v2/injectors/promptHook.ts"
+/*!****************************************!*\
+  !*** ./src/v2/injectors/promptHook.ts ***!
+  \****************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   getRegisteredHooks: () => (/* binding */ getRegisteredHooks),
+/* harmony export */   isPromptHookAvailable: () => (/* binding */ isPromptHookAvailable),
+/* harmony export */   isPromptHookRegistered: () => (/* binding */ isPromptHookRegistered),
+/* harmony export */   registerBridgeFunctions: () => (/* binding */ registerBridgeFunctions),
+/* harmony export */   registerPromptHook: () => (/* binding */ registerPromptHook),
+/* harmony export */   unregisterPromptHook: () => (/* binding */ unregisterPromptHook)
+/* harmony export */ });
+/* harmony import */ var _settings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../settings */ "./src/v2/settings/index.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _chapters__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./chapters */ "./src/v2/injectors/chapters.ts");
+/* harmony import */ var _events__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./events */ "./src/v2/injectors/events.ts");
+/* harmony import */ var _state__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./state */ "./src/v2/injectors/state.ts");
+/* harmony import */ var _contextBudget__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./contextBudget */ "./src/v2/injectors/contextBudget.ts");
+/* harmony import */ var _utils_tokenCount__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../utils/tokenCount */ "./src/v2/utils/tokenCount.ts");
+/**
+ * Prompt Hook for Context-Aware Injection
+ *
+ * Hooks into SillyTavern's prompt events to inject chapter summaries,
+ * events, and state based on context budget.
+ *
+ * Supports both:
+ * - CHAT_COMPLETION_PROMPT_READY: For chat completion APIs (OpenAI, Claude, etc.)
+ * - GENERATE_BEFORE_COMBINE_PROMPTS: For text completion APIs (Kobold, TextGen, etc.)
+ */
+
+
+
+
+
+
+
+// Track if hooks are registered
+let chatCompletionHookRegistered = false;
+let textCompletionHookRegistered = false;
+// Bridge functions - set by registerBridgeFunctions to avoid circular dependency
+let bridgeFunctions = null;
+/**
+ * Register bridge functions from v2Bridge.
+ * Must be called before the prompt hook can function.
+ */
+function registerBridgeFunctions(functions) {
+    bridgeFunctions = functions;
+}
+/**
+ * Count tokens for all fixed content in text completion prompt.
+ * Fixed content is everything we can't remove - system prompts, world info, etc.
+ */
+async function countFixedContentTokens(eventData, tokenCounter) {
+    // All the fixed content pieces that exist regardless of our injection
+    const fixedPieces = [
+        eventData.storyString || '', // Character card, persona, scenario
+        eventData.mesExmString || '', // Example messages
+        eventData.worldInfoBefore || '', // World info before
+        eventData.worldInfoAfter || '', // World info after
+        eventData.beforeScenarioAnchor || '', // Anchor before scenario
+        eventData.afterScenarioAnchor || '', // Anchor after scenario
+        eventData.main || '', // Main/system prompt
+        eventData.jailbreak || '', // Jailbreak prompt
+        eventData.naiPreamble || '', // NAI preamble
+        eventData.generatedPromptCache || '', // Continuation prompt
+    ];
+    // Count tokens for each piece in parallel
+    const tokenCounts = await Promise.all(fixedPieces.map(piece => (piece ? tokenCounter.countTokens(piece) : Promise.resolve(0))));
+    return tokenCounts.reduce((sum, count) => sum + count, 0);
+}
+/**
+ * Count tokens for all fixed content in chat completion prompt.
+ * For chat completion, we count the system message and any non-chat messages.
+ */
+async function countChatFixedContentTokens(chatMessages, tokenCounter) {
+    let total = 0;
+    // Count system message tokens
+    for (const msg of chatMessages) {
+        if (msg.role === 'system') {
+            total += await tokenCounter.countTokens(msg.content);
+        }
+    }
+    return total;
+}
+/**
+ * Build injection options from V2 settings.
+ */
+function buildInjectOptions() {
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    return {
+        includeTime: settings.v2Track.time,
+        includeLocation: settings.v2Track.location,
+        includeClimate: settings.v2Track.climate,
+        includeCharacters: settings.v2Track.characters,
+        includeRelationships: settings.v2Track.relationships,
+        includeScene: settings.v2Track.scene,
+        // We handle chapters/events separately in the hook
+        includeChapters: false,
+        includeEvents: false,
+        maxChapters: settings.v2MaxRecentChapters,
+        maxEvents: settings.v2MaxRecentEvents,
+    };
+}
+/**
+ * Get the store and swipe context.
+ * Returns null if not available.
+ */
+function getStoreAndContext() {
+    // Bridge functions must be registered before use
+    if (!bridgeFunctions) {
+        return null;
+    }
+    try {
+        const store = bridgeFunctions.getV2EventStore();
+        if (!store || !bridgeFunctions.hasV2InitialSnapshot()) {
+            return null;
+        }
+        const stContext = SillyTavern.getContext();
+        const swipeContext = bridgeFunctions.buildSwipeContext(stContext);
+        return { store, swipeContext, stContext };
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * Check if BlazeTracker injection is enabled.
+ */
+function isEnabled() {
+    try {
+        const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+        return settings.v2AutoExtract;
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Get the available token budget for BlazeTracker injection.
+ * This is the total context minus response tokens and existing content.
+ */
+function getAvailableBudget(stContext) {
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    // Use user-configured budget if set, otherwise get from ST
+    if (settings.v2InjectionTokenBudget > 0) {
+        return settings.v2InjectionTokenBudget;
+    }
+    try {
+        // Get max context from ST - it's exposed as maxContext property
+        const contextWithApi = stContext;
+        if (typeof contextWithApi.maxContext === 'number' && contextWithApi.maxContext > 0) {
+            const maxContext = contextWithApi.maxContext;
+            // Reserve some space for response (estimate 500 tokens)
+            // and safety margin (64 tokens)
+            return Math.max(0, maxContext - 500 - 64);
+        }
+    }
+    catch {
+        // Fall through
+    }
+    // Default fallback: 4000 tokens
+    return 4000;
+}
+/**
+ * Build the "before messages" injection content from a context plan.
+ * This goes after the system prompt but before chat messages.
+ */
+function buildBeforeMessagesContentFromPlan(plan) {
+    const sections = [];
+    // 1. Past chapters (Story So Far)
+    if (plan.pastChapters.length > 0) {
+        const chaptersContent = (0,_chapters__WEBPACK_IMPORTED_MODULE_2__.formatPrecomputedChapters)(plan.pastChapters);
+        if (chaptersContent) {
+            sections.push(`[Story So Far]\n${chaptersContent}\n[/Story So Far]`);
+        }
+    }
+    // 2. Out-of-context events from current chapter
+    if (plan.currentChapterEvents.length > 0) {
+        const eventsContent = (0,_events__WEBPACK_IMPORTED_MODULE_3__.formatOutOfContextEvents)(plan.currentChapterEvents, plan.currentChapterEvents.length);
+        if (eventsContent) {
+            sections.push(`[Recent Events]\n${eventsContent}\n[/Recent Events]`);
+        }
+    }
+    return sections.join('\n\n');
+}
+/**
+ * Build the "after messages" injection content (current state).
+ * This goes after all chat messages.
+ */
+function buildAfterMessagesContent(store, swipeContext, projection) {
+    const injectOptions = buildInjectOptions();
+    return (0,_state__WEBPACK_IMPORTED_MODULE_4__.formatStateForInjection)(projection, store, swipeContext, injectOptions);
+}
+/**
+ * Map chat completion messages back to ST message indices.
+ * The chat array has system messages and other non-chat content mixed in.
+ * We need to figure out which messages in the chat array correspond to which ST messages.
+ */
+function findChatMessageRange(chatMessages) {
+    // Find first non-system message (usually user/assistant)
+    let startIndex = 0;
+    for (let i = 0; i < chatMessages.length; i++) {
+        if (chatMessages[i].role !== 'system') {
+            startIndex = i;
+            break;
+        }
+    }
+    return { startIndex, endIndex: chatMessages.length };
+}
+/**
+ * Handle the CHAT_COMPLETION_PROMPT_READY event.
+ * This is called when ST is about to send a prompt to the LLM.
+ */
+async function handlePromptReady(eventData) {
+    // Skip dry runs (token counting passes)
+    if (eventData.dryRun) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Skipping dry run in prompt hook');
+        return;
+    }
+    // Check if enabled
+    if (!isEnabled()) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('BlazeTracker injection disabled');
+        return;
+    }
+    // Get store and context
+    const storeAndContext = getStoreAndContext();
+    if (!storeAndContext) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No event store available for injection');
+        return;
+    }
+    const { store, swipeContext, stContext } = storeAndContext;
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    try {
+        // Get the chat messages
+        const chatMessages = eventData.chat;
+        // Get projection for the last message
+        const lastMessageId = stContext.chat.length - 1;
+        const projectionMessageId = lastMessageId - 1;
+        if (projectionMessageId < 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No messages to project from');
+            return;
+        }
+        let projection;
+        try {
+            projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
+        }
+        catch (e) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Failed to project state:', e);
+            return;
+        }
+        const tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_6__.getDefaultTokenCounter)();
+        // Get the raw max context budget
+        const maxBudget = getAvailableBudget(stContext);
+        // Count tokens for fixed content (system message)
+        const fixedContentTokens = await countChatFixedContentTokens(chatMessages, tokenCounter);
+        // The budget available for messages + our injection is max minus fixed content
+        const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
+        // Build state content to know its token cost
+        const stateContent = buildAfterMessagesContent(store, swipeContext, projection);
+        const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
+        // Estimate message tokens from ST's chat array
+        // Note: ST's chat array has messages in order, but may include system messages
+        const { startIndex: chatStartIndex } = findChatMessageRange(chatMessages);
+        const chatOnlyMessages = chatMessages.slice(chatStartIndex);
+        // Build message token map
+        const messageTokens = await (0,_contextBudget__WEBPACK_IMPORTED_MODULE_5__.estimateMessageTokens)(chatOnlyMessages.map(m => ({
+            mes: m.content,
+            extra: m.extra,
+        })), tokenCounter);
+        // Compute optimal context with available budget (after fixed content)
+        const plan = await (0,_contextBudget__WEBPACK_IMPORTED_MODULE_5__.computeOptimalContext)({
+            budget: availableBudget,
+            stateTokens,
+            messageTokens,
+            store,
+            swipeContext,
+            maxPastChapters: settings.v2MaxRecentChapters,
+            maxEvents: settings.v2MaxRecentEvents,
+            totalMessages: chatOnlyMessages.length,
+            tokenCounter,
+        });
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Context plan: firstMessage=${plan.firstMessageInContext}, ` +
+            `chapters=${plan.pastChapters.length}, events=${plan.currentChapterEvents.length}, ` +
+            `totalTokens=${plan.totalTokens}`);
+        // Build content from plan
+        const beforeContent = buildBeforeMessagesContentFromPlan(plan);
+        if (!beforeContent && !stateContent) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No injection content generated');
+            return;
+        }
+        // Remove messages that are before firstMessageInContext
+        if (plan.firstMessageInContext > 0) {
+            // Remove messages from the chat array
+            // We need to remove from chatStartIndex + firstMessageInContext
+            const messagesToRemove = plan.firstMessageInContext;
+            if (messagesToRemove > 0 && chatStartIndex + messagesToRemove < chatMessages.length) {
+                chatMessages.splice(chatStartIndex, messagesToRemove);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Removed ${messagesToRemove} messages to fit budget`);
+            }
+        }
+        // Find system message index (after potential message removal)
+        const systemMessageIndex = chatMessages.findIndex(m => m.role === 'system');
+        // Insert state before the last message if it's an assistant message (prefill/continuation)
+        // Otherwise insert at the end
+        if (stateContent) {
+            const lastMessage = chatMessages[chatMessages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+                // Prefill/continuation - insert before the assistant's partial response
+                chatMessages.splice(chatMessages.length - 1, 0, {
+                    role: 'user',
+                    content: stateContent,
+                });
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
+            }
+            else {
+                // Normal case - append at the end
+                chatMessages.push({
+                    role: 'user',
+                    content: stateContent,
+                });
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state at end of messages');
+            }
+        }
+        // Insert chapters/events after the system message
+        if (beforeContent) {
+            if (systemMessageIndex >= 0) {
+                // Insert new message after system
+                chatMessages.splice(systemMessageIndex + 1, 0, {
+                    role: 'user',
+                    content: beforeContent,
+                });
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker context after system message');
+            }
+            else {
+                // No system message - insert at beginning
+                chatMessages.unshift({
+                    role: 'user',
+                    content: beforeContent,
+                });
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker context at beginning');
+            }
+        }
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Error in chat completion prompt hook:', error);
+    }
+}
+/**
+ * Handle the GENERATE_BEFORE_COMBINE_PROMPTS event.
+ * This is called when ST is about to combine prompts for text completion APIs.
+ *
+ * Note: For text completion, we cannot easily remove messages since mesSendString
+ * is already a combined string. We compute the plan but may not be able to fully
+ * enforce the budget. ST's own trimming will handle overflow.
+ */
+async function handleTextCompletionPromptReady(eventData) {
+    // Skip dry runs (token counting passes)
+    if (eventData.dryRun) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Skipping dry run in text completion prompt hook');
+        return;
+    }
+    // Check if enabled
+    if (!isEnabled()) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('BlazeTracker injection disabled');
+        return;
+    }
+    // Get store and context
+    const storeAndContext = getStoreAndContext();
+    if (!storeAndContext) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No event store available for injection');
+        return;
+    }
+    const { store, swipeContext, stContext } = storeAndContext;
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    try {
+        // Validate finalMesSend is available
+        if (!eventData.finalMesSend || eventData.finalMesSend.length === 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No finalMesSend available for injection');
+            return;
+        }
+        // Get projection for the last message
+        const lastMessageId = stContext.chat.length - 1;
+        const projectionMessageId = lastMessageId - 1;
+        if (projectionMessageId < 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No messages to project from');
+            return;
+        }
+        let projection;
+        try {
+            projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
+        }
+        catch (e) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Failed to project state:', e);
+            return;
+        }
+        const tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_6__.getDefaultTokenCounter)();
+        // Get the raw max context budget
+        const maxBudget = getAvailableBudget(stContext);
+        // Count tokens for ALL fixed content that we can't remove
+        // These are all the prompt components that exist regardless of our injection
+        const fixedContentTokens = await countFixedContentTokens(eventData, tokenCounter);
+        // The budget available for messages + our injection is max minus fixed content
+        const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
+        // Build state content to know its token cost
+        const stateContent = buildAfterMessagesContent(store, swipeContext, projection);
+        const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
+        // Count tokens for each message in finalMesSend
+        // Each entry has: { message: string, extensionPrompts: string[] }
+        const messageTokens = new Map();
+        for (let i = 0; i < eventData.finalMesSend.length; i++) {
+            const entry = eventData.finalMesSend[i];
+            // Count both the message and any existing extension prompts
+            const fullContent = entry.extensionPrompts.join('') + entry.message;
+            const tokens = await tokenCounter.countTokens(fullContent);
+            messageTokens.set(i, tokens);
+        }
+        // Compute optimal context with proper per-message token counts
+        // Note: stateTokens is passed separately, and beforeContent tokens
+        // are calculated inside computeOptimalContext as part of chapters/events
+        const plan = await (0,_contextBudget__WEBPACK_IMPORTED_MODULE_5__.computeOptimalContext)({
+            budget: availableBudget,
+            stateTokens,
+            messageTokens,
+            store,
+            swipeContext,
+            maxPastChapters: settings.v2MaxRecentChapters,
+            maxEvents: settings.v2MaxRecentEvents,
+            totalMessages: eventData.finalMesSend.length,
+            tokenCounter,
+        });
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Text completion context plan: firstMessage=${plan.firstMessageInContext}, ` +
+            `chapters=${plan.pastChapters.length}, events=${plan.currentChapterEvents.length}, ` +
+            `totalTokens=${plan.totalTokens}`);
+        // Remove messages that are before firstMessageInContext
+        if (plan.firstMessageInContext > 0) {
+            const messagesToRemove = plan.firstMessageInContext;
+            if (messagesToRemove < eventData.finalMesSend.length) {
+                eventData.finalMesSend.splice(0, messagesToRemove);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Removed ${messagesToRemove} old messages from finalMesSend to fit budget`);
+            }
+        }
+        // Build content from plan
+        const beforeContent = buildBeforeMessagesContentFromPlan(plan);
+        if (!beforeContent && !stateContent) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No injection content generated');
+            return;
+        }
+        // Check if we still have messages after removal
+        if (eventData.finalMesSend.length === 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('All messages removed - cannot inject');
+            return;
+        }
+        // For text completion, we MUST modify finalMesSend, not mesSendString!
+        // The combine() function rebuilds mesSendString from finalMesSend, ignoring
+        // any direct modifications to mesSendString.
+        //
+        // finalMesSend structure: Array<{message: string, extensionPrompts: string[]}>
+        // combine() does: finalMesSend.map(e => `${e.extensionPrompts.join('')}${e.message}`).join('')
+        // Prepend chapters/events BEFORE all messages
+        // We add to the first message's extensionPrompts array
+        if (beforeContent) {
+            const firstMessage = eventData.finalMesSend[0];
+            if (!firstMessage.extensionPrompts) {
+                firstMessage.extensionPrompts = [];
+            }
+            // Add our content at the START of extension prompts (before other extensions)
+            firstMessage.extensionPrompts.unshift(beforeContent + '\n\n');
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker context before messages via finalMesSend');
+        }
+        // Append state AFTER all messages (or before assistant prefill in continuation mode)
+        if (stateContent) {
+            const lastChatMessage = stContext.chat[stContext.chat.length - 1];
+            const isContinuation = lastChatMessage && !lastChatMessage.is_user;
+            if (isContinuation && eventData.finalMesSend.length > 1) {
+                // Continuation mode: append state to second-to-last message
+                // (the last one is the assistant's prefill)
+                const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length - 2];
+                targetMessage.message = targetMessage.message + '\n\n' + stateContent;
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
+            }
+            else {
+                // Normal mode OR only one message: append to last message
+                const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length - 1];
+                lastMessage.message = lastMessage.message + '\n\n' + stateContent;
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state after messages');
+            }
+        }
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Error in text completion prompt hook:', error);
+    }
+}
+/**
+ * Register the prompt hooks with SillyTavern.
+ * Should be called once during extension initialization.
+ *
+ * Registers handlers for both:
+ * - CHAT_COMPLETION_PROMPT_READY: Chat completion APIs (OpenAI, Claude, etc.)
+ * - GENERATE_BEFORE_COMBINE_PROMPTS: Text completion APIs (Kobold, TextGen, etc.)
+ */
+function registerPromptHook() {
+    const context = SillyTavern.getContext();
+    const eventTypes = context.event_types;
+    // Register chat completion hook if available
+    if (!chatCompletionHookRegistered && eventTypes.CHAT_COMPLETION_PROMPT_READY) {
+        context.eventSource.on(eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
+        chatCompletionHookRegistered = true;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Registered CHAT_COMPLETION_PROMPT_READY hook');
+    }
+    // Register text completion hook if available
+    if (!textCompletionHookRegistered && eventTypes.GENERATE_BEFORE_COMBINE_PROMPTS) {
+        context.eventSource.on(eventTypes.GENERATE_BEFORE_COMBINE_PROMPTS, handleTextCompletionPromptReady);
+        textCompletionHookRegistered = true;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Registered GENERATE_BEFORE_COMBINE_PROMPTS hook');
+    }
+    if (!chatCompletionHookRegistered && !textCompletionHookRegistered) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No prompt hooks available - injection will not work');
+    }
+}
+/**
+ * Unregister the prompt hooks.
+ */
+function unregisterPromptHook() {
+    const context = SillyTavern.getContext();
+    const eventTypes = context.event_types;
+    // Unregister chat completion hook
+    if (chatCompletionHookRegistered && eventTypes.CHAT_COMPLETION_PROMPT_READY) {
+        context.eventSource.off(eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
+        chatCompletionHookRegistered = false;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Unregistered CHAT_COMPLETION_PROMPT_READY hook');
+    }
+    // Unregister text completion hook
+    if (textCompletionHookRegistered && eventTypes.GENERATE_BEFORE_COMBINE_PROMPTS) {
+        context.eventSource.off(eventTypes.GENERATE_BEFORE_COMBINE_PROMPTS, handleTextCompletionPromptReady);
+        textCompletionHookRegistered = false;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Unregistered GENERATE_BEFORE_COMBINE_PROMPTS hook');
+    }
+}
+/**
+ * Check if any prompt hook is available on this version of ST.
+ */
+function isPromptHookAvailable() {
+    try {
+        const context = SillyTavern.getContext();
+        const eventTypes = context.event_types;
+        return !!(eventTypes.CHAT_COMPLETION_PROMPT_READY ||
+            eventTypes.GENERATE_BEFORE_COMBINE_PROMPTS);
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Check if prompt hooks are currently registered.
+ */
+function isPromptHookRegistered() {
+    return chatCompletionHookRegistered || textCompletionHookRegistered;
+}
+/**
+ * Get info about which hooks are registered.
+ */
+function getRegisteredHooks() {
+    return {
+        chatCompletion: chatCompletionHookRegistered,
+        textCompletion: textCompletionHookRegistered,
+    };
+}
 
 
 /***/ },
@@ -124596,6 +125727,134 @@ OUTPUT:
   "added": ["knows he meets secretly with House Blackwood agents", "has confirmed evidence of his treasonous contacts"],
   "removed": ["suspects he has hidden loyalties"]
 }
+
+### Example 13: Told In Scene - Secrets Removed For BOTH Parties
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Maya toward Ryan: secrets: has been secretly job hunting, plans to quit next month
+Ryan toward Maya: secrets: discovered her job applications on shared computer
+---
+Maya: *Takes a deep breath.* "Ryan, I need to tell you something. I've been looking for a new job. I'm planning to leave the company next month."
+
+Ryan: "Actually... I already knew. I saw your applications on the computer last week. I didn't know how to bring it up."
+
+Maya: *Surprised.* "You knew? Why didn't you say anything?"
+"""
+OUTPUT:
+{
+  "reasoning": "Maya confessed her job hunting and plans to quit - these are no longer secrets she's keeping from Ryan. Ryan then revealed he already knew - so his secret knowledge is also no longer secret. Both parties have now openly discussed this information, so neither holds it as a secret anymore.",
+  "changes": [
+    {
+      "fromCharacter": "Maya",
+      "towardCharacter": "Ryan",
+      "added": [],
+      "removed": ["has been secretly job hunting", "plans to quit next month"]
+    },
+    {
+      "fromCharacter": "Ryan",
+      "towardCharacter": "Maya",
+      "added": [],
+      "removed": ["discovered her job applications on shared computer"]
+    }
+  ]
+}
+
+### Example 14: Information Shared Openly Is NOT a Secret For Listener
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Alex toward Jordan: secrets: none
+Jordan toward Alex: secrets: none
+---
+Alex: "I should tell you - I have a lot of debt. Like, a lot. Student loans, credit cards, the whole mess. I wanted you to know before things got more serious between us."
+
+Jordan: *Reaches for his hand.* "Thank you for telling me. That took courage."
+"""
+OUTPUT:
+{
+  "reasoning": "Alex openly shared his financial situation with Jordan. This is NOT a secret Jordan now holds - it was willingly disclosed in direct conversation. Secrets are information discovered covertly or hidden from someone. Jordan simply learned something through normal communication. No secrets were added or removed for either party.",
+  "changes": [
+    {
+      "fromCharacter": "Alex",
+      "towardCharacter": "Jordan",
+      "added": [],
+      "removed": []
+    },
+    {
+      "fromCharacter": "Jordan",
+      "towardCharacter": "Alex",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+
+### Example 15: Previous Secret Knowledge Becomes Open Knowledge
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Detective toward suspect: secrets: knows about his second phone from surveillance
+Suspect toward Detective: secrets: none
+---
+Detective: "We know about the burner phone, Mr. Harris. The one you keep in your gym locker."
+
+Suspect: *His face pales.* "How did you—"
+
+Detective: "We've been watching you for weeks."
+"""
+OUTPUT:
+{
+  "reasoning": "The detective revealed that she knows about the suspect's second phone. This is no longer secret knowledge - she's openly told him she knows. The suspect is now aware of what the detective knows, so it's not hidden information anymore.",
+  "changes": [
+    {
+      "fromCharacter": "Detective",
+      "towardCharacter": "suspect",
+      "added": [],
+      "removed": ["knows about his second phone from surveillance"]
+    },
+    {
+      "fromCharacter": "suspect",
+      "towardCharacter": "Detective",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+
+### Example 16: Mutual Confession - All Secrets Cleared
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Emma toward Lucas: secrets: knows he's been seeing a therapist, found his appointment card
+Lucas toward Emma: secrets: knows she's been struggling with anxiety, overheard her phone call with her doctor
+---
+Lucas: "Em, I need to be honest. I've been seeing a therapist. I should have told you sooner."
+
+Emma: "Oh Lucas... I actually already knew. I found your appointment card months ago. And I should tell you - I've been dealing with anxiety. I've been talking to my doctor about it."
+
+Lucas: "I know. I overheard your call. I didn't want to pry, so I never mentioned it."
+
+Emma: *Laughs tearfully.* "We're both terrible at secrets, aren't we?"
+"""
+OUTPUT:
+{
+  "reasoning": "Both characters confessed what they were hiding AND revealed they already knew the other's secret. Lucas told Emma about therapy (removing his need to hide it), Emma revealed she already knew (her secret knowledge is now open). Emma told Lucas about her anxiety (removing her need to hide it), Lucas revealed he already knew (his secret knowledge is now open). All secrets are now openly discussed between them.",
+  "changes": [
+    {
+      "fromCharacter": "Emma",
+      "towardCharacter": "Lucas",
+      "added": [],
+      "removed": ["knows he's been seeing a therapist", "found his appointment card"]
+    },
+    {
+      "fromCharacter": "Lucas",
+      "towardCharacter": "Emma",
+      "added": [],
+      "removed": ["knows she's been struggling with anxiety", "overheard her phone call with her doctor"]
+    }
+  ]
+}
 `;
 const BAD_EXAMPLES = `
 ## Bad Examples (What NOT to do)
@@ -124824,6 +126083,201 @@ WRONG OUTPUT:
   "removed": []
 }
 WHY THIS IS WRONG: Observable facts like someone looking tired aren't secrets. Secrets are hidden information - things a character wouldn't want others to know or that aren't publicly apparent. Dark circles are visible to anyone.
+
+### Bad Example 13: Treating Openly Shared Information as a Secret
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Tom toward Sarah: secrets: none
+Sarah toward Tom: secrets: none
+---
+Sarah: "I should be honest with you, Tom. I was married before. It ended badly - he was abusive. I left him three years ago."
+
+Tom: *Takes her hand gently.* "Thank you for trusting me with that."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Tom now knows about Sarah's past marriage.",
+  "changes": [
+    {
+      "fromCharacter": "Tom",
+      "towardCharacter": "Sarah",
+      "added": ["knows she was previously married", "knows her ex was abusive"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Sarah TOLD Tom this information directly and voluntarily. This is not secret knowledge Tom holds about Sarah - it's information she openly shared with him. Secrets are things discovered covertly or that someone doesn't know you know. Tom knowing about her past is just normal knowledge gained through conversation, not a secret.
+
+### Bad Example 14: Not Removing Listener's Secret When It Was Openly Discussed
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Mark toward Jenny: secrets: none
+Jenny toward Mark: secrets: discovered he's planning a surprise party for her, saw the guest list
+---
+Mark: "Okay, I can't keep this in anymore. I'm planning a surprise birthday party for you! I've invited everyone!"
+
+Jenny: *Laughs.* "I know! I accidentally saw the guest list last week. I've been pretending to be surprised."
+
+Mark: "You knew?! This whole time?"
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Mark revealed the party plans.",
+  "changes": [
+    {
+      "fromCharacter": "Mark",
+      "towardCharacter": "Jenny",
+      "added": [],
+      "removed": []
+    },
+    {
+      "fromCharacter": "Jenny",
+      "towardCharacter": "Mark",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Jenny's secret knowledge should be REMOVED. She revealed that she already knew about the party - Mark now knows that she knew. Her secret "discovered he's planning a surprise party" is no longer secret because she told him she knew. The correct output would remove both secrets from Jenny toward Mark.
+
+### Bad Example 15: Adding Secrets For Information Told Directly
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Lisa toward Mike: secrets: none
+Mike toward Lisa: secrets: none
+---
+Lisa: "Mike, I need to tell you something. I'm pregnant. It's yours."
+
+Mike: *Stunned silence, then tears.* "We're... we're going to be parents?"
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Mike learned Lisa is pregnant.",
+  "changes": [
+    {
+      "fromCharacter": "Mike",
+      "towardCharacter": "Lisa",
+      "added": ["knows she's pregnant", "knows he's the father"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Lisa TOLD Mike directly. This is not secret knowledge Mike holds - it's information she chose to share with him openly. You cannot add secrets for things someone was directly told. The correct output would have no changes for either direction.
+
+### Bad Example 16: Not Removing Secret After Confrontation
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Rachel toward David: secrets: knows he's been lying about working late, tracked his phone to a bar
+David toward Rachel: secrets: none
+---
+Rachel: "I know you haven't been working late, David. I tracked your phone. You've been at O'Malley's Bar every Thursday."
+
+David: *His face drains of color.* "Rachel, I can explain—"
+
+Rachel: "Can you? Because I've been waiting for an explanation for weeks."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Rachel confronted David but still holds the secret knowledge.",
+  "changes": [
+    {
+      "fromCharacter": "Rachel",
+      "towardCharacter": "David",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Rachel REVEALED her secret knowledge to David. He now knows that she knows. This is no longer secret information - it's been openly confronted. The secrets "knows he's been lying about working late" and "tracked his phone to a bar" should be REMOVED because David is now fully aware she has this knowledge.
+
+### Bad Example 17: Keeping Secrets After Mutual Disclosure
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Anna toward Ben: secrets: found his journal, knows he's in love with her
+Ben toward Anna: secrets: overheard her tell friend she has feelings for him
+---
+Anna: "Ben, I read your journal. I know how you feel about me."
+
+Ben: "And I overheard you talking to Claire last week. I know you feel the same way."
+
+Anna: *Blushes.* "So we've both been keeping secrets..."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They both revealed what they knew.",
+  "changes": [
+    {
+      "fromCharacter": "Anna",
+      "towardCharacter": "Ben",
+      "added": [],
+      "removed": ["found his journal"]
+    },
+    {
+      "fromCharacter": "Ben",
+      "towardCharacter": "Anna",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: BOTH secrets should be fully removed from BOTH directions. Anna told Ben she read his journal and knows his feelings - remove ALL her secrets. Ben told Anna he overheard her - remove ALL his secrets. The output only partially removed secrets and missed Ben's entirely. When something is openly discussed, it's no longer a secret for either party.
+
+### Bad Example 18: Treating Basic Facts as Secrets
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Marcus toward Opal: secrets: none
+---
+Opal: *The unicorn trots into the tavern, her pearlescent horn catching the firelight.* "Hello there! I'm Opal. I grew up by the Sapphire Coast - nothing like these inland towns."
+
+Marcus: "Welcome to the Silver Stallion. What brings you so far from the sea?"
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Marcus learned several things about Opal.",
+  "changes": [
+    {
+      "fromCharacter": "Marcus",
+      "towardCharacter": "Opal",
+      "added": ["knows she is a unicorn", "knows she is called Opal", "knows she is from the seaside"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: None of these are secrets!
+- "knows she is a unicorn" - He can literally SEE she's a unicorn. Observable facts are not secrets.
+- "knows she is called Opal" - She INTRODUCED HERSELF. She knows he knows her name. Not a secret.
+- "knows she is from the seaside" - She TOLD HIM this directly. Information shared in conversation is not a secret.
+The correct output has NO secrets added. These are all just normal information learned through observation and conversation.
+
+### Bad Example 19: Treating Self-Introductions as Secrets
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Elena toward new coworker: secrets: none
+---
+New coworker: "Hi, I'm James. I just transferred from the Chicago office. I'm the new project manager for the Henderson account. I've been with the company for about five years."
+
+Elena: "Nice to meet you! I'm Elena, I handle client relations."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Elena learned about James's background.",
+  "changes": [
+    {
+      "fromCharacter": "Elena",
+      "towardCharacter": "new coworker",
+      "added": ["knows his name is James", "knows he transferred from Chicago", "knows he's the project manager", "knows he's been with the company five years"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: James TOLD her all of this! He introduced himself and shared his background willingly. Would James be shocked that Elena knows his name after he said "I'm James"? Of course not. None of this is secret - it's a normal workplace introduction. The correct output has NO changes.
 `;
 const secretsChangePrompt = {
     name: 'secrets_change',
@@ -124850,19 +126304,68 @@ Respond with a JSON object containing:
 
 IMPORTANT: You must analyze BOTH directions of the relationship and include both in the changes array. If no changes occurred in a direction, include it with empty added/removed arrays.
 
-## What Counts as Secrets
-Secrets are hidden knowledge one character possesses about another:
-- Information discovered without the other's knowledge (overheard conversations, found documents, witnessed events)
-- Knowledge the other person is actively hiding (affairs, crimes, secret identities)
-- Private information not yet shared (feelings, plans, past events)
-- Suspicions or evidence gathered covertly
+## CRITICAL: What IS and IS NOT a Secret
+
+### A SECRET requires ALL of these conditions:
+1. The information was obtained COVERTLY (the other person doesn't know you have it)
+2. The other person would be surprised/affected to learn you know this
+3. You are actively concealing that you have this knowledge
+
+### Ways to OBTAIN a secret (covert discovery):
+- Overheard a private conversation (they didn't know you were listening)
+- Found documents/evidence (they didn't know you saw them)
+- Witnessed something secretly (they didn't know you were watching)
+- A third party told you something they're hiding (they don't know you were told)
+- Discovered through investigation (they don't know you found out)
+
+### What is NOT a secret (just ordinary knowledge):
+- ANYTHING someone tells you directly in conversation - this is just information, not a secret
+- Information shared openly between characters - both parties know
+- Observable facts anyone can see - not hidden
+- Public information or records - not concealed
+- Things you learned because someone chose to share them with you
+
+### NEVER add these as secrets - they are NEVER secrets:
+- Someone's NAME (they introduced themselves - they know you know their name!)
+- Someone's SPECIES/RACE (you can see what they are - a unicorn, an elf, a human)
+- Someone's APPEARANCE (hair color, eye color, height - these are visible)
+- Where they're FROM if they mentioned it (they told you, so they know you know)
+- Their JOB/OCCUPATION if they mentioned it (they told you)
+- Their AGE if they mentioned it (they told you)
+- ANYTHING about them that is visually obvious or that they introduced themselves with
+- Basic biographical facts shared in normal conversation
+
+Ask yourself: "Would this person be SHOCKED to learn I know this?"
+- If someone told you their name, they would NOT be shocked you know it.
+- If you can see someone is a unicorn, they would NOT be shocked you noticed.
+- If someone mentioned they're from the seaside, they would NOT be shocked you remember.
+
+### The key test: "Does the other person know that I know this?"
+- If YES → Not a secret (it's openly shared knowledge)
+- If NO → Could be a secret (if discovered covertly)
 
 ## When Secrets Are Removed
-Secrets should be removed when:
-- The secret is openly revealed or confessed
-- The other person learns that this character knows
-- The information becomes public knowledge
-- The secret is directly discussed between the characters
+Remove secrets when:
+- You TELL them what you know (they now know you know)
+- They TELL you directly (it's no longer hidden - just shared knowledge)
+- You confront them about it (you've revealed your knowledge)
+- It becomes openly discussed between you
+
+## CRITICAL: Told In Scene = NOT A SECRET
+
+**If A tells B something in the scene:**
+- This is NOT a secret B holds about A
+- B simply learned information through normal conversation
+- Only add secrets for COVERT discovery, never for direct disclosure
+
+**If A reveals they know something about B:**
+- REMOVE A's secret (B now knows A knows)
+- The information is no longer hidden
+
+**If B already had secret knowledge and A tells B the same thing:**
+- REMOVE B's secret (it's now openly shared, not covertly held)
+
+NEVER add a secret for information that was directly communicated in conversation. Secrets require the other person to be UNAWARE you have the information.
 
 ## Key Guidelines
 - Secrets are DIRECTIONAL: Character A's secrets about B are different from B's secrets about A
@@ -126367,6 +127870,111 @@ WRONG OUTPUT:
   ]
 }
 WHY THIS IS WRONG: Not liking your job isn't a secret - it's a common, mild complaint. 'secret_shared' is for genuine secrets: hidden pasts, undisclosed feelings, concealed information. Job dissatisfaction doesn't qualify.
+
+### Bad Example 12: Talking About Kissing Is NOT Kissing
+INPUT:
+"""
+Marcus: *Gazes into her eyes.* "I really want to kiss you right now."
+
+Elena: *Blushes, heart racing.* "I... I'd like that."
+
+Marcus: *Smiles.* "Maybe later, when we're alone."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They discussed kissing romantically.",
+  "subjects": [
+    {
+      "pair": ["Elena", "Marcus"],
+      "subject": "intimate_kiss"
+    }
+  ]
+}
+WHY THIS IS WRONG: They TALKED about wanting to kiss. They did NOT actually kiss. "I want to kiss you" is expressing desire, not performing the action. This might be 'flirt' but it's definitely not 'intimate_kiss'. No kiss occurred.
+
+### Bad Example 13: Leaning In Is NOT Kissing
+INPUT:
+"""
+Alex: *Leans in close, lips inches from Jordan's.*
+
+Jordan: *Closes eyes expectantly.*
+
+*The door bursts open and they spring apart.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They almost kissed.",
+  "subjects": [
+    {
+      "pair": ["Alex", "Jordan"],
+      "subject": "intimate_kiss"
+    }
+  ]
+}
+WHY THIS IS WRONG: They ALMOST kissed but were interrupted. Almost doing something is NOT doing it. No kiss actually occurred. The correct output would have no intimate_kiss subject (though 'flirt' might apply).
+
+### Bad Example 14: Suggesting Intimacy Is NOT The Intimacy
+INPUT:
+"""
+Elena: *Tugs his hand toward the bedroom.* "Want to continue this somewhere more comfortable?"
+
+Marcus: *Grins.* "Lead the way."
+
+*They head toward the bedroom, the door closing behind them.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're going to have sex.",
+  "subjects": [
+    {
+      "pair": ["Elena", "Marcus"],
+      "subject": "intimate_penetrative"
+    }
+  ]
+}
+WHY THIS IS WRONG: They went to the bedroom. That's it. The scene ends with a closed door. We don't see what happens next. Suggesting or implying that sex might happen is NOT sex happening. The scene might warrant 'flirt' or nothing at all, but NOT 'intimate_penetrative' since no sexual activity was shown.
+
+### Bad Example 15: Describing Desire Is NOT The Action
+INPUT:
+"""
+Marcus: *His eyes travel down her form.* "God, I want to tear that dress off you."
+
+Elena: *Shivers at his words.* "Such promises..."
+
+Marcus: "Oh, I always keep my promises." *Steps closer.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Marcus wants to undress her, showing sexual intent.",
+  "subjects": [
+    {
+      "pair": ["Elena", "Marcus"],
+      "subject": "intimate_foreplay"
+    }
+  ]
+}
+WHY THIS IS WRONG: Marcus SAID he wants to undress her. He did NOT actually undress her. Words expressing desire are not actions. This is 'flirt' (maybe intense flirt), but NOT 'intimate_foreplay' because no undressing or foreplay actually occurred.
+
+### Bad Example 16: Discussing Past Intimacy Is NOT Current Intimacy
+INPUT:
+"""
+Lily: "Remember last night? That was... wow."
+
+Jake: *Grins.* "Best night of my life. Can't stop thinking about it."
+
+Lily: "Me neither." *Blushes.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're discussing their sexual encounter.",
+  "subjects": [
+    {
+      "pair": ["Jake", "Lily"],
+      "subject": "intimate_penetrative"
+    }
+  ]
+}
+WHY THIS IS WRONG: They're talking about PAST intimacy, not engaging in CURRENT intimacy. The intimate_penetrative happened last night, not in this scene. This scene is just conversation/reminiscing. Only extract subjects for what happens IN the current messages.
 `;
 const subjectsPrompt = {
     name: 'subjects',
@@ -126472,6 +128080,25 @@ Respond with a JSON object containing:
 - Don't add trivial interactions - subjects should be significant
 - One scene can have multiple subjects if warranted
 - Empty subjects array is valid if nothing significant occurred
+
+## CRITICAL: Talking About ≠ Doing
+TALKING about an action is NOT the same as DOING the action:
+- Talking about kissing is NOT a kiss
+- Talking about sex is NOT sex
+- Describing wanting to undress someone is NOT intimate_foreplay
+- Saying "I want to kiss you" is NOT intimate_kiss (it might be flirt or confession)
+- Leaning in as if to kiss, but not kissing, is NOT a kiss
+- Describing past intimacy is NOT current intimacy
+
+The subject must ACTUALLY OCCUR in the scene, not just be discussed, anticipated, or almost happen.
+
+Examples of what IS vs IS NOT the subject:
+- "She kissed him" → IS intimate_kiss
+- "She wanted to kiss him" → IS NOT intimate_kiss (maybe flirt)
+- "He undressed her slowly" → IS intimate_foreplay
+- "He thought about undressing her" → IS NOT intimate_foreplay
+- "They made love all night" → IS intimate_penetrative
+- "She suggested they go to the bedroom" → IS NOT intimate_penetrative (might happen next, but hasn't yet)
 
 ${GOOD_EXAMPLES}
 
@@ -127801,6 +129428,67 @@ OUTPUT:
   "reasoning": "Despite the suggestion to take a break and the moment of self-awareness, the scene remains firmly anchored in wedding planning stress. Priya's anxiety about the invitations, the family expectations, the pressure for perfection - all still present. Jin's suggestion doesn't actually change the topic (they don't take the break) and Priya's brief moment of clarity doesn't shift the overall anxious tone. The scene continues in the same emotional space.",
   "changed": false
 }
+
+### Example 6: Emotional Shift Within Same Topic - Anger to Vulnerability
+INPUT:
+Previous Topic: confrontation about lies
+Previous Tone: furious and accusatory
+Messages:
+"""
+Marcus: *His shouting dies in his throat as he sees her flinch.* "I..." *He runs a hand through his hair, suddenly deflated.* "I don't even know why I'm yelling. It won't change anything."
+
+Elena: *Quietly.* "No. It won't."
+
+Marcus: *Sinks into a chair, all the fight gone out of him.* "I'm just so tired, Elena. Tired of being angry. Tired of not trusting. Tired of... this." *His voice breaks.* "I miss when things were simple between us."
+"""
+OUTPUT:
+{
+  "reasoning": "The topic remains the confrontation/lies - they haven't moved on to a new subject. But the emotional tone has completely transformed. Marcus's fury has 'died in his throat,' he's 'suddenly deflated,' 'all the fight gone out of him,' his voice 'breaks.' The scene has shifted from angry accusation to exhausted vulnerability. Same topic, very different emotional register.",
+  "changed": true,
+  "newTone": "exhausted and vulnerable"
+}
+
+### Example 7: Crisis Resolving - Panic to Relief
+INPUT:
+Previous Topic: medical emergency
+Previous Tone: panicked and desperate
+Messages:
+"""
+Doctor: *Removes her gloves, shoulders relaxing.* "He's stable. The surgery went well."
+
+Sarah: *Collapses into the waiting room chair, hand over her mouth.* "Oh thank god. Thank god."
+
+Marcus: *Puts an arm around her, his own hands still shaking.* "He's okay. He's going to be okay."
+
+Sarah: *Laughs weakly through tears.* "I think I aged ten years in the last three hours."
+"""
+OUTPUT:
+{
+  "reasoning": "The topic is still the medical emergency/Marcus's condition, but the tone has fundamentally shifted. The crisis point has passed - the doctor says he's stable, Sarah collapses in relief, there's weak laughter through tears. This is no longer 'panicked and desperate' - the panic has given way to shaky relief and emotional release.",
+  "changed": true,
+  "newTone": "relieved and shaky"
+}
+
+### Example 8: Argument De-escalating to Understanding
+INPUT:
+Previous Topic: disagreement about moving
+Previous Tone: frustrated and defensive
+Messages:
+"""
+Lily: *Stops mid-sentence, really looking at Jake for the first time.* "Wait. You're not just being stubborn, are you? You're actually scared."
+
+Jake: *Looks away.* "It's the only home I've ever known, Lily. Everyone I love is here. What if we get there and... and it's a mistake?"
+
+Lily: *Her frustration melts.* "Oh, Jake." *She takes his hand.* "Why didn't you just say that? I thought you didn't care about my career."
+
+Jake: "I care about your career. I just also care about not losing everything familiar."
+"""
+OUTPUT:
+{
+  "reasoning": "Still discussing the move, but the dynamic has transformed. Lily's frustration 'melts,' they're holding hands, Jake is admitting his real fears instead of being defensive. They've moved from arguing AT each other to understanding each other. The tone shifts from 'frustrated and defensive' to something more connected and honest.",
+  "changed": true,
+  "newTone": "vulnerable and understanding"
+}
 `;
 const BAD_EXAMPLES = `
 ## Bad Examples (What NOT to do)
@@ -127878,6 +129566,69 @@ WRONG OUTPUT:
   "newTone": "confident"
 }
 WHY THIS IS WRONG: The reasoning correctly identifies nervousness, but the output claims the tone is "confident" - contradicting the analysis. Self-encouragement before a nervous moment doesn't mean the nervousness has been replaced with confidence. The scene remains "first day at new job" with a "nervous and eager" tone.
+
+### Bad Example 6: Missing Emotional Shift Within Same Topic
+INPUT:
+Previous Topic: heated argument about betrayal
+Previous Tone: angry and accusatory
+Messages:
+"""
+Sarah: *Her voice cracks, the anger draining away as quickly as it came.* "I just... I trusted you. I trusted you completely." *She sinks onto the couch, suddenly looking exhausted.* "I don't even have the energy to be angry anymore. I'm just... sad. So deeply sad."
+
+Marcus: *He takes a tentative step toward her.* "Sarah..."
+
+Sarah: *Doesn't look up, voice hollow.* "Don't. Just... don't. I need a minute."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're still discussing the betrayal.",
+  "changed": false
+}
+WHY THIS IS WRONG: Yes, the TOPIC is still the betrayal. But the TONE has completely shifted. Sarah explicitly says her anger drained away and she's "just sad" now. She's exhausted, hollow, deflated - this is NOT "angry and accusatory" anymore. The tone should change to something like "defeated and grieving" or "hollow sadness." Same topic, different emotional register.
+
+### Bad Example 7: Keeping Stale Tone After Resolution
+INPUT:
+Previous Topic: tense standoff
+Previous Tone: hostile and threatening
+Messages:
+"""
+Detective: *She slowly holsters her weapon, hands visible.* "Okay. Okay, you win. I'm listening."
+
+Marcus: *The knife wavers, then lowers.* "I didn't want any of this. I just wanted someone to hear me."
+
+Detective: *Sits down slowly, deliberately non-threatening.* "I'm hearing you now. Tell me what happened."
+
+Marcus: *His shoulders sag, tears starting.* "It was supposed to be a simple job..."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Still a standoff situation.",
+  "changed": false
+}
+WHY THIS IS WRONG: The standoff has DE-ESCALATED. Weapons are holstered/lowered, the detective is deliberately non-threatening, Marcus is crying and opening up. This is no longer "hostile and threatening" - it's become something like "cautious vulnerability" or "tentative trust." The confrontational energy is gone.
+
+### Bad Example 8: Ignoring Mood Break
+INPUT:
+Previous Topic: serious relationship talk
+Previous Tone: heavy and emotional
+Messages:
+"""
+Emma: *Wipes her eyes, then suddenly snorts.* "God, look at us. Two grown adults crying into our wine like teenagers."
+
+David: *A surprised laugh escapes him.* "To be fair, this is pretty good wine."
+
+Emma: *Giggles despite herself.* "Oh my god, stop. I'm trying to have a serious emotional moment here."
+
+David: "You're the one who made the wine joke!"
+
+*They're both laughing now, the heavy atmosphere cracking.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're still having their relationship discussion.",
+  "changed": false
+}
+WHY THIS IS WRONG: The text literally says "the heavy atmosphere cracking." They've transitioned from crying to laughing. The mood has broken. This is now "lightened relief" or "cathartic humor" - NOT "heavy and emotional" anymore. When the narrative explicitly tells you the atmosphere has changed, believe it.
 
 ### Bad Example 5: Ignoring Clear Signals of Change
 INPUT:
@@ -127960,11 +129711,39 @@ Respond with a JSON object containing:
 - Describe feeling, not physical conditions
 
 ## Important Rules
-- Only report change if the shift is significant and sustained
 - Deflection attempts that fail don't count as changes
 - Physical setting changes don't automatically mean topic/tone change
 - Reasoning must thoroughly support your determination
 - When only topic OR only tone changes, only include that field
+
+## CRITICAL: Detect Emotional Shifts Within The Same Topic
+The TONE can change even when the TOPIC stays the same. Watch for emotional evolution:
+
+**Example: An argument that evolves:**
+- "angry argument" → still arguing, but now one person is crying → "vulnerable argument"
+- "heated confrontation" → one person deflates, gives up → "defeated resignation"
+- "tense negotiation" → they reach understanding → "cautious reconciliation"
+
+**Example: A romantic scene that shifts:**
+- "playful flirting" → things get serious → "earnest confession"
+- "passionate intimacy" → afterwards, lying together → "tender afterglow"
+- "nervous first date" → they relax, laugh together → "comfortable connection"
+
+**Example: A crisis that evolves:**
+- "panicked emergency" → immediate danger passes → "shaky relief"
+- "desperate escape" → they reach safety → "exhausted reprieve"
+- "angry blame" → reality sinks in → "grieving acceptance"
+
+If the FEELING of the scene has shifted - even if they're still technically doing the same thing - that's a tone change. Report it.
+
+**Signs the tone has shifted (even if topic hasn't):**
+- Characters' emotional state has changed (angry → sad, tense → relieved)
+- The energy level has shifted (frantic → calm, playful → serious)
+- Body language/actions indicate different feelings than before
+- The conflict/tension has resolved, escalated, or transformed
+- What started one way has become something else emotionally
+
+**Err toward detecting change, not toward staleness.** If the emotional quality feels different from the previous tone, it probably is.
 
 ${GOOD_EXAMPLES}
 
@@ -135510,24 +137289,74 @@ function validatePlaceholders(template, documented) {
     const documentedSet = new Set(documented);
     return used.filter(name => !documentedSet.has(name));
 }
-// ============================================
-// Prompt Building
-// ============================================
+/**
+ * Type guard to check if the parameter is BuildPromptOptions (has specific structure)
+ * vs a CustomPromptOverrides (Record with prompt names as keys)
+ */
+function isBuildPromptOptions(obj) {
+    // BuildPromptOptions has 'overrides', 'prefix', or 'suffix' as keys with specific types
+    // CustomPromptOverrides has prompt names as keys with {systemPrompt, userTemplate} values
+    // We check if it has 'prefix'/'suffix' (string) or 'overrides' (object) keys with the right types
+    const record = obj;
+    if ('prefix' in record && typeof record.prefix === 'string') {
+        return true;
+    }
+    if ('suffix' in record && typeof record.suffix === 'string') {
+        return true;
+    }
+    if ('overrides' in record &&
+        (record.overrides === undefined || typeof record.overrides === 'object')) {
+        // Make sure it's not a CustomPromptOverrides entry with 'overrides' as a prompt name
+        // (which would have systemPrompt/userTemplate properties)
+        const overridesValue = record.overrides;
+        if (overridesValue &&
+            typeof overridesValue === 'object' &&
+            'systemPrompt' in overridesValue) {
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
 /**
  * Build a prompt by filling in placeholders.
  *
  * @param prompt - The prompt template
  * @param values - Placeholder values
- * @param overrides - Optional custom prompt overrides from settings
+ * @param optionsOrOverrides - Options object or legacy CustomPromptOverrides for backward compatibility
  * @returns Built prompt with system and user parts
  */
-function buildPrompt(prompt, values, overrides) {
+function buildPrompt(prompt, values, optionsOrOverrides) {
+    // Handle both new options format and legacy overrides-only format
+    let overrides;
+    let prefix;
+    let suffix;
+    if (optionsOrOverrides) {
+        if (isBuildPromptOptions(optionsOrOverrides)) {
+            // New options format
+            overrides = optionsOrOverrides.overrides;
+            prefix = optionsOrOverrides.prefix;
+            suffix = optionsOrOverrides.suffix;
+        }
+        else {
+            // Legacy format - just overrides
+            overrides = optionsOrOverrides;
+        }
+    }
     const override = overrides?.[prompt.name];
     const systemPrompt = override?.systemPrompt ?? prompt.systemPrompt;
     const userTemplate = override?.userTemplate ?? prompt.userTemplate;
+    let userContent = replacePlaceholders(userTemplate, values);
+    // Apply prefix and suffix
+    if (prefix) {
+        userContent = `${prefix}\n\n${userContent}`;
+    }
+    if (suffix) {
+        userContent = `${userContent}\n\n${suffix}`;
+    }
     return {
         system: systemPrompt,
-        user: replacePlaceholders(userTemplate, values),
+        user: userContent,
     };
 }
 /**
@@ -136708,6 +138537,13 @@ function createDefaultV2Settings() {
         // Message limits
         v2MaxMessagesToSend: 10,
         v2MaxChapterMessagesToSend: 24,
+        // Prompt customization
+        v2PromptPrefix: '',
+        v2PromptSuffix: '',
+        // Context-aware injection settings
+        v2MaxRecentChapters: 5,
+        v2MaxRecentEvents: 15,
+        v2InjectionTokenBudget: 0, // 0 = use ST's context size
     };
 }
 /**
@@ -136755,6 +138591,13 @@ function mergeV2WithDefaults(partial) {
         // Message limits
         v2MaxMessagesToSend: partial.v2MaxMessagesToSend ?? defaults.v2MaxMessagesToSend,
         v2MaxChapterMessagesToSend: partial.v2MaxChapterMessagesToSend ?? defaults.v2MaxChapterMessagesToSend,
+        // Prompt customization
+        v2PromptPrefix: partial.v2PromptPrefix ?? defaults.v2PromptPrefix,
+        v2PromptSuffix: partial.v2PromptSuffix ?? defaults.v2PromptSuffix,
+        // Context-aware injection settings
+        v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,
+        v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
+        v2InjectionTokenBudget: partial.v2InjectionTokenBudget ?? defaults.v2InjectionTokenBudget,
     };
 }
 
@@ -136916,7 +138759,14 @@ function isV2Settings(obj) {
         (typeof s.v2MaxMessagesToSend === 'number' ||
             s.v2MaxMessagesToSend === undefined) &&
         (typeof s.v2MaxChapterMessagesToSend === 'number' ||
-            s.v2MaxChapterMessagesToSend === undefined));
+            s.v2MaxChapterMessagesToSend === undefined) &&
+        (typeof s.v2PromptPrefix === 'string' || s.v2PromptPrefix === undefined) &&
+        (typeof s.v2PromptSuffix === 'string' || s.v2PromptSuffix === undefined) &&
+        (typeof s.v2MaxRecentChapters === 'number' ||
+            s.v2MaxRecentChapters === undefined) &&
+        (typeof s.v2MaxRecentEvents === 'number' || s.v2MaxRecentEvents === undefined) &&
+        (typeof s.v2InjectionTokenBudget === 'number' ||
+            s.v2InjectionTokenBudget === undefined));
 }
 /**
  * Track toggle dependency rules.
@@ -141088,6 +142938,28 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection, }) {
                                 }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-shirt" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-v2-slot-name", children: slot }), currentItem && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-v2-slot-current", children: ["(", currentItem, ")"] }))] }, slot));
                         })] })] }));
     }
+    // Submenu for profile set
+    if (submenu === 'profile_set') {
+        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-v2-add-event-menu-backdrop", onClick: onClose }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-add-event-menu", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-add-event-submenu-header", onClick: handleBack, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-arrow-left" }), "Profile Set - Select Character"] }), characterNames.length === 0 ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-v2-add-event-empty", children: "No characters present" })) : (characterNames.map(name => {
+                            const char = projection.characters[name];
+                            const hasProfile = !!char?.profile;
+                            return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-add-event-option", onClick: () => {
+                                    onAdd({
+                                        ...createBaseEvent(),
+                                        kind: 'character',
+                                        subkind: 'profile_set',
+                                        character: name,
+                                        profile: char?.profile ?? {
+                                            sex: 'O',
+                                            species: 'Human',
+                                            age: 30,
+                                            appearance: [],
+                                            personality: [],
+                                        },
+                                    });
+                                }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user" }), name, hasProfile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-v2-slot-current", children: "(has profile)" }))] }, name));
+                        }))] })] }));
+    }
     // Submenu for position/activity change
     if (submenu === 'position_changed' || submenu === 'activity_changed') {
         const isPosition = submenu === 'position_changed';
@@ -141212,7 +143084,7 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection, }) {
                             kind: 'character',
                             subkind: 'appeared',
                             character: '',
-                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-plus" }), "Character Appeared"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 && setSubmenu('departed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-minus" }), "Character Departed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
+                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-plus" }), "Character Appeared"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 && setSubmenu('profile_set'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-id-card" }), "Profile Set", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 && setSubmenu('departed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-minus" }), "Character Departed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
                             setSubmenu('position_changed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-arrows-up-down-left-right" }), "Position Changed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
                             setSubmenu('activity_changed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-person-running" }), "Activity Changed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-add-event-option", onClick: () => onAdd({
                             ...createBaseEvent(),
@@ -142007,7 +143879,27 @@ function V2SettingsPanel() {
                                                         value >= 1) {
                                                         handleUpdate('v2MaxChapterMessagesToSend', value);
                                                     }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Settings for injecting story context into prompts" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
+                                                    const value = parseInt(e.target.value, 10);
+                                                    if (!isNaN(value) &&
+                                                        value >= 0 &&
+                                                        value <= 10) {
+                                                        handleUpdate('v2MaxRecentChapters', value);
+                                                    }
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentevents", children: "Max Recent Events" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum out-of-context events from current chapter to include (0-50)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentevents", type: "number", className: "text_pole", min: "0", max: "50", step: "1", value: settings.v2MaxRecentEvents, onChange: e => {
+                                                    const value = parseInt(e.target.value, 10);
+                                                    if (!isNaN(value) &&
+                                                        value >= 0 &&
+                                                        value <= 50) {
+                                                        handleUpdate('v2MaxRecentEvents', value);
+                                                    }
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectionbudget", children: "Injection Token Budget" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Token budget for context injection (0 = auto-detect from ST settings)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectionbudget", type: "number", className: "text_pole", min: "0", max: "100000", step: "100", value: settings.v2InjectionTokenBudget, onChange: e => {
+                                                    const value = parseInt(e.target.value, 10);
+                                                    if (!isNaN(value) &&
+                                                        value >= 0) {
+                                                        handleUpdate('v2InjectionTokenBudget', value);
+                                                    }
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));
 }
 // ============================================
 // Mount Function
@@ -144651,6 +146543,171 @@ class RateLimiter {
 
 /***/ },
 
+/***/ "./src/v2/utils/tokenCount.ts"
+/*!************************************!*\
+  !*** ./src/v2/utils/tokenCount.ts ***!
+  \************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   FixedRatioTokenCounter: () => (/* binding */ FixedRatioTokenCounter),
+/* harmony export */   MockTokenCounter: () => (/* binding */ MockTokenCounter),
+/* harmony export */   STTokenCounter: () => (/* binding */ STTokenCounter),
+/* harmony export */   countTokens: () => (/* binding */ countTokens),
+/* harmony export */   countTokensTotal: () => (/* binding */ countTokensTotal),
+/* harmony export */   getDefaultTokenCounter: () => (/* binding */ getDefaultTokenCounter),
+/* harmony export */   guesstimate: () => (/* binding */ guesstimate),
+/* harmony export */   setDefaultTokenCounter: () => (/* binding */ setDefaultTokenCounter)
+/* harmony export */ });
+/**
+ * Token Counting Utilities
+ *
+ * Provides token counting using SillyTavern's tokenizer API.
+ * Includes a guesstimate fallback for environments without tokenizers.
+ */
+/**
+ * Guesstimate token count based on character length.
+ * Uses the ratio of ~3.35 characters per token.
+ * This is a rough estimate used as fallback.
+ *
+ * @param text - The text to estimate tokens for
+ * @returns Estimated token count
+ */
+function guesstimate(text) {
+    if (!text)
+        return 0;
+    return Math.ceil(text.length / 3.35);
+}
+/**
+ * SillyTavern Token Counter - uses ST's getTokenCountAsync API.
+ * Falls back to guesstimate if ST API is unavailable.
+ */
+class STTokenCounter {
+    getName() {
+        return 'SillyTavern';
+    }
+    async countTokens(text) {
+        if (!text)
+            return 0;
+        try {
+            // Try to use ST's token counting API
+            // The context has getTokenCountAsync available at runtime but not in our types
+            const context = SillyTavern.getContext();
+            if (context && typeof context.getTokenCountAsync === 'function') {
+                return await context.getTokenCountAsync(text);
+            }
+        }
+        catch {
+            // Fall through to guesstimate
+        }
+        // Fallback to guesstimate
+        return guesstimate(text);
+    }
+}
+/**
+ * Mock Token Counter for testing.
+ * Uses a configurable map of text to token counts.
+ * Falls back to guesstimate for unknown text.
+ */
+class MockTokenCounter {
+    tokenMap;
+    defaultFn;
+    /**
+     * Create a mock token counter.
+     * @param tokenMap - Map of exact text to token counts
+     * @param defaultFn - Optional function for unknown text (defaults to guesstimate)
+     */
+    constructor(tokenMap = new Map(), defaultFn = guesstimate) {
+        this.tokenMap = tokenMap;
+        this.defaultFn = defaultFn;
+    }
+    getName() {
+        return 'Mock';
+    }
+    async countTokens(text) {
+        if (!text)
+            return 0;
+        // Check exact match first
+        if (this.tokenMap.has(text)) {
+            return this.tokenMap.get(text);
+        }
+        // Fall back to default function
+        return this.defaultFn(text);
+    }
+    /**
+     * Add a token count mapping.
+     */
+    addMapping(text, tokens) {
+        this.tokenMap.set(text, tokens);
+    }
+    /**
+     * Clear all mappings.
+     */
+    clearMappings() {
+        this.tokenMap.clear();
+    }
+}
+/**
+ * Fixed Ratio Token Counter for testing.
+ * Always uses a fixed characters-per-token ratio.
+ */
+class FixedRatioTokenCounter {
+    ratio;
+    /**
+     * Create a fixed ratio token counter.
+     * @param ratio - Characters per token (default 4)
+     */
+    constructor(ratio = 4) {
+        this.ratio = ratio;
+    }
+    getName() {
+        return `FixedRatio(${this.ratio})`;
+    }
+    async countTokens(text) {
+        if (!text)
+            return 0;
+        return Math.ceil(text.length / this.ratio);
+    }
+}
+// Default counter instance
+let defaultCounter = null;
+/**
+ * Get the default token counter.
+ * Creates an STTokenCounter on first call.
+ */
+function getDefaultTokenCounter() {
+    if (!defaultCounter) {
+        defaultCounter = new STTokenCounter();
+    }
+    return defaultCounter;
+}
+/**
+ * Set the default token counter (useful for testing).
+ */
+function setDefaultTokenCounter(counter) {
+    defaultCounter = counter;
+}
+/**
+ * Count tokens using the default counter.
+ * Convenience function for simple usage.
+ */
+async function countTokens(text) {
+    return getDefaultTokenCounter().countTokens(text);
+}
+/**
+ * Count tokens for multiple strings in parallel.
+ * Returns the total token count.
+ */
+async function countTokensTotal(texts) {
+    const counter = getDefaultTokenCounter();
+    const counts = await Promise.all(texts.map(t => counter.countTokens(t)));
+    return counts.reduce((sum, c) => sum + c, 0);
+}
+
+
+/***/ },
+
 /***/ "./src/v2Bridge.ts"
 /*!*************************!*\
   !*** ./src/v2Bridge.ts ***!
@@ -144820,6 +146877,8 @@ function buildExtractionSettingsFromV2(settings) {
         promptTemperatures: settings.v2PromptTemperatures,
         maxMessagesToSend: settings.v2MaxMessagesToSend,
         maxChapterMessagesToSend: settings.v2MaxChapterMessagesToSend,
+        promptPrefix: settings.v2PromptPrefix || undefined,
+        promptSuffix: settings.v2PromptSuffix || undefined,
     };
 }
 // ============================================

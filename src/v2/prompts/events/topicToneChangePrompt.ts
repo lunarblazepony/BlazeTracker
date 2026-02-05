@@ -98,6 +98,67 @@ OUTPUT:
   "reasoning": "Despite the suggestion to take a break and the moment of self-awareness, the scene remains firmly anchored in wedding planning stress. Priya's anxiety about the invitations, the family expectations, the pressure for perfection - all still present. Jin's suggestion doesn't actually change the topic (they don't take the break) and Priya's brief moment of clarity doesn't shift the overall anxious tone. The scene continues in the same emotional space.",
   "changed": false
 }
+
+### Example 6: Emotional Shift Within Same Topic - Anger to Vulnerability
+INPUT:
+Previous Topic: confrontation about lies
+Previous Tone: furious and accusatory
+Messages:
+"""
+Marcus: *His shouting dies in his throat as he sees her flinch.* "I..." *He runs a hand through his hair, suddenly deflated.* "I don't even know why I'm yelling. It won't change anything."
+
+Elena: *Quietly.* "No. It won't."
+
+Marcus: *Sinks into a chair, all the fight gone out of him.* "I'm just so tired, Elena. Tired of being angry. Tired of not trusting. Tired of... this." *His voice breaks.* "I miss when things were simple between us."
+"""
+OUTPUT:
+{
+  "reasoning": "The topic remains the confrontation/lies - they haven't moved on to a new subject. But the emotional tone has completely transformed. Marcus's fury has 'died in his throat,' he's 'suddenly deflated,' 'all the fight gone out of him,' his voice 'breaks.' The scene has shifted from angry accusation to exhausted vulnerability. Same topic, very different emotional register.",
+  "changed": true,
+  "newTone": "exhausted and vulnerable"
+}
+
+### Example 7: Crisis Resolving - Panic to Relief
+INPUT:
+Previous Topic: medical emergency
+Previous Tone: panicked and desperate
+Messages:
+"""
+Doctor: *Removes her gloves, shoulders relaxing.* "He's stable. The surgery went well."
+
+Sarah: *Collapses into the waiting room chair, hand over her mouth.* "Oh thank god. Thank god."
+
+Marcus: *Puts an arm around her, his own hands still shaking.* "He's okay. He's going to be okay."
+
+Sarah: *Laughs weakly through tears.* "I think I aged ten years in the last three hours."
+"""
+OUTPUT:
+{
+  "reasoning": "The topic is still the medical emergency/Marcus's condition, but the tone has fundamentally shifted. The crisis point has passed - the doctor says he's stable, Sarah collapses in relief, there's weak laughter through tears. This is no longer 'panicked and desperate' - the panic has given way to shaky relief and emotional release.",
+  "changed": true,
+  "newTone": "relieved and shaky"
+}
+
+### Example 8: Argument De-escalating to Understanding
+INPUT:
+Previous Topic: disagreement about moving
+Previous Tone: frustrated and defensive
+Messages:
+"""
+Lily: *Stops mid-sentence, really looking at Jake for the first time.* "Wait. You're not just being stubborn, are you? You're actually scared."
+
+Jake: *Looks away.* "It's the only home I've ever known, Lily. Everyone I love is here. What if we get there and... and it's a mistake?"
+
+Lily: *Her frustration melts.* "Oh, Jake." *She takes his hand.* "Why didn't you just say that? I thought you didn't care about my career."
+
+Jake: "I care about your career. I just also care about not losing everything familiar."
+"""
+OUTPUT:
+{
+  "reasoning": "Still discussing the move, but the dynamic has transformed. Lily's frustration 'melts,' they're holding hands, Jake is admitting his real fears instead of being defensive. They've moved from arguing AT each other to understanding each other. The tone shifts from 'frustrated and defensive' to something more connected and honest.",
+  "changed": true,
+  "newTone": "vulnerable and understanding"
+}
 `;
 
 const BAD_EXAMPLES = `
@@ -176,6 +237,69 @@ WRONG OUTPUT:
   "newTone": "confident"
 }
 WHY THIS IS WRONG: The reasoning correctly identifies nervousness, but the output claims the tone is "confident" - contradicting the analysis. Self-encouragement before a nervous moment doesn't mean the nervousness has been replaced with confidence. The scene remains "first day at new job" with a "nervous and eager" tone.
+
+### Bad Example 6: Missing Emotional Shift Within Same Topic
+INPUT:
+Previous Topic: heated argument about betrayal
+Previous Tone: angry and accusatory
+Messages:
+"""
+Sarah: *Her voice cracks, the anger draining away as quickly as it came.* "I just... I trusted you. I trusted you completely." *She sinks onto the couch, suddenly looking exhausted.* "I don't even have the energy to be angry anymore. I'm just... sad. So deeply sad."
+
+Marcus: *He takes a tentative step toward her.* "Sarah..."
+
+Sarah: *Doesn't look up, voice hollow.* "Don't. Just... don't. I need a minute."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're still discussing the betrayal.",
+  "changed": false
+}
+WHY THIS IS WRONG: Yes, the TOPIC is still the betrayal. But the TONE has completely shifted. Sarah explicitly says her anger drained away and she's "just sad" now. She's exhausted, hollow, deflated - this is NOT "angry and accusatory" anymore. The tone should change to something like "defeated and grieving" or "hollow sadness." Same topic, different emotional register.
+
+### Bad Example 7: Keeping Stale Tone After Resolution
+INPUT:
+Previous Topic: tense standoff
+Previous Tone: hostile and threatening
+Messages:
+"""
+Detective: *She slowly holsters her weapon, hands visible.* "Okay. Okay, you win. I'm listening."
+
+Marcus: *The knife wavers, then lowers.* "I didn't want any of this. I just wanted someone to hear me."
+
+Detective: *Sits down slowly, deliberately non-threatening.* "I'm hearing you now. Tell me what happened."
+
+Marcus: *His shoulders sag, tears starting.* "It was supposed to be a simple job..."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Still a standoff situation.",
+  "changed": false
+}
+WHY THIS IS WRONG: The standoff has DE-ESCALATED. Weapons are holstered/lowered, the detective is deliberately non-threatening, Marcus is crying and opening up. This is no longer "hostile and threatening" - it's become something like "cautious vulnerability" or "tentative trust." The confrontational energy is gone.
+
+### Bad Example 8: Ignoring Mood Break
+INPUT:
+Previous Topic: serious relationship talk
+Previous Tone: heavy and emotional
+Messages:
+"""
+Emma: *Wipes her eyes, then suddenly snorts.* "God, look at us. Two grown adults crying into our wine like teenagers."
+
+David: *A surprised laugh escapes him.* "To be fair, this is pretty good wine."
+
+Emma: *Giggles despite herself.* "Oh my god, stop. I'm trying to have a serious emotional moment here."
+
+David: "You're the one who made the wine joke!"
+
+*They're both laughing now, the heavy atmosphere cracking.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're still having their relationship discussion.",
+  "changed": false
+}
+WHY THIS IS WRONG: The text literally says "the heavy atmosphere cracking." They've transitioned from crying to laughing. The mood has broken. This is now "lightened relief" or "cathartic humor" - NOT "heavy and emotional" anymore. When the narrative explicitly tells you the atmosphere has changed, believe it.
 
 ### Bad Example 5: Ignoring Clear Signals of Change
 INPUT:
@@ -261,11 +385,39 @@ Respond with a JSON object containing:
 - Describe feeling, not physical conditions
 
 ## Important Rules
-- Only report change if the shift is significant and sustained
 - Deflection attempts that fail don't count as changes
 - Physical setting changes don't automatically mean topic/tone change
 - Reasoning must thoroughly support your determination
 - When only topic OR only tone changes, only include that field
+
+## CRITICAL: Detect Emotional Shifts Within The Same Topic
+The TONE can change even when the TOPIC stays the same. Watch for emotional evolution:
+
+**Example: An argument that evolves:**
+- "angry argument" → still arguing, but now one person is crying → "vulnerable argument"
+- "heated confrontation" → one person deflates, gives up → "defeated resignation"
+- "tense negotiation" → they reach understanding → "cautious reconciliation"
+
+**Example: A romantic scene that shifts:**
+- "playful flirting" → things get serious → "earnest confession"
+- "passionate intimacy" → afterwards, lying together → "tender afterglow"
+- "nervous first date" → they relax, laugh together → "comfortable connection"
+
+**Example: A crisis that evolves:**
+- "panicked emergency" → immediate danger passes → "shaky relief"
+- "desperate escape" → they reach safety → "exhausted reprieve"
+- "angry blame" → reality sinks in → "grieving acceptance"
+
+If the FEELING of the scene has shifted - even if they're still technically doing the same thing - that's a tone change. Report it.
+
+**Signs the tone has shifted (even if topic hasn't):**
+- Characters' emotional state has changed (angry → sad, tense → relieved)
+- The energy level has shifted (frantic → calm, playful → serious)
+- Body language/actions indicate different feelings than before
+- The conflict/tension has resolved, escalated, or transformed
+- What started one way has become something else emotionally
+
+**Err toward detecting change, not toward staleness.** If the emotional quality feels different from the previous tone, it probably is.
 
 ${GOOD_EXAMPLES}
 

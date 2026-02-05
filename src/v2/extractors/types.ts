@@ -93,6 +93,10 @@ export interface ExtractionSettings {
 	maxMessagesToSend: number;
 	/** Max messages to send to chapter description extractor (default 24) */
 	maxChapterMessagesToSend: number;
+	/** String to prepend to the user part of all prompts (e.g., "/nothink") */
+	promptPrefix?: string;
+	/** String to append to the user part of all prompts */
+	promptSuffix?: string;
 }
 
 // ============================================

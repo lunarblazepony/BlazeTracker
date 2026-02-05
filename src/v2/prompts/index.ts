@@ -25,6 +25,8 @@ export {
 	getPromptPlaceholders,
 } from './placeholders';
 
+export type { BuildPromptOptions } from './placeholders';
+
 // Schemas
 export * from './schemas';
 

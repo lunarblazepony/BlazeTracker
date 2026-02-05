@@ -69,6 +69,15 @@ export function createDefaultV2Settings(): V2Settings {
 		// Message limits
 		v2MaxMessagesToSend: 10,
 		v2MaxChapterMessagesToSend: 24,
+
+		// Prompt customization
+		v2PromptPrefix: '',
+		v2PromptSuffix: '',
+
+		// Context-aware injection settings
+		v2MaxRecentChapters: 5,
+		v2MaxRecentEvents: 15,
+		v2InjectionTokenBudget: 0, // 0 = use ST's context size
 	};
 }
 
@@ -126,5 +135,15 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2MaxMessagesToSend: partial.v2MaxMessagesToSend ?? defaults.v2MaxMessagesToSend,
 		v2MaxChapterMessagesToSend:
 			partial.v2MaxChapterMessagesToSend ?? defaults.v2MaxChapterMessagesToSend,
+
+		// Prompt customization
+		v2PromptPrefix: partial.v2PromptPrefix ?? defaults.v2PromptPrefix,
+		v2PromptSuffix: partial.v2PromptSuffix ?? defaults.v2PromptSuffix,
+
+		// Context-aware injection settings
+		v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,
+		v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
+		v2InjectionTokenBudget:
+			partial.v2InjectionTokenBudget ?? defaults.v2InjectionTokenBudget,
 	};
 }

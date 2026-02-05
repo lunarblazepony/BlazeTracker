@@ -40,6 +40,13 @@ import {
 import { initCardDefaultsButton } from './ui/cardDefaultsButton';
 import { openCardDefaultsModal } from './ui/cardDefaultsModal';
 import { initPersonaDefaultsButtons } from './ui/personaDefaultsButton';
+// V2 Prompt Hook
+import {
+	registerPromptHook,
+	isPromptHookAvailable,
+	isPromptHookRegistered,
+	registerBridgeFunctions,
+} from './v2/injectors/promptHook';
 
 // Use debugLog instead of local log function
 const log = debugLog;
@@ -120,9 +127,19 @@ export function setManualExtractionInProgress(value: boolean): void {
  * Update v2 injection from the current chat state.
  * Projects state BEFORE the target message for injection into the prompt.
  *
+ * NOTE: When prompt hooks are registered, this function does nothing.
+ * The prompt hooks (CHAT_COMPLETION_PROMPT_READY / GENERATE_BEFORE_COMBINE_PROMPTS)
+ * handle all injection with proper budget management.
+ *
  * @param forMessageId - The message ID we're injecting state FOR (the message being extracted/generated).
  */
 function updateV2Injection(forMessageId: number): void {
+	// Skip if prompt hooks are handling injection
+	// The prompt hooks inject at the right positions with budget awareness
+	if (isPromptHookRegistered()) {
+		return;
+	}
+
 	const stContext = SillyTavern.getContext() as unknown as STContext;
 	const store = getV2EventStore();
 
@@ -176,6 +193,24 @@ async function init() {
 
 	// Initialize persona defaults buttons in persona management UI
 	initPersonaDefaultsButtons();
+
+	// Register bridge functions for the prompt hook (avoids circular dependency)
+	registerBridgeFunctions({
+		getV2EventStore,
+		hasV2InitialSnapshot,
+		buildSwipeContext,
+	});
+
+	// Register the context-aware prompt hook if available
+	// This hooks into CHAT_COMPLETION_PROMPT_READY to inject chapters, events, and state
+	if (isPromptHookAvailable()) {
+		registerPromptHook();
+		log('Context-aware prompt hook registered');
+	} else {
+		log(
+			'CHAT_COMPLETION_PROMPT_READY not available - using fallback setExtensionPrompt injection',
+		);
+	}
 
 	const autoExtract = v2Settings.v2AutoExtract;
 

@@ -554,4 +554,123 @@ describe('buildExtractorPrompt', () => {
 		expect(result.user).toContain('auburn hair');
 		expect(result.user).not.toContain('Hello Elena');
 	});
+
+	it('prepends prompt prefix when specified', () => {
+		const context = createMockContext();
+		const projection = createMockProjection();
+		const settings = createMockSettings({
+			promptPrefix: '/nothink',
+		});
+
+		const result = buildExtractorPrompt(
+			initialTimePrompt,
+			context,
+			projection,
+			settings,
+			0,
+			2,
+		);
+
+		expect(result.user).toMatch(/^\/nothink\n\n/);
+		// Should still have the rest of the content
+		expect(result.user).toContain('Elena');
+	});
+
+	it('does not add prefix when not specified', () => {
+		const context = createMockContext();
+		const projection = createMockProjection();
+		const settings = createMockSettings(); // No prefix
+
+		const result = buildExtractorPrompt(
+			initialTimePrompt,
+			context,
+			projection,
+			settings,
+			0,
+			2,
+		);
+
+		expect(result.user).not.toMatch(/^\/nothink/);
+	});
+
+	it('does not add prefix when empty string', () => {
+		const context = createMockContext();
+		const projection = createMockProjection();
+		const settings = createMockSettings({
+			promptPrefix: '',
+		});
+
+		const result = buildExtractorPrompt(
+			initialTimePrompt,
+			context,
+			projection,
+			settings,
+			0,
+			2,
+		);
+
+		// Should not start with newlines from empty prefix
+		expect(result.user).not.toMatch(/^\n\n/);
+	});
+
+	it('appends prompt suffix when specified', () => {
+		const context = createMockContext();
+		const projection = createMockProjection();
+		const settings = createMockSettings({
+			promptSuffix: 'Remember to be concise.',
+		});
+
+		const result = buildExtractorPrompt(
+			initialTimePrompt,
+			context,
+			projection,
+			settings,
+			0,
+			2,
+		);
+
+		expect(result.user).toMatch(/\n\nRemember to be concise\.$/);
+		// Should still have the rest of the content
+		expect(result.user).toContain('Elena');
+	});
+
+	it('does not add suffix when not specified', () => {
+		const context = createMockContext();
+		const projection = createMockProjection();
+		const settings = createMockSettings(); // No suffix
+
+		const result = buildExtractorPrompt(
+			initialTimePrompt,
+			context,
+			projection,
+			settings,
+			0,
+			2,
+		);
+
+		expect(result.user).not.toMatch(/Remember to be concise/);
+	});
+
+	it('applies both prefix and suffix when specified', () => {
+		const context = createMockContext();
+		const projection = createMockProjection();
+		const settings = createMockSettings({
+			promptPrefix: '/nothink',
+			promptSuffix: 'Be concise.',
+		});
+
+		const result = buildExtractorPrompt(
+			initialTimePrompt,
+			context,
+			projection,
+			settings,
+			0,
+			2,
+		);
+
+		expect(result.user).toMatch(/^\/nothink\n\n/);
+		expect(result.user).toMatch(/\n\nBe concise\.$/);
+		// Should still have the main content in between
+		expect(result.user).toContain('Elena');
+	});
 });
