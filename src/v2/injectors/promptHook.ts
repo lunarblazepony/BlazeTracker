@@ -450,19 +450,30 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 		if (stateContent) {
 			const lastMessage = chatMessages[chatMessages.length - 1];
 			if (lastMessage && lastMessage.role === 'assistant') {
-				// Prefill/continuation - insert before the assistant's partial response
-				chatMessages.splice(chatMessages.length - 1, 0, {
+				// Prefill/continuation - insert before the assistant's partial response if custom depth is disabled.
+				chatMessages.splice(chatMessages.length - (settings.v2InjectionDepth > -1 ? settings.v2InjectionDepth : 1), 0, {
 					role: 'user' as const,
 					content: stateContent,
 				});
-				debugLog('Injected BlazeTracker state before assistant prefill');
+				if (settings.v2InjectionDepth < 0) {
+					debugLog('Injected BlazeTracker state before assistant prefill');
+				}
 			} else {
-				// Normal case - append at the end
-				chatMessages.push({
-					role: 'user' as const,
-					content: stateContent,
-				});
-				debugLog('Injected BlazeTracker state at end of messages');
+				if (settings.v2InjectionDepth > -1) {
+					chatMessages.splice(settings.v2InjectionDepth, 0, {
+						role: 'user' as const,
+						content: stateContent,
+					});
+				} else {
+					// Normal case - append at the end
+					chatMessages.push({
+						role: 'user' as const,
+						content: stateContent,
+					});
+				}
+				if (settings.v2InjectionDepth < 0) {
+					debugLog('Injected BlazeTracker state at end of messages');
+				}
 			}
 		}
 
@@ -651,14 +662,14 @@ async function handleTextCompletionPromptReady(
 				// Continuation mode: append state to second-to-last message
 				// (the last one is the assistant's prefill)
 				const targetMessage =
-					eventData.finalMesSend[eventData.finalMesSend.length - 2];
+					eventData.finalMesSend[eventData.finalMesSend.length - (settings.v2InjectionDepth > -1 ? settings.v2InjectionDepth : 2)];
 				targetMessage.message =
 					targetMessage.message + '\n\n' + stateContent;
 				debugLog('Injected BlazeTracker state before assistant prefill');
 			} else {
 				// Normal mode OR only one message: append to last message
 				const lastMessage =
-					eventData.finalMesSend[eventData.finalMesSend.length - 1];
+					eventData.finalMesSend[eventData.finalMesSend.length - (settings.v2InjectionDepth > -1 ? settings.v2InjectionDepth : 1)];
 				lastMessage.message = lastMessage.message + '\n\n' + stateContent;
 				debugLog('Injected BlazeTracker state after messages');
 			}
