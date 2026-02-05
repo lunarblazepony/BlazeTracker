@@ -257,26 +257,101 @@ export function validatePlaceholders(template: string, documented: string[]): st
 // ============================================
 
 /**
+ * Options for building prompts.
+ */
+export interface BuildPromptOptions {
+	/** Custom prompt overrides from settings */
+	overrides?: CustomPromptOverrides;
+	/** String to prepend to the user part of the prompt (e.g., "/nothink") */
+	prefix?: string;
+	/** String to append to the user part of the prompt */
+	suffix?: string;
+}
+
+/**
+ * Type guard to check if the parameter is BuildPromptOptions (has specific structure)
+ * vs a CustomPromptOverrides (Record with prompt names as keys)
+ */
+function isBuildPromptOptions(
+	obj: BuildPromptOptions | CustomPromptOverrides,
+): obj is BuildPromptOptions {
+	// BuildPromptOptions has 'overrides', 'prefix', or 'suffix' as keys with specific types
+	// CustomPromptOverrides has prompt names as keys with {systemPrompt, userTemplate} values
+	// We check if it has 'prefix'/'suffix' (string) or 'overrides' (object) keys with the right types
+	const record = obj as Record<string, unknown>;
+	if ('prefix' in record && typeof record.prefix === 'string') {
+		return true;
+	}
+	if ('suffix' in record && typeof record.suffix === 'string') {
+		return true;
+	}
+	if (
+		'overrides' in record &&
+		(record.overrides === undefined || typeof record.overrides === 'object')
+	) {
+		// Make sure it's not a CustomPromptOverrides entry with 'overrides' as a prompt name
+		// (which would have systemPrompt/userTemplate properties)
+		const overridesValue = record.overrides;
+		if (
+			overridesValue &&
+			typeof overridesValue === 'object' &&
+			'systemPrompt' in overridesValue
+		) {
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+/**
  * Build a prompt by filling in placeholders.
  *
  * @param prompt - The prompt template
  * @param values - Placeholder values
- * @param overrides - Optional custom prompt overrides from settings
+ * @param optionsOrOverrides - Options object or legacy CustomPromptOverrides for backward compatibility
  * @returns Built prompt with system and user parts
  */
 export function buildPrompt<T>(
 	prompt: PromptTemplate<T>,
 	values: Record<string, string>,
-	overrides?: CustomPromptOverrides,
+	optionsOrOverrides?: BuildPromptOptions | CustomPromptOverrides,
 ): BuiltPrompt {
+	// Handle both new options format and legacy overrides-only format
+	let overrides: CustomPromptOverrides | undefined;
+	let prefix: string | undefined;
+	let suffix: string | undefined;
+
+	if (optionsOrOverrides) {
+		if (isBuildPromptOptions(optionsOrOverrides)) {
+			// New options format
+			overrides = optionsOrOverrides.overrides;
+			prefix = optionsOrOverrides.prefix;
+			suffix = optionsOrOverrides.suffix;
+		} else {
+			// Legacy format - just overrides
+			overrides = optionsOrOverrides;
+		}
+	}
+
 	const override = overrides?.[prompt.name];
 
 	const systemPrompt = override?.systemPrompt ?? prompt.systemPrompt;
 	const userTemplate = override?.userTemplate ?? prompt.userTemplate;
 
+	let userContent = replacePlaceholders(userTemplate, values);
+
+	// Apply prefix and suffix
+	if (prefix) {
+		userContent = `${prefix}\n\n${userContent}`;
+	}
+	if (suffix) {
+		userContent = `${userContent}\n\n${suffix}`;
+	}
+
 	return {
 		system: systemPrompt,
-		user: replacePlaceholders(userTemplate, values),
+		user: userContent,
 	};
 }
 

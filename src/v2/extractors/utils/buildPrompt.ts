@@ -417,6 +417,9 @@ export function buildExtractorPrompt<T>(
 		messageEnd,
 		options,
 	);
-	const overrides = settings.customPrompts;
-	return fillPrompt(prompt, values, overrides);
+	return fillPrompt(prompt, values, {
+		overrides: settings.customPrompts,
+		prefix: settings.promptPrefix,
+		suffix: settings.promptSuffix,
+	});
 }

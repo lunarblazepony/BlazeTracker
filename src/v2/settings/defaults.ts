@@ -70,9 +70,15 @@ export function createDefaultV2Settings(): V2Settings {
 		v2MaxMessagesToSend: 10,
 		v2MaxChapterMessagesToSend: 24,
 
-		// Injection Methodology
-		v2UseMacro: false,
+		// Prompt customization
+		v2PromptPrefix: '',
+		v2PromptSuffix: '',
 		v2InjectionDepth: 0,
+
+		// Context-aware injection settings
+		v2MaxRecentChapters: 5,
+		v2MaxRecentEvents: 15,
+		v2InjectionTokenBudget: 0, // 0 = use ST's context size
 	};
 }
 
@@ -131,8 +137,15 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2MaxChapterMessagesToSend:
 			partial.v2MaxChapterMessagesToSend ?? defaults.v2MaxChapterMessagesToSend,
 
-		// Injection Methodology
-		v2UseMacro: partial.v2UseMacro ?? defaults.v2UseMacro,
+		// Prompt customization
+		v2PromptPrefix: partial.v2PromptPrefix ?? defaults.v2PromptPrefix,
+		v2PromptSuffix: partial.v2PromptSuffix ?? defaults.v2PromptSuffix,
 		v2InjectionDepth: partial.v2InjectionDepth ?? defaults.v2InjectionDepth,
+
+		// Context-aware injection settings
+		v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,
+		v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
+		v2InjectionTokenBudget:
+			partial.v2InjectionTokenBudget ?? defaults.v2InjectionTokenBudget,
 	};
 }

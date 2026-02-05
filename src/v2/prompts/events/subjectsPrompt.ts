@@ -457,6 +457,111 @@ WRONG OUTPUT:
   ]
 }
 WHY THIS IS WRONG: Not liking your job isn't a secret - it's a common, mild complaint. 'secret_shared' is for genuine secrets: hidden pasts, undisclosed feelings, concealed information. Job dissatisfaction doesn't qualify.
+
+### Bad Example 12: Talking About Kissing Is NOT Kissing
+INPUT:
+"""
+Marcus: *Gazes into her eyes.* "I really want to kiss you right now."
+
+Elena: *Blushes, heart racing.* "I... I'd like that."
+
+Marcus: *Smiles.* "Maybe later, when we're alone."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They discussed kissing romantically.",
+  "subjects": [
+    {
+      "pair": ["Elena", "Marcus"],
+      "subject": "intimate_kiss"
+    }
+  ]
+}
+WHY THIS IS WRONG: They TALKED about wanting to kiss. They did NOT actually kiss. "I want to kiss you" is expressing desire, not performing the action. This might be 'flirt' but it's definitely not 'intimate_kiss'. No kiss occurred.
+
+### Bad Example 13: Leaning In Is NOT Kissing
+INPUT:
+"""
+Alex: *Leans in close, lips inches from Jordan's.*
+
+Jordan: *Closes eyes expectantly.*
+
+*The door bursts open and they spring apart.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They almost kissed.",
+  "subjects": [
+    {
+      "pair": ["Alex", "Jordan"],
+      "subject": "intimate_kiss"
+    }
+  ]
+}
+WHY THIS IS WRONG: They ALMOST kissed but were interrupted. Almost doing something is NOT doing it. No kiss actually occurred. The correct output would have no intimate_kiss subject (though 'flirt' might apply).
+
+### Bad Example 14: Suggesting Intimacy Is NOT The Intimacy
+INPUT:
+"""
+Elena: *Tugs his hand toward the bedroom.* "Want to continue this somewhere more comfortable?"
+
+Marcus: *Grins.* "Lead the way."
+
+*They head toward the bedroom, the door closing behind them.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're going to have sex.",
+  "subjects": [
+    {
+      "pair": ["Elena", "Marcus"],
+      "subject": "intimate_penetrative"
+    }
+  ]
+}
+WHY THIS IS WRONG: They went to the bedroom. That's it. The scene ends with a closed door. We don't see what happens next. Suggesting or implying that sex might happen is NOT sex happening. The scene might warrant 'flirt' or nothing at all, but NOT 'intimate_penetrative' since no sexual activity was shown.
+
+### Bad Example 15: Describing Desire Is NOT The Action
+INPUT:
+"""
+Marcus: *His eyes travel down her form.* "God, I want to tear that dress off you."
+
+Elena: *Shivers at his words.* "Such promises..."
+
+Marcus: "Oh, I always keep my promises." *Steps closer.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Marcus wants to undress her, showing sexual intent.",
+  "subjects": [
+    {
+      "pair": ["Elena", "Marcus"],
+      "subject": "intimate_foreplay"
+    }
+  ]
+}
+WHY THIS IS WRONG: Marcus SAID he wants to undress her. He did NOT actually undress her. Words expressing desire are not actions. This is 'flirt' (maybe intense flirt), but NOT 'intimate_foreplay' because no undressing or foreplay actually occurred.
+
+### Bad Example 16: Discussing Past Intimacy Is NOT Current Intimacy
+INPUT:
+"""
+Lily: "Remember last night? That was... wow."
+
+Jake: *Grins.* "Best night of my life. Can't stop thinking about it."
+
+Lily: "Me neither." *Blushes.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're discussing their sexual encounter.",
+  "subjects": [
+    {
+      "pair": ["Jake", "Lily"],
+      "subject": "intimate_penetrative"
+    }
+  ]
+}
+WHY THIS IS WRONG: They're talking about PAST intimacy, not engaging in CURRENT intimacy. The intimate_penetrative happened last night, not in this scene. This scene is just conversation/reminiscing. Only extract subjects for what happens IN the current messages.
 `;
 
 export const subjectsPrompt: PromptTemplate<ExtractedSubjects> = {
@@ -566,6 +671,25 @@ Respond with a JSON object containing:
 - Don't add trivial interactions - subjects should be significant
 - One scene can have multiple subjects if warranted
 - Empty subjects array is valid if nothing significant occurred
+
+## CRITICAL: Talking About ≠ Doing
+TALKING about an action is NOT the same as DOING the action:
+- Talking about kissing is NOT a kiss
+- Talking about sex is NOT sex
+- Describing wanting to undress someone is NOT intimate_foreplay
+- Saying "I want to kiss you" is NOT intimate_kiss (it might be flirt or confession)
+- Leaning in as if to kiss, but not kissing, is NOT a kiss
+- Describing past intimacy is NOT current intimacy
+
+The subject must ACTUALLY OCCUR in the scene, not just be discussed, anticipated, or almost happen.
+
+Examples of what IS vs IS NOT the subject:
+- "She kissed him" → IS intimate_kiss
+- "She wanted to kiss him" → IS NOT intimate_kiss (maybe flirt)
+- "He undressed her slowly" → IS intimate_foreplay
+- "He thought about undressing her" → IS NOT intimate_foreplay
+- "They made love all night" → IS intimate_penetrative
+- "She suggested they go to the bedroom" → IS NOT intimate_penetrative (might happen next, but hasn't yet)
 
 ${GOOD_EXAMPLES}
 

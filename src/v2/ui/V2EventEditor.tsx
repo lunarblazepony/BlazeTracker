@@ -23,6 +23,7 @@ import type {
 	LocationPropRemovedEvent,
 	CharacterEvent,
 	CharacterAppearedEvent,
+	CharacterProfileSetEvent,
 	CharacterDepartedEvent,
 	CharacterPositionChangedEvent,
 	CharacterActivityChangedEvent,
@@ -2084,6 +2085,7 @@ type V2SubmenuType =
 	| 'outfit_changed'
 	| 'position_changed'
 	| 'activity_changed'
+	| 'profile_set'
 	| 'feeling_removed'
 	| 'secret_removed'
 	| 'want_removed'
@@ -2485,6 +2487,68 @@ export function V2AddEventMenu({
 		);
 	}
 
+	// Submenu for profile set
+	if (submenu === 'profile_set') {
+		return (
+			<>
+				<div
+					className="bt-v2-add-event-menu-backdrop"
+					onClick={onClose}
+				></div>
+				<div className="bt-v2-add-event-menu">
+					<div
+						className="bt-v2-add-event-submenu-header"
+						onClick={handleBack}
+					>
+						<i className="fa-solid fa-arrow-left"></i>
+						Profile Set - Select Character
+					</div>
+					{characterNames.length === 0 ? (
+						<div className="bt-v2-add-event-empty">
+							No characters present
+						</div>
+					) : (
+						characterNames.map(name => {
+							const char = projection.characters[name];
+							const hasProfile = !!char?.profile;
+							return (
+								<div
+									key={name}
+									className="bt-v2-add-event-option"
+									onClick={() => {
+										onAdd({
+											...createBaseEvent(),
+											kind: 'character',
+											subkind: 'profile_set',
+											character: name,
+											profile: char?.profile ?? {
+												sex: 'O' as const,
+												species: 'Human',
+												age: 30,
+												appearance: [],
+												personality:
+													[],
+											},
+										} as CharacterProfileSetEvent);
+									}}
+								>
+									<i className="fa-solid fa-user"></i>
+									{name}
+									{hasProfile && (
+										<span className="bt-v2-slot-current">
+											(has
+											profile)
+										</span>
+									)}
+								</div>
+							);
+						})
+					)}
+				</div>
+			</>
+		);
+	}
+
 	// Submenu for position/activity change
 	if (submenu === 'position_changed' || submenu === 'activity_changed') {
 		const isPosition = submenu === 'position_changed';
@@ -2764,6 +2828,19 @@ export function V2AddEventMenu({
 				>
 					<i className="fa-solid fa-user-plus"></i>
 					Character Appeared
+				</div>
+				<div
+					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
+					onClick={() =>
+						characterNames.length > 0 &&
+						setSubmenu('profile_set')
+					}
+				>
+					<i className="fa-solid fa-id-card"></i>
+					Profile Set
+					{characterNames.length > 0 && (
+						<i className="fa-solid fa-chevron-right bt-v2-submenu-arrow"></i>
+					)}
 				</div>
 				<div
 					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}

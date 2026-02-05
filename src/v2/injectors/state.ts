@@ -438,36 +438,16 @@ export function injectState(
 	swipeContext: SwipeContext,
 	options: InjectOptions = {},
 	injDepth: number = 0,
-	useMacro: boolean,
 ): void {
-	// function macroHandler(bool: boolean) {
-	// 	if (!projection || !store) {
-	// 		return '';
-	// 	} else {
-	// 		return bool ? formatStateForInjection(projection, store, swipeContext, options) : '';
-	// 	}
-	// }
-	//
-	// function regStateMacro(bool: boolean) {
-	// 	if (power_user.experimental_macro_engine) {
-	// 		macros.register('btTracker', {
-	// 			category: 'BlazeTracker',
-	// 			description: 'Gets replaced with the current tracker state if \'Macro\' is the current injection method.',
-	// 			handler: () => macroHandler(bool)
-	// 		});
-	// 	}
-	// }
 
 	const context = SillyTavern.getContext();
 
-	if (!projection || !store || useMacro) {
-		// regStateMacro(true);
+	if (!projection || !store) {
 		context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);
 		return;
 	}
 
 	const formatted = formatStateForInjection(projection, store, swipeContext, options);
-	// regStateMacro(false);
 
 	if (!formatted) {
 		context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);

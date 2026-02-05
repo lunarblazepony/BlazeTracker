@@ -256,6 +256,134 @@ OUTPUT:
   "added": ["knows he meets secretly with House Blackwood agents", "has confirmed evidence of his treasonous contacts"],
   "removed": ["suspects he has hidden loyalties"]
 }
+
+### Example 13: Told In Scene - Secrets Removed For BOTH Parties
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Maya toward Ryan: secrets: has been secretly job hunting, plans to quit next month
+Ryan toward Maya: secrets: discovered her job applications on shared computer
+---
+Maya: *Takes a deep breath.* "Ryan, I need to tell you something. I've been looking for a new job. I'm planning to leave the company next month."
+
+Ryan: "Actually... I already knew. I saw your applications on the computer last week. I didn't know how to bring it up."
+
+Maya: *Surprised.* "You knew? Why didn't you say anything?"
+"""
+OUTPUT:
+{
+  "reasoning": "Maya confessed her job hunting and plans to quit - these are no longer secrets she's keeping from Ryan. Ryan then revealed he already knew - so his secret knowledge is also no longer secret. Both parties have now openly discussed this information, so neither holds it as a secret anymore.",
+  "changes": [
+    {
+      "fromCharacter": "Maya",
+      "towardCharacter": "Ryan",
+      "added": [],
+      "removed": ["has been secretly job hunting", "plans to quit next month"]
+    },
+    {
+      "fromCharacter": "Ryan",
+      "towardCharacter": "Maya",
+      "added": [],
+      "removed": ["discovered her job applications on shared computer"]
+    }
+  ]
+}
+
+### Example 14: Information Shared Openly Is NOT a Secret For Listener
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Alex toward Jordan: secrets: none
+Jordan toward Alex: secrets: none
+---
+Alex: "I should tell you - I have a lot of debt. Like, a lot. Student loans, credit cards, the whole mess. I wanted you to know before things got more serious between us."
+
+Jordan: *Reaches for his hand.* "Thank you for telling me. That took courage."
+"""
+OUTPUT:
+{
+  "reasoning": "Alex openly shared his financial situation with Jordan. This is NOT a secret Jordan now holds - it was willingly disclosed in direct conversation. Secrets are information discovered covertly or hidden from someone. Jordan simply learned something through normal communication. No secrets were added or removed for either party.",
+  "changes": [
+    {
+      "fromCharacter": "Alex",
+      "towardCharacter": "Jordan",
+      "added": [],
+      "removed": []
+    },
+    {
+      "fromCharacter": "Jordan",
+      "towardCharacter": "Alex",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+
+### Example 15: Previous Secret Knowledge Becomes Open Knowledge
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Detective toward suspect: secrets: knows about his second phone from surveillance
+Suspect toward Detective: secrets: none
+---
+Detective: "We know about the burner phone, Mr. Harris. The one you keep in your gym locker."
+
+Suspect: *His face pales.* "How did you—"
+
+Detective: "We've been watching you for weeks."
+"""
+OUTPUT:
+{
+  "reasoning": "The detective revealed that she knows about the suspect's second phone. This is no longer secret knowledge - she's openly told him she knows. The suspect is now aware of what the detective knows, so it's not hidden information anymore.",
+  "changes": [
+    {
+      "fromCharacter": "Detective",
+      "towardCharacter": "suspect",
+      "added": [],
+      "removed": ["knows about his second phone from surveillance"]
+    },
+    {
+      "fromCharacter": "suspect",
+      "towardCharacter": "Detective",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+
+### Example 16: Mutual Confession - All Secrets Cleared
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Emma toward Lucas: secrets: knows he's been seeing a therapist, found his appointment card
+Lucas toward Emma: secrets: knows she's been struggling with anxiety, overheard her phone call with her doctor
+---
+Lucas: "Em, I need to be honest. I've been seeing a therapist. I should have told you sooner."
+
+Emma: "Oh Lucas... I actually already knew. I found your appointment card months ago. And I should tell you - I've been dealing with anxiety. I've been talking to my doctor about it."
+
+Lucas: "I know. I overheard your call. I didn't want to pry, so I never mentioned it."
+
+Emma: *Laughs tearfully.* "We're both terrible at secrets, aren't we?"
+"""
+OUTPUT:
+{
+  "reasoning": "Both characters confessed what they were hiding AND revealed they already knew the other's secret. Lucas told Emma about therapy (removing his need to hide it), Emma revealed she already knew (her secret knowledge is now open). Emma told Lucas about her anxiety (removing her need to hide it), Lucas revealed he already knew (his secret knowledge is now open). All secrets are now openly discussed between them.",
+  "changes": [
+    {
+      "fromCharacter": "Emma",
+      "towardCharacter": "Lucas",
+      "added": [],
+      "removed": ["knows he's been seeing a therapist", "found his appointment card"]
+    },
+    {
+      "fromCharacter": "Lucas",
+      "towardCharacter": "Emma",
+      "added": [],
+      "removed": ["knows she's been struggling with anxiety", "overheard her phone call with her doctor"]
+    }
+  ]
+}
 `;
 
 const BAD_EXAMPLES = `
@@ -485,6 +613,201 @@ WRONG OUTPUT:
   "removed": []
 }
 WHY THIS IS WRONG: Observable facts like someone looking tired aren't secrets. Secrets are hidden information - things a character wouldn't want others to know or that aren't publicly apparent. Dark circles are visible to anyone.
+
+### Bad Example 13: Treating Openly Shared Information as a Secret
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Tom toward Sarah: secrets: none
+Sarah toward Tom: secrets: none
+---
+Sarah: "I should be honest with you, Tom. I was married before. It ended badly - he was abusive. I left him three years ago."
+
+Tom: *Takes her hand gently.* "Thank you for trusting me with that."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Tom now knows about Sarah's past marriage.",
+  "changes": [
+    {
+      "fromCharacter": "Tom",
+      "towardCharacter": "Sarah",
+      "added": ["knows she was previously married", "knows her ex was abusive"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Sarah TOLD Tom this information directly and voluntarily. This is not secret knowledge Tom holds about Sarah - it's information she openly shared with him. Secrets are things discovered covertly or that someone doesn't know you know. Tom knowing about her past is just normal knowledge gained through conversation, not a secret.
+
+### Bad Example 14: Not Removing Listener's Secret When It Was Openly Discussed
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Mark toward Jenny: secrets: none
+Jenny toward Mark: secrets: discovered he's planning a surprise party for her, saw the guest list
+---
+Mark: "Okay, I can't keep this in anymore. I'm planning a surprise birthday party for you! I've invited everyone!"
+
+Jenny: *Laughs.* "I know! I accidentally saw the guest list last week. I've been pretending to be surprised."
+
+Mark: "You knew?! This whole time?"
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Mark revealed the party plans.",
+  "changes": [
+    {
+      "fromCharacter": "Mark",
+      "towardCharacter": "Jenny",
+      "added": [],
+      "removed": []
+    },
+    {
+      "fromCharacter": "Jenny",
+      "towardCharacter": "Mark",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Jenny's secret knowledge should be REMOVED. She revealed that she already knew about the party - Mark now knows that she knew. Her secret "discovered he's planning a surprise party" is no longer secret because she told him she knew. The correct output would remove both secrets from Jenny toward Mark.
+
+### Bad Example 15: Adding Secrets For Information Told Directly
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Lisa toward Mike: secrets: none
+Mike toward Lisa: secrets: none
+---
+Lisa: "Mike, I need to tell you something. I'm pregnant. It's yours."
+
+Mike: *Stunned silence, then tears.* "We're... we're going to be parents?"
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Mike learned Lisa is pregnant.",
+  "changes": [
+    {
+      "fromCharacter": "Mike",
+      "towardCharacter": "Lisa",
+      "added": ["knows she's pregnant", "knows he's the father"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Lisa TOLD Mike directly. This is not secret knowledge Mike holds - it's information she chose to share with him openly. You cannot add secrets for things someone was directly told. The correct output would have no changes for either direction.
+
+### Bad Example 16: Not Removing Secret After Confrontation
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Rachel toward David: secrets: knows he's been lying about working late, tracked his phone to a bar
+David toward Rachel: secrets: none
+---
+Rachel: "I know you haven't been working late, David. I tracked your phone. You've been at O'Malley's Bar every Thursday."
+
+David: *His face drains of color.* "Rachel, I can explain—"
+
+Rachel: "Can you? Because I've been waiting for an explanation for weeks."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Rachel confronted David but still holds the secret knowledge.",
+  "changes": [
+    {
+      "fromCharacter": "Rachel",
+      "towardCharacter": "David",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: Rachel REVEALED her secret knowledge to David. He now knows that she knows. This is no longer secret information - it's been openly confronted. The secrets "knows he's been lying about working late" and "tracked his phone to a bar" should be REMOVED because David is now fully aware she has this knowledge.
+
+### Bad Example 17: Keeping Secrets After Mutual Disclosure
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Anna toward Ben: secrets: found his journal, knows he's in love with her
+Ben toward Anna: secrets: overheard her tell friend she has feelings for him
+---
+Anna: "Ben, I read your journal. I know how you feel about me."
+
+Ben: "And I overheard you talking to Claire last week. I know you feel the same way."
+
+Anna: *Blushes.* "So we've both been keeping secrets..."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They both revealed what they knew.",
+  "changes": [
+    {
+      "fromCharacter": "Anna",
+      "towardCharacter": "Ben",
+      "added": [],
+      "removed": ["found his journal"]
+    },
+    {
+      "fromCharacter": "Ben",
+      "towardCharacter": "Anna",
+      "added": [],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: BOTH secrets should be fully removed from BOTH directions. Anna told Ben she read his journal and knows his feelings - remove ALL her secrets. Ben told Anna he overheard her - remove ALL his secrets. The output only partially removed secrets and missed Ben's entirely. When something is openly discussed, it's no longer a secret for either party.
+
+### Bad Example 18: Treating Basic Facts as Secrets
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Marcus toward Opal: secrets: none
+---
+Opal: *The unicorn trots into the tavern, her pearlescent horn catching the firelight.* "Hello there! I'm Opal. I grew up by the Sapphire Coast - nothing like these inland towns."
+
+Marcus: "Welcome to the Silver Stallion. What brings you so far from the sea?"
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Marcus learned several things about Opal.",
+  "changes": [
+    {
+      "fromCharacter": "Marcus",
+      "towardCharacter": "Opal",
+      "added": ["knows she is a unicorn", "knows she is called Opal", "knows she is from the seaside"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: None of these are secrets!
+- "knows she is a unicorn" - He can literally SEE she's a unicorn. Observable facts are not secrets.
+- "knows she is called Opal" - She INTRODUCED HERSELF. She knows he knows her name. Not a secret.
+- "knows she is from the seaside" - She TOLD HIM this directly. Information shared in conversation is not a secret.
+The correct output has NO secrets added. These are all just normal information learned through observation and conversation.
+
+### Bad Example 19: Treating Self-Introductions as Secrets
+INPUT:
+"""
+CURRENT RELATIONSHIP:
+Elena toward new coworker: secrets: none
+---
+New coworker: "Hi, I'm James. I just transferred from the Chicago office. I'm the new project manager for the Henderson account. I've been with the company for about five years."
+
+Elena: "Nice to meet you! I'm Elena, I handle client relations."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Elena learned about James's background.",
+  "changes": [
+    {
+      "fromCharacter": "Elena",
+      "towardCharacter": "new coworker",
+      "added": ["knows his name is James", "knows he transferred from Chicago", "knows he's the project manager", "knows he's been with the company five years"],
+      "removed": []
+    }
+  ]
+}
+WHY THIS IS WRONG: James TOLD her all of this! He introduced himself and shared his background willingly. Would James be shocked that Elena knows his name after he said "I'm James"? Of course not. None of this is secret - it's a normal workplace introduction. The correct output has NO changes.
 `;
 
 export const secretsChangePrompt: PromptTemplate<ExtractedSecretsChange> = {
@@ -514,19 +837,68 @@ Respond with a JSON object containing:
 
 IMPORTANT: You must analyze BOTH directions of the relationship and include both in the changes array. If no changes occurred in a direction, include it with empty added/removed arrays.
 
-## What Counts as Secrets
-Secrets are hidden knowledge one character possesses about another:
-- Information discovered without the other's knowledge (overheard conversations, found documents, witnessed events)
-- Knowledge the other person is actively hiding (affairs, crimes, secret identities)
-- Private information not yet shared (feelings, plans, past events)
-- Suspicions or evidence gathered covertly
+## CRITICAL: What IS and IS NOT a Secret
+
+### A SECRET requires ALL of these conditions:
+1. The information was obtained COVERTLY (the other person doesn't know you have it)
+2. The other person would be surprised/affected to learn you know this
+3. You are actively concealing that you have this knowledge
+
+### Ways to OBTAIN a secret (covert discovery):
+- Overheard a private conversation (they didn't know you were listening)
+- Found documents/evidence (they didn't know you saw them)
+- Witnessed something secretly (they didn't know you were watching)
+- A third party told you something they're hiding (they don't know you were told)
+- Discovered through investigation (they don't know you found out)
+
+### What is NOT a secret (just ordinary knowledge):
+- ANYTHING someone tells you directly in conversation - this is just information, not a secret
+- Information shared openly between characters - both parties know
+- Observable facts anyone can see - not hidden
+- Public information or records - not concealed
+- Things you learned because someone chose to share them with you
+
+### NEVER add these as secrets - they are NEVER secrets:
+- Someone's NAME (they introduced themselves - they know you know their name!)
+- Someone's SPECIES/RACE (you can see what they are - a unicorn, an elf, a human)
+- Someone's APPEARANCE (hair color, eye color, height - these are visible)
+- Where they're FROM if they mentioned it (they told you, so they know you know)
+- Their JOB/OCCUPATION if they mentioned it (they told you)
+- Their AGE if they mentioned it (they told you)
+- ANYTHING about them that is visually obvious or that they introduced themselves with
+- Basic biographical facts shared in normal conversation
+
+Ask yourself: "Would this person be SHOCKED to learn I know this?"
+- If someone told you their name, they would NOT be shocked you know it.
+- If you can see someone is a unicorn, they would NOT be shocked you noticed.
+- If someone mentioned they're from the seaside, they would NOT be shocked you remember.
+
+### The key test: "Does the other person know that I know this?"
+- If YES → Not a secret (it's openly shared knowledge)
+- If NO → Could be a secret (if discovered covertly)
 
 ## When Secrets Are Removed
-Secrets should be removed when:
-- The secret is openly revealed or confessed
-- The other person learns that this character knows
-- The information becomes public knowledge
-- The secret is directly discussed between the characters
+Remove secrets when:
+- You TELL them what you know (they now know you know)
+- They TELL you directly (it's no longer hidden - just shared knowledge)
+- You confront them about it (you've revealed your knowledge)
+- It becomes openly discussed between you
+
+## CRITICAL: Told In Scene = NOT A SECRET
+
+**If A tells B something in the scene:**
+- This is NOT a secret B holds about A
+- B simply learned information through normal conversation
+- Only add secrets for COVERT discovery, never for direct disclosure
+
+**If A reveals they know something about B:**
+- REMOVE A's secret (B now knows A knows)
+- The information is no longer hidden
+
+**If B already had secret knowledge and A tells B the same thing:**
+- REMOVE B's secret (it's now openly shared, not covertly held)
+
+NEVER add a secret for information that was directly communicated in conversation. Secrets require the other person to be UNAWARE you have the information.
 
 ## Key Guidelines
 - Secrets are DIRECTIONAL: Character A's secrets about B are different from B's secrets about A
