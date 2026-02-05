@@ -103225,7 +103225,7 @@ function cleanupPersonaDefaultsButtons() {
   \*****************************/
 (module, __unused_webpack_exports, __webpack_require__) {
 
-module.exports = __webpack_require__.p + "c32e5db889affcd01d16.css";
+module.exports = __webpack_require__.p + "2c4f623992c4e87f706e.css";
 
 /***/ },
 
@@ -113734,20 +113734,35 @@ async function handlePromptReady(eventData) {
         if (stateContent) {
             const lastMessage = chatMessages[chatMessages.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
-                // Prefill/continuation - insert before the assistant's partial response
-                chatMessages.splice(chatMessages.length - 1, 0, {
+                // Prefill/continuation - insert before the assistant's partial response if custom depth is disabled.
+                chatMessages.splice(chatMessages.length -
+                    (settings.v2InjectionDepth > -1
+                        ? settings.v2InjectionDepth
+                        : 1), 0, {
                     role: 'user',
                     content: stateContent,
                 });
-                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
+                if (settings.v2InjectionDepth < 0) {
+                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
+                }
             }
             else {
-                // Normal case - append at the end
-                chatMessages.push({
-                    role: 'user',
-                    content: stateContent,
-                });
-                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state at end of messages');
+                if (settings.v2InjectionDepth > -1) {
+                    chatMessages.splice(settings.v2InjectionDepth, 0, {
+                        role: 'user',
+                        content: stateContent,
+                    });
+                }
+                else {
+                    // Normal case - append at the end
+                    chatMessages.push({
+                        role: 'user',
+                        content: stateContent,
+                    });
+                }
+                if (settings.v2InjectionDepth < 0) {
+                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state at end of messages');
+                }
             }
         }
         // Insert chapters/events after the system message
@@ -113904,14 +113919,20 @@ async function handleTextCompletionPromptReady(eventData) {
             if (isContinuation && eventData.finalMesSend.length > 1) {
                 // Continuation mode: append state to second-to-last message
                 // (the last one is the assistant's prefill)
-                const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length - 2];
+                const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length -
+                    (settings.v2InjectionDepth > -1
+                        ? settings.v2InjectionDepth
+                        : 2)];
                 targetMessage.message =
                     targetMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
             }
             else {
                 // Normal mode OR only one message: append to last message
-                const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length - 1];
+                const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length -
+                    (settings.v2InjectionDepth > -1
+                        ? settings.v2InjectionDepth
+                        : 1)];
                 lastMessage.message = lastMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state after messages');
             }
@@ -114021,8 +114042,6 @@ __webpack_require__.r(__webpack_exports__);
  * This is the v2-only injector - no legacy types.
  */
 
-//import { macros } from '../../../../../../macros/macro-system.js';
-//import { power_user } from '../../../../../../power-user.js';
 const EXTENSION_KEY = 'blazetracker';
 const DEFAULT_OPTIONS = {
     includeTime: true,
@@ -114320,7 +114339,6 @@ function formatStateForInjection(projection, store, swipeContext, options = {}) 
  * @param swipeContext - Context for swipe filtering
  * @param options - Injection options
  * @param injDepth - Prompt injection depth
- * @param useMacro -
  */
 function injectState(projection, store, swipeContext, options = {}, injDepth = 0) {
     const context = SillyTavern.getContext();

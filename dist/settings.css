@@ -295,13 +295,6 @@
 	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
 }
 
-/* Injection Methodology Section */
-.bt-injection-content {
-	padding: 10px;
-	background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
-	border-radius: 4px;
-}
-
 /* Advanced Content */
 .bt-advanced-content {
 	padding: 10px;
