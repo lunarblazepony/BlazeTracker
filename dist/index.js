@@ -113491,7 +113491,7 @@ async function countFixedContentTokens(eventData, tokenCounter) {
         eventData.generatedPromptCache || '', // Continuation prompt
     ];
     // Count tokens for each piece in parallel
-    const tokenCounts = await Promise.all(fixedPieces.map(piece => (piece ? tokenCounter.countTokens(piece) : Promise.resolve(0))));
+    const tokenCounts = await Promise.all(fixedPieces.map(piece => piece ? tokenCounter.countTokens(piece) : Promise.resolve(0)));
     return tokenCounts.reduce((sum, count) => sum + count, 0);
 }
 /**
@@ -113574,7 +113574,8 @@ function getAvailableBudget(stContext) {
     try {
         // Get max context from ST - it's exposed as maxContext property
         const contextWithApi = stContext;
-        if (typeof contextWithApi.maxContext === 'number' && contextWithApi.maxContext > 0) {
+        if (typeof contextWithApi.maxContext === 'number' &&
+            contextWithApi.maxContext > 0) {
             const maxContext = contextWithApi.maxContext;
             // Reserve some space for response (estimate 500 tokens)
             // and safety margin (64 tokens)
@@ -113720,7 +113721,8 @@ async function handlePromptReady(eventData) {
             // Remove messages from the chat array
             // We need to remove from chatStartIndex + firstMessageInContext
             const messagesToRemove = plan.firstMessageInContext;
-            if (messagesToRemove > 0 && chatStartIndex + messagesToRemove < chatMessages.length) {
+            if (messagesToRemove > 0 &&
+                chatStartIndex + messagesToRemove < chatMessages.length) {
                 chatMessages.splice(chatStartIndex, messagesToRemove);
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Removed ${messagesToRemove} messages to fit budget`);
             }
@@ -113903,7 +113905,8 @@ async function handleTextCompletionPromptReady(eventData) {
                 // Continuation mode: append state to second-to-last message
                 // (the last one is the assistant's prefill)
                 const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length - 2];
-                targetMessage.message = targetMessage.message + '\n\n' + stateContent;
+                targetMessage.message =
+                    targetMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
             }
             else {
@@ -143084,7 +143087,8 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection, }) {
                             kind: 'character',
                             subkind: 'appeared',
                             character: '',
-                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-plus" }), "Character Appeared"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 && setSubmenu('profile_set'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-id-card" }), "Profile Set", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 && setSubmenu('departed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-minus" }), "Character Departed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
+                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-plus" }), "Character Appeared"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
+                            setSubmenu('profile_set'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-id-card" }), "Profile Set", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 && setSubmenu('departed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-user-minus" }), "Character Departed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
                             setSubmenu('position_changed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-arrows-up-down-left-right" }), "Position Changed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: `bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`, onClick: () => characterNames.length > 0 &&
                             setSubmenu('activity_changed'), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-person-running" }), "Activity Changed", characterNames.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-chevron-right bt-v2-submenu-arrow" }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-add-event-option", onClick: () => onAdd({
                             ...createBaseEvent(),
