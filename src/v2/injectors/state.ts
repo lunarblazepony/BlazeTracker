@@ -15,9 +15,6 @@ import type { EventStore } from '../store/EventStore';
 import type { SwipeContext } from '../store/projection';
 import { computeNarrativeEvents, computeChapters } from '../narrative';
 
-//import { macros } from '../../../../../../macros/macro-system.js';
-//import { power_user } from '../../../../../../power-user.js';
-
 const EXTENSION_KEY = 'blazetracker';
 
 /**
@@ -430,7 +427,6 @@ export function formatStateForInjection(
  * @param swipeContext - Context for swipe filtering
  * @param options - Injection options
  * @param injDepth - Prompt injection depth
- * @param useMacro -
  */
 export function injectState(
 	projection: Projection | null,
@@ -439,7 +435,6 @@ export function injectState(
 	options: InjectOptions = {},
 	injDepth: number = 0,
 ): void {
-
 	const context = SillyTavern.getContext();
 
 	if (!projection || !store) {
