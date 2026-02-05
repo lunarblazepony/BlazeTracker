@@ -18,11 +18,7 @@ import { formatPrecomputedChapters } from './chapters';
 import { formatOutOfContextEvents } from './events';
 import { formatStateForInjection, type InjectOptions } from './state';
 import type { Projection } from '../types/snapshot';
-import {
-	computeOptimalContext,
-	estimateMessageTokens,
-	type ContextPlan,
-} from './contextBudget';
+import { computeOptimalContext, estimateMessageTokens, type ContextPlan } from './contextBudget';
 import { getDefaultTokenCounter, type TokenCounter } from '../utils/tokenCount';
 
 // Track if hooks are registered
@@ -138,7 +134,9 @@ async function countFixedContentTokens(
 
 	// Count tokens for each piece in parallel
 	const tokenCounts = await Promise.all(
-		fixedPieces.map(piece => (piece ? tokenCounter.countTokens(piece) : Promise.resolve(0))),
+		fixedPieces.map(piece =>
+			piece ? tokenCounter.countTokens(piece) : Promise.resolve(0),
+		),
 	);
 
 	return tokenCounts.reduce((sum, count) => sum + count, 0);
@@ -240,7 +238,10 @@ function getAvailableBudget(stContext: STContext): number {
 		const contextWithApi = stContext as unknown as {
 			maxContext?: number;
 		};
-		if (typeof contextWithApi.maxContext === 'number' && contextWithApi.maxContext > 0) {
+		if (
+			typeof contextWithApi.maxContext === 'number' &&
+			contextWithApi.maxContext > 0
+		) {
 			const maxContext = contextWithApi.maxContext;
 			// Reserve some space for response (estimate 500 tokens)
 			// and safety margin (64 tokens)
@@ -301,9 +302,10 @@ function buildAfterMessagesContent(
  * The chat array has system messages and other non-chat content mixed in.
  * We need to figure out which messages in the chat array correspond to which ST messages.
  */
-function findChatMessageRange(
-	chatMessages: ChatCompletionPromptReadyData['chat'],
-): { startIndex: number; endIndex: number } {
+function findChatMessageRange(chatMessages: ChatCompletionPromptReadyData['chat']): {
+	startIndex: number;
+	endIndex: number;
+} {
 	// Find first non-system message (usually user/assistant)
 	let startIndex = 0;
 	for (let i = 0; i < chatMessages.length; i++) {
@@ -369,7 +371,10 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 		const maxBudget = getAvailableBudget(stContext);
 
 		// Count tokens for fixed content (system message)
-		const fixedContentTokens = await countChatFixedContentTokens(chatMessages, tokenCounter);
+		const fixedContentTokens = await countChatFixedContentTokens(
+			chatMessages,
+			tokenCounter,
+		);
 
 		// The budget available for messages + our injection is max minus fixed content
 		const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
@@ -428,7 +433,10 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 			// Remove messages from the chat array
 			// We need to remove from chatStartIndex + firstMessageInContext
 			const messagesToRemove = plan.firstMessageInContext;
-			if (messagesToRemove > 0 && chatStartIndex + messagesToRemove < chatMessages.length) {
+			if (
+				messagesToRemove > 0 &&
+				chatStartIndex + messagesToRemove < chatMessages.length
+			) {
 				chatMessages.splice(chatStartIndex, messagesToRemove);
 				debugLog(`Removed ${messagesToRemove} messages to fit budget`);
 			}
@@ -595,7 +603,9 @@ async function handleTextCompletionPromptReady(
 			const messagesToRemove = plan.firstMessageInContext;
 			if (messagesToRemove < eventData.finalMesSend.length) {
 				eventData.finalMesSend.splice(0, messagesToRemove);
-				debugLog(`Removed ${messagesToRemove} old messages from finalMesSend to fit budget`);
+				debugLog(
+					`Removed ${messagesToRemove} old messages from finalMesSend to fit budget`,
+				);
 			}
 		}
 
@@ -640,12 +650,15 @@ async function handleTextCompletionPromptReady(
 			if (isContinuation && eventData.finalMesSend.length > 1) {
 				// Continuation mode: append state to second-to-last message
 				// (the last one is the assistant's prefill)
-				const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length - 2];
-				targetMessage.message = targetMessage.message + '\n\n' + stateContent;
+				const targetMessage =
+					eventData.finalMesSend[eventData.finalMesSend.length - 2];
+				targetMessage.message =
+					targetMessage.message + '\n\n' + stateContent;
 				debugLog('Injected BlazeTracker state before assistant prefill');
 			} else {
 				// Normal mode OR only one message: append to last message
-				const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length - 1];
+				const lastMessage =
+					eventData.finalMesSend[eventData.finalMesSend.length - 1];
 				lastMessage.message = lastMessage.message + '\n\n' + stateContent;
 				debugLog('Injected BlazeTracker state after messages');
 			}

@@ -467,7 +467,8 @@ describe('prompt hook with mock store', () => {
 			// The state should be inserted BEFORE the last assistant message
 			// If state was injected, there should be a user message just before the last assistant
 			if (eventData.chat.length > 5) {
-				const messageBeforeLastAssistant = eventData.chat[eventData.chat.length - 2];
+				const messageBeforeLastAssistant =
+					eventData.chat[eventData.chat.length - 2];
 				// Should be a user message (the injected state)
 				expect(messageBeforeLastAssistant.role).toBe('user');
 			}
@@ -523,9 +524,18 @@ describe('prompt hook with mock store', () => {
 				api: 'kobold',
 				dryRun: false,
 				finalMesSend: [
-					{ message: 'User: Hello', extensionPrompts: [] as string[] },
-					{ message: 'Assistant: Hi there!', extensionPrompts: [] as string[] },
-					{ message: 'User: How are you?', extensionPrompts: [] as string[] },
+					{
+						message: 'User: Hello',
+						extensionPrompts: [] as string[],
+					},
+					{
+						message: 'Assistant: Hi there!',
+						extensionPrompts: [] as string[],
+					},
+					{
+						message: 'User: How are you?',
+						extensionPrompts: [] as string[],
+					},
 					{ message: 'I am doing', extensionPrompts: [] as string[] }, // Prefill
 				],
 			};
@@ -538,7 +548,9 @@ describe('prompt hook with mock store', () => {
 			// The prefill (last message) should be unchanged
 			if (eventData.finalMesSend.length === 4) {
 				// Prefill should be unchanged
-				expect(eventData.finalMesSend[3].message).toBe(originalPrefillMessage);
+				expect(eventData.finalMesSend[3].message).toBe(
+					originalPrefillMessage,
+				);
 				// User message should have state appended (or be unchanged if no state generated)
 				expect(eventData.finalMesSend[2].message).toBeDefined();
 			}
@@ -561,9 +573,18 @@ describe('prompt hook with mock store', () => {
 				api: 'kobold',
 				dryRun: false,
 				finalMesSend: [
-					{ message: 'User: Hello', extensionPrompts: [] as string[] },
-					{ message: 'Assistant: Hi there!', extensionPrompts: [] as string[] },
-					{ message: 'User: How are you?', extensionPrompts: [] as string[] },
+					{
+						message: 'User: Hello',
+						extensionPrompts: [] as string[],
+					},
+					{
+						message: 'Assistant: Hi there!',
+						extensionPrompts: [] as string[],
+					},
+					{
+						message: 'User: How are you?',
+						extensionPrompts: [] as string[],
+					},
 				],
 			};
 

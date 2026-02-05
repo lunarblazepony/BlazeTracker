@@ -157,7 +157,6 @@ function closeNarrativeModal(): void {
 	}
 }
 
-
 /**
  * Handle opening the V2 narrative modal (book button).
  *

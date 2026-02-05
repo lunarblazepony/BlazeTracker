@@ -2526,7 +2526,8 @@ export function V2AddEventMenu({
 												species: 'Human',
 												age: 30,
 												appearance: [],
-												personality: [],
+												personality:
+													[],
 											},
 										} as CharacterProfileSetEvent);
 									}}
@@ -2535,7 +2536,8 @@ export function V2AddEventMenu({
 									{name}
 									{hasProfile && (
 										<span className="bt-v2-slot-current">
-											(has profile)
+											(has
+											profile)
 										</span>
 									)}
 								</div>
@@ -2830,7 +2832,8 @@ export function V2AddEventMenu({
 				<div
 					className={`bt-v2-add-event-option ${characterNames.length === 0 ? 'disabled' : ''}`}
 					onClick={() =>
-						characterNames.length > 0 && setSubmenu('profile_set')
+						characterNames.length > 0 &&
+						setSubmenu('profile_set')
 					}
 				>
 					<i className="fa-solid fa-id-card"></i>
