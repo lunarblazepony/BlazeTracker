@@ -573,6 +573,7 @@ export const subjectsPrompt: PromptTemplate<ExtractedSubjects> = {
 		PLACEHOLDERS.messages,
 		PLACEHOLDERS.charactersPresent,
 		PLACEHOLDERS.characterProfiles,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to identify significant interaction subjects between character pairs.
@@ -702,11 +703,16 @@ ${BAD_EXAMPLES}
 ## Character Profiles
 {{characterProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Messages to Analyze
 {{messages}}
 
 ## Task
 Identify any significant interaction subjects that occurred between character pairs.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 For each significant interaction:
 1. Identify the two characters involved (alphabetically sorted)

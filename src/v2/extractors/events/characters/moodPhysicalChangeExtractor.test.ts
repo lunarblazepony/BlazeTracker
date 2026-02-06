@@ -56,6 +56,7 @@ const createMockSettings = (): ExtractionSettings => ({
 	customPrompts: {},
 	maxMessagesToSend: 10,
 	maxChapterMessagesToSend: 24,
+	includeWorldinfo: true,
 });
 
 describe('moodPhysicalChangeExtractor', () => {

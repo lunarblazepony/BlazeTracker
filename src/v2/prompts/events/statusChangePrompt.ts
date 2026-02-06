@@ -536,6 +536,7 @@ export const statusChangePrompt: PromptTemplate<ExtractedStatusChange> = {
 		PLACEHOLDERS.relationshipPair,
 		PLACEHOLDERS.relationshipState,
 		PLACEHOLDERS.relationshipProfiles,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to detect changes in the overall relationship status between two characters.
@@ -582,6 +583,9 @@ ${BAD_EXAMPLES}
 	userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -590,6 +594,8 @@ ${BAD_EXAMPLES}
 
 ## Task
 Analyze whether the relationship status between {{relationshipPair}} has fundamentally changed.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 Consider:
 1. Was there a significant shift in how they relate to each other?

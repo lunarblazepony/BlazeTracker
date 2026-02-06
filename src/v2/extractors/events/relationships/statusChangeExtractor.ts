@@ -39,6 +39,7 @@ import { applyStatusGating } from '../../utils/statusGating';
 import { sortPair, getRelationshipKey } from '../../../types/snapshot';
 import { getMilestonesForPair, createSwipeContext } from '../../../store/projection';
 import { debugLog, debugWarn } from '../../../../utils/debug';
+import { getWorldinfoForRelationship } from '../../../utils/worldinfo';
 
 /**
  * Status change per-pair event extractor.
@@ -100,6 +101,23 @@ export const statusChangeExtractor: PerPairExtractor<ExtractedStatusChange> = {
 			maxMessages,
 		));
 
+		// Fetch worldinfo for the relationship pair if enabled
+		let worldinfo = '';
+		if (settings.includeWorldinfo) {
+			const messagesForWorldinfo: string[] = [];
+			for (
+				let i = messageStart;
+				i <= messageEnd && i < context.chat.length;
+				i++
+			) {
+				const msg = context.chat[i];
+				if (!msg.is_system) {
+					messagesForWorldinfo.push(msg.mes);
+				}
+			}
+			worldinfo = await getWorldinfoForRelationship(messagesForWorldinfo, pair);
+		}
+
 		// Build prompt with relationship pair context
 		const builtPrompt = buildExtractorPrompt(
 			statusChangePrompt,
@@ -108,7 +126,10 @@ export const statusChangeExtractor: PerPairExtractor<ExtractedStatusChange> = {
 			settings,
 			messageStart,
 			messageEnd,
-			{ relationshipPair: pair },
+			{
+				relationshipPair: pair,
+				worldinfo: worldinfo || 'No worldinfo available',
+			},
 		);
 
 		// Get temperature (prompt override → category → default)

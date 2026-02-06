@@ -764,6 +764,7 @@ export const initialRelationshipsPrompt: PromptTemplate<ExtractedInitialRelation
 		PLACEHOLDERS.characterName,
 		PLACEHOLDERS.characterDescription,
 		PLACEHOLDERS.characterPairs,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to extract the relationships between characters.
@@ -818,6 +819,9 @@ ${BAD_EXAMPLES}
 	userTemplate: `## Character Context
 Name: {{characterName}}
 Description: {{characterDescription}}
+
+## Worldinfo/Lorebook Context
+{{worldinfo}}
 
 ## Messages to Analyze
 {{messages}}

@@ -62,6 +62,7 @@ export const milestoneDescriptionPrompt: PromptTemplate<ExtractedMilestoneDescri
 	placeholders: [
 		PLACEHOLDERS.messages,
 		PLACEHOLDERS.relationshipProfiles,
+		PLACEHOLDERS.worldinfo,
 		MILESTONE_PLACEHOLDERS.milestoneType,
 		MILESTONE_PLACEHOLDERS.characterPair,
 		MILESTONE_PLACEHOLDERS.timeOfDay,
@@ -247,6 +248,9 @@ Elena: "Don't. Just don't." *She walked out*
 <character_profiles>
 {{relationshipProfiles}}
 </character_profiles>
+<worldinfo>
+{{worldinfo}}
+</worldinfo>
 <character_details>
 {{characters}}
 </character_details>

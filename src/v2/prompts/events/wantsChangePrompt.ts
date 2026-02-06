@@ -234,6 +234,7 @@ export const wantsChangePrompt: PromptTemplate<ExtractedWantsChange> = {
 		PLACEHOLDERS.relationshipPair,
 		PLACEHOLDERS.relationshipState,
 		PLACEHOLDERS.relationshipProfiles,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to detect changes in what one character wants from or regarding another character.
@@ -290,6 +291,9 @@ ${BAD_EXAMPLES}
 	userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -298,6 +302,8 @@ ${BAD_EXAMPLES}
 
 ## Task
 Analyze these messages for changes in wants/desires between {{relationshipPair}}.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 For BOTH directions of the relationship, determine:
 1. What new desires have emerged?

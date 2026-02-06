@@ -37,6 +37,7 @@ import type { Projection } from '../../types';
 import { buildPrompt as fillPrompt, type BuiltPrompt } from '../../prompts';
 import { getMilestonesForPair, normalizePair } from '../../store/projection';
 import { debugWarn } from '../../../utils/debug';
+import { getWorldinfoForRelationship } from '../../utils/worldinfo';
 
 /**
  * Get time of day from projection.
@@ -104,6 +105,7 @@ function buildMilestonePlaceholderValues(
 	projection: Projection,
 	messageStart: number,
 	messageEnd: number,
+	worldinfo: string,
 ): Record<string, string> {
 	const pair = event.pair as [string, string];
 	return {
@@ -117,6 +119,7 @@ function buildMilestonePlaceholderValues(
 		relationship: formatRelationshipForMilestone(projection, pair),
 		relationshipProfiles: formatRelationshipProfiles(projection, pair),
 		eventDetail: `${event.subject.replace(/_/g, ' ')} between ${pair[0]} and ${pair[1]}`,
+		worldinfo,
 	};
 }
 
@@ -248,8 +251,40 @@ export const milestoneDescriptionExtractor: EventExtractor<ExtractedMilestoneDes
 		// Get the temperature (use custom if set, otherwise default)
 		const temperature = settings.temperatures.narrative ?? this.defaultTemperature;
 
+		// Fetch worldinfo for all milestone pairs if enabled
+		const worldinfoCache: Record<string, string> = {};
+		if (settings.includeWorldinfo) {
+			const messagesForWorldinfo: string[] = [];
+			for (
+				let i = messageStart;
+				i <= messageEnd && i < context.chat.length;
+				i++
+			) {
+				const msg = context.chat[i];
+				if (!msg.is_system) {
+					messagesForWorldinfo.push(msg.mes);
+				}
+			}
+			// Pre-fetch worldinfo for all unique pairs
+			for (const event of milestoneCandidates) {
+				const pair = event.pair as [string, string];
+				const pairKey = pair.join('|');
+				if (!worldinfoCache[pairKey]) {
+					worldinfoCache[pairKey] =
+						(await getWorldinfoForRelationship(
+							messagesForWorldinfo,
+							pair,
+						)) || 'No worldinfo available';
+				}
+			}
+		}
+
 		// Process each milestone candidate
 		for (const event of milestoneCandidates) {
+			const pair = event.pair as [string, string];
+			const pairKey = pair.join('|');
+			const worldinfo = worldinfoCache[pairKey] || 'No worldinfo available';
+
 			// Build the placeholder values for this specific milestone
 			const values = buildMilestonePlaceholderValues(
 				event,
@@ -257,6 +292,7 @@ export const milestoneDescriptionExtractor: EventExtractor<ExtractedMilestoneDes
 				projection,
 				messageStart,
 				messageEnd,
+				worldinfo,
 			);
 
 			// Build the prompt with milestone-specific values

@@ -260,6 +260,7 @@ export const feelingsChangePrompt: PromptTemplate<ExtractedFeelingsChange> = {
 		PLACEHOLDERS.relationshipPair,
 		PLACEHOLDERS.relationshipState,
 		PLACEHOLDERS.relationshipProfiles,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to detect changes in one character's emotional feelings toward another character.
@@ -310,6 +311,9 @@ ${BAD_EXAMPLES}
 	userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -323,6 +327,8 @@ For BOTH directions of the relationship, determine:
 1. Which feelings have newly emerged?
 2. Which feelings have faded or been replaced?
 3. Why did these changes occur?
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 Return your analysis as JSON with a "changes" array containing both directions.`,
 

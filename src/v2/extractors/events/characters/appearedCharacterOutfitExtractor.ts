@@ -36,6 +36,7 @@ import {
 import { buildPrompt } from '../../../prompts';
 import { generateEventId } from '../../../store/serialization';
 import { debugLog, debugWarn } from '../../../../utils/debug';
+import { getWorldinfoForCharacter } from '../../../utils/worldinfo';
 
 const OUTFIT_SLOTS: OutfitSlot[] = [
 	'head',
@@ -120,11 +121,33 @@ export const appearedCharacterOutfitExtractor: EventExtractor<ExtractedCharacter
 
 		// Process each appeared character separately for better focus
 		for (const appearedCharacter of appearedCharacters) {
+			// Fetch worldinfo for the appeared character if enabled
+			let worldinfo = 'No worldinfo available';
+			if (settings.includeWorldinfo) {
+				const messagesForWorldinfo: string[] = [];
+				for (
+					let i = messageStart;
+					i <= messageEnd && i < context.chat.length;
+					i++
+				) {
+					const msg = context.chat[i];
+					if (!msg.is_system) {
+						messagesForWorldinfo.push(msg.mes);
+					}
+				}
+				worldinfo =
+					(await getWorldinfoForCharacter(
+						messagesForWorldinfo,
+						appearedCharacter,
+					)) || 'No worldinfo available';
+			}
+
 			const placeholders: Record<string, string> = {
 				messages,
 				characterName: context.name2,
 				characterDescription: getCharacterDescription(context),
 				appearedCharacter,
+				worldinfo,
 			};
 
 			// Build the prompt

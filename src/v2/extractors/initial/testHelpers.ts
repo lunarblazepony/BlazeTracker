@@ -75,6 +75,7 @@ export function createMockSettings(
 		customPrompts: {},
 		maxMessagesToSend: 10,
 		maxChapterMessagesToSend: 24,
+		includeWorldinfo: true,
 		...overrides,
 	};
 }

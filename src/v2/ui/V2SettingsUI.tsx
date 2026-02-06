@@ -678,6 +678,15 @@ function V2SettingsPanel() {
 				</div>
 			)}
 
+			{/* Include Worldinfo Toggle */}
+			<CheckboxField
+				id="bt-v2-includeworldinfo"
+				label="Include Worldinfo"
+				description="Include lorebook data in extractor prompts for better character and relationship accuracy"
+				checked={settings.v2IncludeWorldinfo}
+				onChange={checked => handleUpdate('v2IncludeWorldinfo', checked)}
+			/>
+
 			<hr />
 
 			{/* Display Settings */}

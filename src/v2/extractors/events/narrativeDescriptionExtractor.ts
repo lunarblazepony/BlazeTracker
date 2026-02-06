@@ -28,6 +28,7 @@ import {
 } from '../utils';
 import type { EventStore } from '../../store';
 import { debugLog, debugWarn } from '../../../utils/debug';
+import { getWorldinfoForPrompt } from '../../utils/worldinfo';
 
 /**
  * Narrative description event extractor.
@@ -84,6 +85,23 @@ export const narrativeDescriptionExtractor: EventExtractor<ExtractedNarrativeDes
 			maxMessages,
 		));
 
+		// Fetch worldinfo if enabled
+		let worldinfo = '';
+		if (settings.includeWorldinfo) {
+			const messagesForWorldinfo: string[] = [];
+			for (
+				let i = startMessageId;
+				i <= endMessageId && i < context.chat.length;
+				i++
+			) {
+				const msg = context.chat[i];
+				if (!msg.is_system) {
+					messagesForWorldinfo.push(msg.mes);
+				}
+			}
+			worldinfo = await getWorldinfoForPrompt(messagesForWorldinfo);
+		}
+
 		// Build the prompt with current context
 		const builtPrompt = buildExtractorPrompt(
 			narrativeDescriptionPrompt,
@@ -92,6 +110,7 @@ export const narrativeDescriptionExtractor: EventExtractor<ExtractedNarrativeDes
 			settings,
 			startMessageId,
 			endMessageId,
+			{ worldinfo: worldinfo || 'No worldinfo available' },
 		);
 
 		// Get temperature (prompt override → category → default)

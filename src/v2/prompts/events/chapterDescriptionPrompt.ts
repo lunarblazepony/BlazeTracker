@@ -58,6 +58,7 @@ export const chapterDescriptionPrompt: PromptTemplate<ExtractedChapterDescriptio
 		PLACEHOLDERS.charactersPresent,
 		PLACEHOLDERS.currentLocation,
 		PLACEHOLDERS.chapterSummaries,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are creating chapter summaries for a roleplay narrative. Return ONLY valid JSON.
@@ -356,6 +357,10 @@ Chapter 2: First containment breach and emergency protocols.
 <time_range>
 {{chapterTimeRange}}
 </time_range>
+
+<worldinfo>
+{{worldinfo}}
+</worldinfo>
 
 <previous_chapters>
 {{chapterSummaries}}

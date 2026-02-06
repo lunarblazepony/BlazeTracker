@@ -26,6 +26,7 @@ import { isChapterEndedEvent } from '../types/event';
 import { computeNarrativeEvents, computeChapters } from '../narrative/computeNarrativeEvents';
 import type { NarrativeEvent } from '../types/snapshot';
 import { debugLog, debugWarn } from '../../utils/debug';
+import { getWorldinfoForPrompt } from '../utils/worldinfo';
 
 /**
  * Milestone info for chapter milestones.
@@ -341,6 +342,25 @@ async function regenerateChapterDescription(
 	// Get current state projection
 	const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
 
+	// Fetch worldinfo if enabled
+	let worldinfo = 'No worldinfo available';
+	if (settings.includeWorldinfo) {
+		const messagesForWorldinfo: string[] = [];
+		for (
+			let i = chapterStartMsg;
+			i <= currentMessage.messageId && i < context.chat.length;
+			i++
+		) {
+			const msg = context.chat[i];
+			if (!msg.is_system) {
+				messagesForWorldinfo.push(msg.mes);
+			}
+		}
+		worldinfo =
+			(await getWorldinfoForPrompt(messagesForWorldinfo)) ||
+			'No worldinfo available';
+	}
+
 	// Build additional placeholder values
 	const additionalValues: Record<string, string> = {
 		allChapterMessages,
@@ -348,6 +368,7 @@ async function regenerateChapterDescription(
 		chapterMilestones: formatMilestones(chapterMilestones),
 		chapterTimeRange: formatTimeRange(chapterNarrativeEvents),
 		chapterSummaries: formatChapterSummaries(store, swipeContext, chapterIndex),
+		worldinfo,
 	};
 
 	// Build the prompt

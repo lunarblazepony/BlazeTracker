@@ -155,6 +155,7 @@ export function buildExtractionSettingsFromV2(settings: V2Settings): ExtractionS
 		maxChapterMessagesToSend: settings.v2MaxChapterMessagesToSend,
 		promptPrefix: settings.v2PromptPrefix || undefined,
 		promptSuffix: settings.v2PromptSuffix || undefined,
+		includeWorldinfo: settings.v2IncludeWorldinfo,
 	};
 }
 
@@ -220,7 +221,7 @@ export function loadV2EventStore(): boolean {
 			currentEventStore = loadedStore;
 			debugLog(
 				`Loaded v2 EventStore: ${loadedStore.activeEventCount} events, ` +
-					`${loadedStore.snapshots.length} snapshots`,
+				`${loadedStore.snapshots.length} snapshots`,
 			);
 			return true;
 		}
@@ -270,7 +271,7 @@ export async function saveV2EventStore(): Promise<void> {
 
 		debugLog(
 			`Saved v2 EventStore: ${currentEventStore.activeEventCount} events, ` +
-				`${currentEventStore.snapshots.length} snapshots`,
+			`${currentEventStore.snapshots.length} snapshots`,
 		);
 	} catch (e) {
 		errorLog('Failed to save v2 EventStore:', e);

@@ -114,6 +114,7 @@ export const narrativeDescriptionPrompt: PromptTemplate<ExtractedNarrativeDescri
 		PLACEHOLDERS.messages,
 		PLACEHOLDERS.characterName,
 		PLACEHOLDERS.characterProfiles,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are summarizing roleplay messages for a narrative log.
@@ -142,6 +143,9 @@ Name: {{characterName}}
 
 ## Character Profiles
 {{characterProfiles}}
+
+## Worldinfo/Lorebook Context
+{{worldinfo}}
 
 ## Messages to Summarize
 {{messages}}

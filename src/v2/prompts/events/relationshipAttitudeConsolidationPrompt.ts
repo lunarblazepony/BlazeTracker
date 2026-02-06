@@ -149,6 +149,7 @@ export const relationshipAttitudeConsolidationPrompt: PromptTemplate<ExtractedAt
 		placeholders: [
 			PLACEHOLDERS.messages,
 			PLACEHOLDERS.characterProfiles,
+			PLACEHOLDERS.worldinfo,
 			// Custom placeholders for this prompt - not in PLACEHOLDERS since they're specific to this use case
 			{
 				name: 'fromCharacter',
@@ -207,6 +208,9 @@ ${BAD_EXAMPLES}
 		userTemplate: `## Character Profiles
 {{characterProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Direction
 We are consolidating {{fromCharacter}}'s feelings and wants TOWARD {{towardCharacter}}.
 
@@ -219,6 +223,8 @@ Wants: {{currentWants}}
 
 ## Task
 Consolidate {{fromCharacter}}'s feelings and wants toward {{towardCharacter}}.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 Rules:
 - Each list must have 2-5 items

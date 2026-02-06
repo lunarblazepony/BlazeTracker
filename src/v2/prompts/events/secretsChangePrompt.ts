@@ -819,6 +819,7 @@ export const secretsChangePrompt: PromptTemplate<ExtractedSecretsChange> = {
 		PLACEHOLDERS.relationshipPair,
 		PLACEHOLDERS.relationshipState,
 		PLACEHOLDERS.relationshipProfiles,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to detect changes in secrets one character holds about another.
@@ -916,6 +917,9 @@ ${BAD_EXAMPLES}
 	userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -924,6 +928,8 @@ ${BAD_EXAMPLES}
 
 ## Task
 Analyze these messages for changes in secrets between {{relationshipPair}}.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 For BOTH directions of the relationship, determine:
 1. What new hidden information was discovered?

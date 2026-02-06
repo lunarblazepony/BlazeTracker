@@ -39,6 +39,7 @@ import {
 } from '../../utils';
 import { buildPrompt } from '../../../prompts';
 import { debugWarn } from '../../../../utils/debug';
+import { getWorldinfoForRelationship } from '../../../utils/worldinfo';
 
 /**
  * Map consolidation results to events by diffing old vs new lists for one direction.
@@ -139,6 +140,7 @@ async function consolidateDirection(
 	settings: ExtractionSettings,
 	messages: string,
 	characterProfiles: string,
+	worldinfo: string,
 	fromCharacter: string,
 	towardCharacter: string,
 	currentFeelings: string[],
@@ -153,6 +155,7 @@ async function consolidateDirection(
 		{
 			messages,
 			characterProfiles,
+			worldinfo,
 			fromCharacter,
 			towardCharacter,
 			currentFeelings:
@@ -269,6 +272,27 @@ export const relationshipAttitudeConsolidationExtractor: PerPairExtractor<Extrac
 			const messages = formatMessages(context, messageStart, messageEnd);
 			const characterProfiles = formatRelationshipProfiles(projection, pair);
 
+			// Fetch worldinfo for the relationship pair if enabled
+			let worldinfo = 'No worldinfo available';
+			if (settings.includeWorldinfo) {
+				const messagesForWorldinfo: string[] = [];
+				for (
+					let i = messageStart;
+					i <= messageEnd && i < context.chat.length;
+					i++
+				) {
+					const msg = context.chat[i];
+					if (!msg.is_system) {
+						messagesForWorldinfo.push(msg.mes);
+					}
+				}
+				worldinfo =
+					(await getWorldinfoForRelationship(
+						messagesForWorldinfo,
+						pair,
+					)) || 'No worldinfo available';
+			}
+
 			const allEvents: Event[] = [];
 
 			// Direction 1: A → B (pair[0] toward pair[1])
@@ -278,6 +302,7 @@ export const relationshipAttitudeConsolidationExtractor: PerPairExtractor<Extrac
 				settings,
 				messages,
 				characterProfiles,
+				worldinfo,
 				pair[0], // fromCharacter
 				pair[1], // towardCharacter
 				[...rel.aToB.feelings],
@@ -295,6 +320,7 @@ export const relationshipAttitudeConsolidationExtractor: PerPairExtractor<Extrac
 				settings,
 				messages,
 				characterProfiles,
+				worldinfo,
 				pair[1], // fromCharacter
 				pair[0], // towardCharacter
 				[...rel.bToA.feelings],

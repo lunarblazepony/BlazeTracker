@@ -27,6 +27,7 @@ export const appearedCharacterOutfitPrompt: PromptTemplate<ExtractedCharacterOut
 		PLACEHOLDERS.messages,
 		PLACEHOLDERS.characterName,
 		APPEARED_CHARACTER_PLACEHOLDER,
+		PLACEHOLDERS.worldinfo,
 	],
 
 	systemPrompt: `You are analyzing roleplay messages to extract what a NEWLY ARRIVED character is wearing.
@@ -398,13 +399,16 @@ Name: {{characterName}}
 
 IMPORTANT: Extract the outfit ONLY for {{appearedCharacter}}. Ignore all other characters.
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Messages to Analyze
 {{messages}}
 
 ## Task
 Extract the outfit for {{appearedCharacter}} who just appeared/entered the scene.
 - Focus on how they are described when they enter
-- Use the character description as defaults if not specified in the scene
+- Use the character description and worldinfo as defaults if not specified in the scene
 - Make reasonable inferences (socks with shoes, underwear under clothes)
 - Be specific with colors, materials, and styles when provided
 - DO NOT include any other characters - only {{appearedCharacter}}`,

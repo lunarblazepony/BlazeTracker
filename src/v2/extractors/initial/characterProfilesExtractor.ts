@@ -22,6 +22,7 @@ import {
 } from '../utils';
 import { buildPrompt } from '../../prompts';
 import { debugWarn } from '../../../utils/debug';
+import { getWorldinfoForCharacter } from '../../utils/worldinfo';
 
 /**
  * Initial character profiles extractor.
@@ -93,8 +94,26 @@ export const initialCharacterProfilesExtractor: InitialExtractor<ExtractedCharac
 			maxMessages,
 		));
 
+		// Get messages for worldinfo matching (shared across all characters)
+		const messagesForWorldinfo: string[] = [];
+		for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+			const msg = context.chat[i];
+			if (!msg.is_system) {
+				messagesForWorldinfo.push(msg.mes);
+			}
+		}
+
 		// Extract profile for each character
 		for (const characterName of characterNames) {
+			// Fetch worldinfo for this character if enabled
+			let worldinfo = '';
+			if (settings.includeWorldinfo) {
+				worldinfo = await getWorldinfoForCharacter(
+					messagesForWorldinfo,
+					characterName,
+				);
+			}
+
 			// Build placeholder values for this character
 			const placeholders: Record<string, string> = {
 				messages: formatMessages(context, messageStart, messageEnd),
@@ -102,6 +121,7 @@ export const initialCharacterProfilesExtractor: InitialExtractor<ExtractedCharac
 				characterDescription: getCharacterDescription(context),
 				userDescription: getUserDescription(context),
 				targetCharacterForProfile: characterName,
+				worldinfo: worldinfo || 'No worldinfo available',
 			};
 
 			// Build the prompt

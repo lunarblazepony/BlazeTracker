@@ -76,6 +76,7 @@ function createMockSettings(overrides: Partial<ExtractionSettings> = {}): Extrac
 		customPrompts: {},
 		maxMessagesToSend: 10,
 		maxChapterMessagesToSend: 24,
+		includeWorldinfo: true,
 		...overrides,
 	};
 }
@@ -437,6 +438,7 @@ describe('chapterDescriptionExtractor', () => {
 			const settings = createMockSettings({
 				maxMessagesToSend: 5,
 				maxChapterMessagesToSend: 20,
+				includeWorldinfo: true,
 			});
 
 			const currentMessage: MessageAndSwipe = { messageId: 14, swipeId: 0 };
@@ -571,6 +573,7 @@ describe('chapterDescriptionExtractor', () => {
 			const settings = createMockSettings({
 				maxMessagesToSend: 3, // This should be ignored!
 				maxChapterMessagesToSend: 20,
+				includeWorldinfo: true,
 			});
 
 			const currentMessage: MessageAndSwipe = { messageId: 14, swipeId: 0 };
@@ -619,6 +622,7 @@ describe('chapterDescriptionExtractor', () => {
 			const settings = createMockSettings({
 				maxMessagesToSend: 5,
 				maxChapterMessagesToSend: 10,
+				includeWorldinfo: true,
 			});
 
 			const currentMessage: MessageAndSwipe = { messageId: 29, swipeId: 0 };

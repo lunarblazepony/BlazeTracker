@@ -37,6 +37,7 @@ import {
 	getMaxMessages,
 } from '../../utils';
 import { debugWarn } from '../../../../utils/debug';
+import { getWorldinfoForRelationship } from '../../../utils/worldinfo';
 
 /**
  * Wants change per-pair event extractor.
@@ -97,6 +98,23 @@ export const wantsChangeExtractor: PerPairExtractor<ExtractedWantsChange> = {
 			maxMessages,
 		));
 
+		// Fetch worldinfo for the relationship pair if enabled
+		let worldinfo = '';
+		if (settings.includeWorldinfo) {
+			const messagesForWorldinfo: string[] = [];
+			for (
+				let i = messageStart;
+				i <= messageEnd && i < context.chat.length;
+				i++
+			) {
+				const msg = context.chat[i];
+				if (!msg.is_system) {
+					messagesForWorldinfo.push(msg.mes);
+				}
+			}
+			worldinfo = await getWorldinfoForRelationship(messagesForWorldinfo, pair);
+		}
+
 		// Build prompt with relationship pair context
 		const builtPrompt = buildExtractorPrompt(
 			wantsChangePrompt,
@@ -105,7 +123,10 @@ export const wantsChangeExtractor: PerPairExtractor<ExtractedWantsChange> = {
 			settings,
 			messageStart,
 			messageEnd,
-			{ relationshipPair: pair },
+			{
+				relationshipPair: pair,
+				worldinfo: worldinfo || 'No worldinfo available',
+			},
 		);
 
 		// Get temperature (prompt override → category → default)

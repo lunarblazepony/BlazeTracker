@@ -38,6 +38,7 @@ import type { SwipeContext } from '../../store/projection';
 import { computeNarrativeEvents, computeChapters } from '../../narrative/computeNarrativeEvents';
 import type { NarrativeEvent } from '../../types/snapshot';
 import { debugWarn } from '../../../utils/debug';
+import { getWorldinfoForPrompt } from '../../utils/worldinfo';
 
 /**
  * Get the chapter start message ID (swipe-aware).
@@ -269,6 +270,25 @@ export const chapterDescriptionExtractor: EventExtractor<ExtractedChapterDescrip
 			context,
 		);
 
+		// Fetch worldinfo if enabled
+		let worldinfo = 'No worldinfo available';
+		if (settings.includeWorldinfo) {
+			const messagesForWorldinfo: string[] = [];
+			for (
+				let i = chapterStartMsg;
+				i <= chapterEndMsg && i < context.chat.length;
+				i++
+			) {
+				const msg = context.chat[i];
+				if (!msg.is_system) {
+					messagesForWorldinfo.push(msg.mes);
+				}
+			}
+			worldinfo =
+				(await getWorldinfoForPrompt(messagesForWorldinfo)) ||
+				'No worldinfo available';
+		}
+
 		// Build additional placeholder values for chapter-specific context
 		const additionalValues: Record<string, string> = {
 			allChapterMessages,
@@ -276,6 +296,7 @@ export const chapterDescriptionExtractor: EventExtractor<ExtractedChapterDescrip
 			chapterMilestones: formatMilestones(chapterMilestones),
 			chapterTimeRange: formatTimeRange(chapterNarrativeEvents),
 			chapterSummaries: formatChapterSummaries(store, context, chapterIndex),
+			worldinfo,
 		};
 
 		// Build the prompt with chapter context

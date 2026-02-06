@@ -22,6 +22,9 @@ export interface STContext {
 	name1: string; // User name
 	name2: string; // Character name
 
+	// User persona
+	persona?: string;
+
 	powerUserSettings?: {
 		persona_description?: string;
 	};
@@ -132,6 +135,8 @@ export interface Character {
 	scenario: string;
 	first_mes: string;
 	mes_example: string;
+	depth_prompt_prompt?: string;
+	creatorcomment?: string;
 }
 
 export interface GenerateOptions {

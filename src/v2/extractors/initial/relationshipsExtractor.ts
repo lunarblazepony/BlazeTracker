@@ -22,6 +22,7 @@ import {
 } from '../utils';
 import { buildPrompt } from '../../prompts';
 import { debugWarn } from '../../../utils/debug';
+import { getWorldinfoForPrompt } from '../../utils/worldinfo';
 
 /**
  * Initial relationships extractor.
@@ -89,12 +90,30 @@ export const initialRelationshipsExtractor: InitialExtractor<ExtractedInitialRel
 			maxMessages,
 		));
 
+		// Fetch worldinfo if enabled
+		let worldinfo = '';
+		if (settings.includeWorldinfo) {
+			const messagesForWorldinfo: string[] = [];
+			for (
+				let i = messageStart;
+				i <= messageEnd && i < context.chat.length;
+				i++
+			) {
+				const msg = context.chat[i];
+				if (!msg.is_system) {
+					messagesForWorldinfo.push(msg.mes);
+				}
+			}
+			worldinfo = await getWorldinfoForPrompt(messagesForWorldinfo);
+		}
+
 		// Build placeholder values
 		const placeholders: Record<string, string> = {
 			messages: formatMessages(context, messageStart, messageEnd),
 			characterName: context.name2,
 			characterDescription: getCharacterDescription(context),
 			characterPairs: pairsText,
+			worldinfo: worldinfo || 'No worldinfo available',
 		};
 
 		// Build the prompt

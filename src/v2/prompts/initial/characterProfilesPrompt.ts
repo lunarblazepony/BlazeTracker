@@ -314,6 +314,7 @@ export const initialCharacterProfilesPrompt: PromptTemplate<ExtractedCharacterPr
 		PLACEHOLDERS.characterName,
 		PLACEHOLDERS.characterDescription,
 		PLACEHOLDERS.userDescription,
+		PLACEHOLDERS.worldinfo,
 		TARGET_CHARACTER_PLACEHOLDER,
 	],
 
@@ -396,6 +397,9 @@ Description: {{characterDescription}}
 ## User Persona
 {{userDescription}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Target Character to Profile
 {{targetCharacterForProfile}}
 
@@ -408,6 +412,7 @@ Extract a condensed profile for **{{targetCharacterForProfile}}** based on avail
 Remember:
 - Check both the character card (if this is the main character) and the messages
 - If this is the user character, use the User Persona description
+- Use any relevant worldinfo/lorebook entries for additional character details
 - Make reasonable inferences for unstated attributes
 - Provide 8-10 tags each for appearance and personality
 - Estimate age from context clues if not explicit`,

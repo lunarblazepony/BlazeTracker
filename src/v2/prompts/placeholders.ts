@@ -201,6 +201,14 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
 		description: 'Example output matching the schema',
 		example: '{ "area": "Downtown Seattle", "place": "The Rusty Nail bar", ... }',
 	},
+
+	// Worldinfo placeholder
+	worldinfo: {
+		name: 'worldinfo',
+		description:
+			'Relevant worldinfo (lorebook) entries containing character lore, relationship history, and world-building context',
+		example: '[Elena Background]\nElena grew up on the streets of Seattle before being taken in by the Thieves Guild at age 12...\n\n[Marcus History]\nMarcus served 20 years on the Seattle PD before retiring under suspicious circumstances...',
+	},
 };
 
 // ============================================

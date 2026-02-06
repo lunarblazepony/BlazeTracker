@@ -24,6 +24,7 @@ import {
 } from '../../utils';
 import type { EventStore } from '../../../store';
 import { debugWarn } from '../../../../utils/debug';
+import { getWorldinfoForPrompt } from '../../../utils/worldinfo';
 
 /**
  * Subjects event extractor.
@@ -73,6 +74,15 @@ export const subjectsExtractor: EventExtractor<ExtractedSubjects> = {
 			return [];
 		}
 
+		// Fetch worldinfo if enabled
+		let worldinfo = '';
+		if (settings.includeWorldinfo) {
+			const currentMsg = context.chat[currentMessage.messageId];
+			if (currentMsg && !currentMsg.is_system) {
+				worldinfo = await getWorldinfoForPrompt([currentMsg.mes]);
+			}
+		}
+
 		// Build the prompt with character pairs context
 		const builtPrompt = buildExtractorPrompt(
 			subjectsPrompt,
@@ -81,6 +91,7 @@ export const subjectsExtractor: EventExtractor<ExtractedSubjects> = {
 			settings,
 			currentMessage.messageId, // Start at current message
 			currentMessage.messageId, // End at current message (look at last 1 message)
+			{ worldinfo: worldinfo || 'No worldinfo available' },
 		);
 
 		// Get temperature (prompt override → category → default)

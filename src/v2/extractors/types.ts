@@ -97,6 +97,8 @@ export interface ExtractionSettings {
 	promptPrefix?: string;
 	/** String to append to the user part of all prompts */
 	promptSuffix?: string;
+	/** Include worldinfo (lorebook) data in extractor prompts */
+	includeWorldinfo: boolean;
 }
 
 // ============================================

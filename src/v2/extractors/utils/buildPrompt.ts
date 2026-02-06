@@ -323,6 +323,11 @@ export interface BuildPlaceholderOptions {
 	/** Relationship pair for relationship extractors */
 	relationshipPair?: [string, string];
 	/**
+	 * Worldinfo content to include in the prompt.
+	 * Should be pre-formatted text from getWorldinfoForPrompt or similar.
+	 */
+	worldinfo?: string;
+	/**
 	 * Additional placeholder values to merge in.
 	 * Use this for extractor-specific values that aren't part of the core set.
 	 * These will override any core values with the same key.
@@ -388,6 +393,11 @@ export function buildPlaceholderValues(
 			projection,
 			options.relationshipPair,
 		);
+	}
+
+	// Add worldinfo if provided
+	if (options?.worldinfo) {
+		values.worldinfo = options.worldinfo;
 	}
 
 	// Merge additional values (allows extractors to add custom placeholders)
