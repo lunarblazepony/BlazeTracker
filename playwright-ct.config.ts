@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/experimental-ct-react';
+import { resolve } from 'path';
 
 export default defineConfig({
 	testDir: './src',
@@ -13,6 +14,24 @@ export default defineConfig({
 	use: {
 		trace: 'on-first-retry',
 		ctPort: 3100,
+		ctViteConfig: {
+			resolve: {
+				alias: {
+					'sillytavern-utils-lib/config': resolve(
+						__dirname,
+						'src/test/mocks/stUtilsConfig.ts',
+					),
+					'sillytavern-utils-lib/generation': resolve(
+						__dirname,
+						'src/test/mocks/stUtilsGeneration.ts',
+					),
+					'sillytavern-utils-lib': resolve(
+						__dirname,
+						'src/test/mocks/stUtils.ts',
+					),
+				},
+			},
+		},
 	},
 	projects: [
 		{
