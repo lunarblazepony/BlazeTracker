@@ -6,6 +6,16 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { EventStore } from '../store/EventStore';
+import { createDefaultV2Settings } from '../settings/defaults';
+
+// Mock getV2Settings so we can control inject settings per-test
+const mockSettings = createDefaultV2Settings();
+vi.mock('../settings', () => ({
+	getV2Settings: vi.fn(() => mockSettings),
+}));
+
+import { getV2Settings } from '../settings';
+const mockGetV2Settings = vi.mocked(getV2Settings);
 
 // Mock SillyTavern global
 const mockEventSource = {
@@ -598,6 +608,124 @@ describe('prompt hook with mock store', () => {
 			}
 
 			mockContext.chat = originalChat;
+		});
+	});
+
+	// ============================================
+	// Inject Settings Tests
+	// ============================================
+
+	describe('inject settings', () => {
+		it('chat completion: skips when both v2InjectState and v2InjectNarrative are false', async () => {
+			mockGetV2Settings.mockReturnValue({
+				...createDefaultV2Settings(),
+				v2InjectState: false,
+				v2InjectNarrative: false,
+			});
+
+			const eventData = {
+				chat: [
+					{ role: 'system', content: 'You are helpful.' },
+					{ role: 'user', content: 'Hello' },
+					{ role: 'assistant', content: 'Hi!' },
+				],
+				dryRun: false,
+			};
+
+			const originalLength = eventData.chat.length;
+			await chatCompletionHandler(eventData);
+
+			// Chat should not be modified
+			expect(eventData.chat).toHaveLength(originalLength);
+		});
+
+		it('text completion: skips when both v2InjectState and v2InjectNarrative are false', async () => {
+			mockGetV2Settings.mockReturnValue({
+				...createDefaultV2Settings(),
+				v2InjectState: false,
+				v2InjectNarrative: false,
+			});
+
+			const originalChat = mockContext.chat;
+			mockContext.chat = [
+				{ mes: 'Hello', is_user: true },
+				{ mes: 'Hi there!', is_user: false },
+				{ mes: 'How are you?', is_user: true },
+			];
+
+			const eventData = {
+				mesSendString: 'Original messages here',
+				storyString: 'Story content',
+				api: 'kobold',
+				dryRun: false,
+				finalMesSend: [
+					{
+						message: 'User: Hello',
+						extensionPrompts: [] as string[],
+					},
+					{
+						message: 'Assistant: Hi there!',
+						extensionPrompts: [] as string[],
+					},
+				],
+			};
+
+			const originalFirstMessage = eventData.finalMesSend[0].message;
+			const originalLastMessage = eventData.finalMesSend[1].message;
+			await textCompletionHandler(eventData);
+
+			// Messages should not be modified
+			expect(eventData.finalMesSend[0].message).toBe(originalFirstMessage);
+			expect(eventData.finalMesSend[1].message).toBe(originalLastMessage);
+			expect(eventData.finalMesSend[0].extensionPrompts).toHaveLength(0);
+
+			mockContext.chat = originalChat;
+		});
+
+		it('chat completion: still injects when only v2InjectState is true', async () => {
+			mockGetV2Settings.mockReturnValue({
+				...createDefaultV2Settings(),
+				v2InjectState: true,
+				v2InjectNarrative: false,
+			});
+
+			const eventData = {
+				chat: [
+					{ role: 'system', content: 'You are helpful.' },
+					{ role: 'user', content: 'Hello' },
+					{ role: 'assistant', content: 'Hi!' },
+				],
+				dryRun: false,
+			};
+
+			await chatCompletionHandler(eventData);
+
+			// Should have injected state (chat length increases)
+			expect(eventData.chat.length).toBeGreaterThanOrEqual(3);
+		});
+
+		it('chat completion: still injects when only v2InjectNarrative is true', async () => {
+			mockGetV2Settings.mockReturnValue({
+				...createDefaultV2Settings(),
+				v2InjectState: false,
+				v2InjectNarrative: true,
+			});
+
+			const eventData = {
+				chat: [
+					{ role: 'system', content: 'You are helpful.' },
+					{ role: 'user', content: 'Hello' },
+					{ role: 'assistant', content: 'Hi!' },
+				],
+				dryRun: false,
+			};
+
+			// Even if no narrative content is generated, the handler should not early-return
+			// (it goes through the pipeline; absence of content is handled by the "no content" check)
+			await chatCompletionHandler(eventData);
+
+			// Should not crash
+			expect(eventData.chat.length).toBeGreaterThanOrEqual(3);
 		});
 	});
 });

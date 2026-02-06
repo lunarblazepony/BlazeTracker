@@ -254,10 +254,33 @@ describe('macro handlers', () => {
 			);
 		});
 
+		it('returns empty string when bridge functions are not registered', () => {
+			// Reset bridge functions to null
+			registerMacroBridgeFunctions(null);
+
+			const result = btStateHandler();
+
+			expect(result).toBe('');
+		});
+
 		it('returns empty string when store is unavailable', () => {
 			// Re-register bridge functions with no store
 			registerMacroBridgeFunctions({
 				getV2EventStore: () => null,
+				hasV2InitialSnapshot: () => false,
+				buildSwipeContext: () => mockSwipeContext,
+			});
+
+			const result = btStateHandler();
+
+			expect(result).toBe('');
+		});
+
+		it('returns empty string when bridge functions throw', () => {
+			registerMacroBridgeFunctions({
+				getV2EventStore: () => {
+					throw new Error('Store error');
+				},
 				hasV2InitialSnapshot: () => false,
 				buildSwipeContext: () => mockSwipeContext,
 			});
@@ -431,9 +454,31 @@ describe('macro handlers', () => {
 			);
 		});
 
+		it('returns empty string when bridge functions are not registered', () => {
+			registerMacroBridgeFunctions(null);
+
+			const result = btNarrativeHandler();
+
+			expect(result).toBe('');
+		});
+
 		it('returns empty string when store is unavailable', () => {
 			registerMacroBridgeFunctions({
 				getV2EventStore: () => null,
+				hasV2InitialSnapshot: () => false,
+				buildSwipeContext: () => mockSwipeContext,
+			});
+
+			const result = btNarrativeHandler();
+
+			expect(result).toBe('');
+		});
+
+		it('returns empty string when bridge functions throw', () => {
+			registerMacroBridgeFunctions({
+				getV2EventStore: () => {
+					throw new Error('Store error');
+				},
 				hasV2InitialSnapshot: () => false,
 				buildSwipeContext: () => mockSwipeContext,
 			});

@@ -26,11 +26,13 @@ let bridgeFunctions: {
  * Register bridge functions for the macro handlers.
  * Must be called before macros can function.
  */
-export function registerMacroBridgeFunctions(functions: {
-	getV2EventStore: () => EventStore | null;
-	hasV2InitialSnapshot: () => boolean;
-	buildSwipeContext: (stContext: STContext) => SwipeContext;
-}): void {
+export function registerMacroBridgeFunctions(
+	functions: {
+		getV2EventStore: () => EventStore | null;
+		hasV2InitialSnapshot: () => boolean;
+		buildSwipeContext: (stContext: STContext) => SwipeContext;
+	} | null,
+): void {
 	bridgeFunctions = functions;
 }
 
