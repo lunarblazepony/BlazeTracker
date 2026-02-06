@@ -113735,14 +113735,14 @@ async function handlePromptReady(eventData) {
             const lastMessage = chatMessages[chatMessages.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
                 // Prefill/continuation - insert before the assistant's partial response if custom depth is disabled.
-                chatMessages.splice(chatMessages.length - settings.v2InjectionDepth, 0, {
+                chatMessages.splice(chatMessages.length - (settings.v2InjectionDepth + 1), 0, {
                     role: 'user',
                     content: stateContent,
                 });
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
             }
             else {
-                chatMessages.splice(chatMessages.length - (settings.v2InjectionDepth + 1), 0, {
+                chatMessages.splice(chatMessages.length - settings.v2InjectionDepth, 0, {
                     role: 'user',
                     content: stateContent,
                 });
@@ -113904,7 +113904,7 @@ async function handleTextCompletionPromptReady(eventData) {
                 // Continuation mode: append state to second-to-last message
                 // (the last one is the assistant's prefill)
                 const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length -
-                    settings.v2InjectionDepth];
+                    (settings.v2InjectionDepth + 1)];
                 targetMessage.message =
                     targetMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
@@ -113912,7 +113912,7 @@ async function handleTextCompletionPromptReady(eventData) {
             else {
                 // Normal mode OR only one message: append to last message
                 const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length -
-                    (settings.v2InjectionDepth + 1)];
+                    settings.v2InjectionDepth];
                 lastMessage.message = lastMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state after messages');
             }
