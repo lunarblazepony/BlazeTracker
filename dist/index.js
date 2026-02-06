@@ -105165,6 +105165,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _narrative_computeNarrativeEvents__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../narrative/computeNarrativeEvents */ "./src/v2/narrative/computeNarrativeEvents.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Chapter Description Event Extractor
  *
@@ -105173,6 +105174,7 @@ __webpack_require__.r(__webpack_exports__);
  *
  * Sends ALL chapter messages, narrative events, and computed milestones to the prompt.
  */
+
 
 
 
@@ -105331,6 +105333,20 @@ const chapterDescriptionExtractor = {
         const chapterMilestones = computeChapterMilestones(workingStore, chapterIndex, context);
         // Get current state projection including turn events
         const projection = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.projectWithTurnEvents)(store, turnEvents, currentMessage.messageId, context);
+        // Fetch worldinfo if enabled
+        let worldinfo = 'No worldinfo available';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = chapterStartMsg; i <= chapterEndMsg && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo =
+                (await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_5__.getWorldinfoForPrompt)(messagesForWorldinfo)) ||
+                    'No worldinfo available';
+        }
         // Build additional placeholder values for chapter-specific context
         const additionalValues = {
             allChapterMessages,
@@ -105338,6 +105354,7 @@ const chapterDescriptionExtractor = {
             chapterMilestones: formatMilestones(chapterMilestones),
             chapterTimeRange: formatTimeRange(chapterNarrativeEvents),
             chapterSummaries: formatChapterSummaries(store, context, chapterIndex),
+            worldinfo,
         };
         // Build the prompt with chapter context
         const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.buildExtractorPrompt)(_prompts_events_chapterDescriptionPrompt__WEBPACK_IMPORTED_MODULE_1__.chapterDescriptionPrompt, context, projection, settings, chapterStartMsg, // Start from chapter start
@@ -105572,6 +105589,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _store_serialization__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../store/serialization */ "./src/v2/store/serialization.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Appeared Character Outfit Extractor
  *
@@ -105579,6 +105597,7 @@ __webpack_require__.r(__webpack_exports__);
  * This runs after presenceChangeExtractor to ensure newly appeared characters
  * have their outfits extracted (so they don't walk around naked forever).
  */
+
 
 
 
@@ -105639,11 +105658,25 @@ const appearedCharacterOutfitExtractor = {
         const allEvents = [];
         // Process each appeared character separately for better focus
         for (const appearedCharacter of appearedCharacters) {
+            // Fetch worldinfo for the appeared character if enabled
+            let worldinfo = 'No worldinfo available';
+            if (settings.includeWorldinfo) {
+                const messagesForWorldinfo = [];
+                for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                    const msg = context.chat[i];
+                    if (!msg.is_system) {
+                        messagesForWorldinfo.push(msg.mes);
+                    }
+                }
+                worldinfo =
+                    (await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_6__.getWorldinfoForCharacter)(messagesForWorldinfo, appearedCharacter)) || 'No worldinfo available';
+            }
             const placeholders = {
                 messages,
                 characterName: context.name2,
                 characterDescription: (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getCharacterDescription)(context),
                 appearedCharacter,
+                worldinfo,
             };
             // Build the prompt
             const builtPrompt = (0,_prompts__WEBPACK_IMPORTED_MODULE_3__.buildPrompt)(_prompts_events_appearedCharacterOutfitPrompt__WEBPACK_IMPORTED_MODULE_1__.appearedCharacterOutfitPrompt, placeholders, settings.customPrompts);
@@ -107093,12 +107126,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _store_projection__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../store/projection */ "./src/v2/store/projection.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Milestone Description Event Extractor
  *
  * Generates milestone descriptions for first-time relationship subjects.
  * This extractor MODIFIES existing subject events rather than creating new ones.
  */
+
 
 
 
@@ -107169,7 +107204,7 @@ function formatRelationshipForMilestone(projection, pair) {
 /**
  * Build placeholder values for milestone description prompt.
  */
-function buildMilestonePlaceholderValues(event, context, projection, messageStart, messageEnd) {
+function buildMilestonePlaceholderValues(event, context, projection, messageStart, messageEnd, worldinfo) {
     const pair = event.pair;
     return {
         messages: (0,_utils__WEBPACK_IMPORTED_MODULE_3__.formatMessages)(context, messageStart, messageEnd),
@@ -107182,6 +107217,7 @@ function buildMilestonePlaceholderValues(event, context, projection, messageStar
         relationship: formatRelationshipForMilestone(projection, pair),
         relationshipProfiles: (0,_utils__WEBPACK_IMPORTED_MODULE_3__.formatRelationshipProfiles)(projection, pair),
         eventDetail: `${event.subject.replace(/_/g, ' ')} between ${pair[0]} and ${pair[1]}`,
+        worldinfo,
     };
 }
 /**
@@ -107256,10 +107292,33 @@ const milestoneDescriptionExtractor = {
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_3__.limitMessageRange)(messageStart, messageEnd, maxMessages));
         // Get the temperature (use custom if set, otherwise default)
         const temperature = settings.temperatures.narrative ?? this.defaultTemperature;
+        // Fetch worldinfo for all milestone pairs if enabled
+        const worldinfoCache = {};
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            // Pre-fetch worldinfo for all unique pairs
+            for (const event of milestoneCandidates) {
+                const pair = event.pair;
+                const pairKey = pair.join('|');
+                if (!worldinfoCache[pairKey]) {
+                    worldinfoCache[pairKey] =
+                        (await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_7__.getWorldinfoForRelationship)(messagesForWorldinfo, pair)) || 'No worldinfo available';
+                }
+            }
+        }
         // Process each milestone candidate
         for (const event of milestoneCandidates) {
+            const pair = event.pair;
+            const pairKey = pair.join('|');
+            const worldinfo = worldinfoCache[pairKey] || 'No worldinfo available';
             // Build the placeholder values for this specific milestone
-            const values = buildMilestonePlaceholderValues(event, context, projection, messageStart, messageEnd);
+            const values = buildMilestonePlaceholderValues(event, context, projection, messageStart, messageEnd, worldinfo);
             // Build the prompt with milestone-specific values
             const builtPrompt = (0,_prompts__WEBPACK_IMPORTED_MODULE_4__.buildPrompt)(_prompts_events_milestoneDescriptionPrompt__WEBPACK_IMPORTED_MODULE_2__.milestoneDescriptionPrompt, values, settings.customPrompts);
             // Generate and parse the response
@@ -107294,6 +107353,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts_events_narrativeDescriptionPrompt__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../prompts/events/narrativeDescriptionPrompt */ "./src/v2/prompts/events/narrativeDescriptionPrompt.ts");
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Narrative Description Event Extractor
  *
@@ -107301,6 +107361,7 @@ __webpack_require__.r(__webpack_exports__);
  * Summarizes messages since last narrative description.
  * Witnesses and location are derived from projection state, not extracted.
  */
+
 
 
 
@@ -107335,8 +107396,20 @@ const narrativeDescriptionExtractor = {
         // Apply message limiting
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getMaxMessages)(settings, this.name);
         ({ messageStart: startMessageId, messageEnd: endMessageId } = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.limitMessageRange)(startMessageId, endMessageId, maxMessages));
+        // Fetch worldinfo if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = startMessageId; i <= endMessageId && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__.getWorldinfoForPrompt)(messagesForWorldinfo);
+        }
         // Build the prompt with current context
-        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.buildExtractorPrompt)(_prompts_events_narrativeDescriptionPrompt__WEBPACK_IMPORTED_MODULE_1__.narrativeDescriptionPrompt, context, projection, settings, startMessageId, endMessageId);
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.buildExtractorPrompt)(_prompts_events_narrativeDescriptionPrompt__WEBPACK_IMPORTED_MODULE_1__.narrativeDescriptionPrompt, context, projection, settings, startMessageId, endMessageId, { worldinfo: worldinfo || 'No worldinfo available' });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getExtractorTemperature)(settings, this.prompt.name, 'narrative', this.defaultTemperature);
         // Generate and parse the response
@@ -107618,12 +107691,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts_events_feelingsChangePrompt__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../prompts/events/feelingsChangePrompt */ "./src/v2/prompts/events/feelingsChangePrompt.ts");
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Relationship Feelings Change Event Extractor
  *
  * Detects when a character's feelings toward another character change.
  * This is a per-pair extractor that runs once for each present character pair.
  */
+
 
 
 
@@ -107658,8 +107733,23 @@ const feelingsChangeExtractor = {
         // Apply message limiting
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getMaxMessages)(settings, this.name);
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Fetch worldinfo for the relationship pair if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__.getWorldinfoForRelationship)(messagesForWorldinfo, pair);
+        }
         // Build prompt with relationship pair context
-        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_feelingsChangePrompt__WEBPACK_IMPORTED_MODULE_0__.feelingsChangePrompt, context, projection, settings, messageStart, messageEnd, { relationshipPair: pair });
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_feelingsChangePrompt__WEBPACK_IMPORTED_MODULE_0__.feelingsChangePrompt, context, projection, settings, messageStart, messageEnd, {
+            relationshipPair: pair,
+            worldinfo: worldinfo || 'No worldinfo available',
+        });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getExtractorTemperature)(settings, this.prompt.name, 'relationships', this.defaultTemperature);
         // Generate and parse response
@@ -107783,6 +107873,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Relationship Attitude Consolidation Extractor
  *
@@ -107792,6 +107883,7 @@ __webpack_require__.r(__webpack_exports__);
  * Runs every 6 messages as a cleanup pass.
  * Makes 2 LLM calls per pair - one for each direction (A→B and B→A).
  */
+
 
 
 
@@ -107864,11 +107956,12 @@ function mapAttitudeConsolidation(oldFeelings, newFeelings, oldWants, newWants, 
 /**
  * Consolidate one direction of a relationship.
  */
-async function consolidateDirection(generator, _context, settings, messages, characterProfiles, fromCharacter, towardCharacter, currentFeelings, currentWants, currentMessage, temperature, abortSignal) {
+async function consolidateDirection(generator, _context, settings, messages, characterProfiles, worldinfo, fromCharacter, towardCharacter, currentFeelings, currentWants, currentMessage, temperature, abortSignal) {
     // Build prompt with explicit directional values
     const builtPrompt = (0,_prompts__WEBPACK_IMPORTED_MODULE_2__.buildPrompt)(_prompts_events_relationshipAttitudeConsolidationPrompt__WEBPACK_IMPORTED_MODULE_0__.relationshipAttitudeConsolidationPrompt, {
         messages,
         characterProfiles,
+        worldinfo,
         fromCharacter,
         towardCharacter,
         currentFeelings: currentFeelings.length > 0 ? currentFeelings.join(', ') : '(none)',
@@ -107925,14 +108018,27 @@ const relationshipAttitudeConsolidationExtractor = {
         // Format common values
         const messages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.formatMessages)(context, messageStart, messageEnd);
         const characterProfiles = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.formatRelationshipProfiles)(projection, pair);
+        // Fetch worldinfo for the relationship pair if enabled
+        let worldinfo = 'No worldinfo available';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo =
+                (await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__.getWorldinfoForRelationship)(messagesForWorldinfo, pair)) || 'No worldinfo available';
+        }
         const allEvents = [];
         // Direction 1: A → B (pair[0] toward pair[1])
-        const eventsAtoB = await consolidateDirection(generator, context, settings, messages, characterProfiles, pair[0], // fromCharacter
+        const eventsAtoB = await consolidateDirection(generator, context, settings, messages, characterProfiles, worldinfo, pair[0], // fromCharacter
         pair[1], // towardCharacter
         [...rel.aToB.feelings], [...rel.aToB.wants], currentMessage, temperature, abortSignal);
         allEvents.push(...eventsAtoB);
         // Direction 2: B → A (pair[1] toward pair[0])
-        const eventsBtoA = await consolidateDirection(generator, context, settings, messages, characterProfiles, pair[1], // fromCharacter
+        const eventsBtoA = await consolidateDirection(generator, context, settings, messages, characterProfiles, worldinfo, pair[1], // fromCharacter
         pair[0], // towardCharacter
         [...rel.bToA.feelings], [...rel.bToA.wants], currentMessage, temperature, abortSignal);
         allEvents.push(...eventsBtoA);
@@ -107956,12 +108062,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts_events_secretsChangePrompt__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../prompts/events/secretsChangePrompt */ "./src/v2/prompts/events/secretsChangePrompt.ts");
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Secrets Change Event Extractor
  *
  * Detects when secrets one character holds about another change.
  * This is a per-pair extractor that runs once for each present character pair.
  */
+
 
 
 
@@ -107996,8 +108104,23 @@ const secretsChangeExtractor = {
         // Apply message limiting
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getMaxMessages)(settings, this.name);
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Fetch worldinfo for the relationship pair if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__.getWorldinfoForRelationship)(messagesForWorldinfo, pair);
+        }
         // Build prompt with relationship pair context
-        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_secretsChangePrompt__WEBPACK_IMPORTED_MODULE_0__.secretsChangePrompt, context, projection, settings, messageStart, messageEnd, { relationshipPair: pair });
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_secretsChangePrompt__WEBPACK_IMPORTED_MODULE_0__.secretsChangePrompt, context, projection, settings, messageStart, messageEnd, {
+            relationshipPair: pair,
+            worldinfo: worldinfo || 'No worldinfo available',
+        });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getExtractorTemperature)(settings, this.prompt.name, 'relationships', this.defaultTemperature);
         // Generate and parse response
@@ -108054,6 +108177,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../types/snapshot */ "./src/v2/types/snapshot.ts");
 /* harmony import */ var _store_projection__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../store/projection */ "./src/v2/store/projection.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Relationship Status Change Event Extractor
  *
@@ -108065,6 +108189,7 @@ __webpack_require__.r(__webpack_exports__);
  * - "close" requires emotional intimacy milestones
  * - "intimate" requires romantic/physical milestones
  */
+
 
 
 
@@ -108105,8 +108230,23 @@ const statusChangeExtractor = {
         // Apply message limiting
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getMaxMessages)(settings, this.name);
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Fetch worldinfo for the relationship pair if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_6__.getWorldinfoForRelationship)(messagesForWorldinfo, pair);
+        }
         // Build prompt with relationship pair context
-        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_statusChangePrompt__WEBPACK_IMPORTED_MODULE_0__.statusChangePrompt, context, projection, settings, messageStart, messageEnd, { relationshipPair: pair });
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_statusChangePrompt__WEBPACK_IMPORTED_MODULE_0__.statusChangePrompt, context, projection, settings, messageStart, messageEnd, {
+            relationshipPair: pair,
+            worldinfo: worldinfo || 'No worldinfo available',
+        });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getExtractorTemperature)(settings, this.prompt.name, 'relationships', this.defaultTemperature);
         // Generate and parse response
@@ -108351,12 +108491,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts_events_subjectsPrompt__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../prompts/events/subjectsPrompt */ "./src/v2/prompts/events/subjectsPrompt.ts");
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Subjects Event Extractor
  *
  * Detects relationship subjects/interaction types for ALL present character pairs.
  * Runs globally and returns events for all detected subjects.
  */
+
 
 
 
@@ -108387,9 +108529,18 @@ const subjectsExtractor = {
         if (presentCharacters.length < 2) {
             return [];
         }
+        // Fetch worldinfo if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const currentMsg = context.chat[currentMessage.messageId];
+            if (currentMsg && !currentMsg.is_system) {
+                worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__.getWorldinfoForPrompt)([currentMsg.mes]);
+            }
+        }
         // Build the prompt with character pairs context
         const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_subjectsPrompt__WEBPACK_IMPORTED_MODULE_0__.subjectsPrompt, context, projection, settings, currentMessage.messageId, // Start at current message
-        currentMessage.messageId);
+        currentMessage.messageId, // End at current message (look at last 1 message)
+        { worldinfo: worldinfo || 'No worldinfo available' });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getExtractorTemperature)(settings, this.prompt.name, 'relationships', this.defaultTemperature);
         // Generate and parse the response
@@ -108425,12 +108576,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts_events_wantsChangePrompt__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../prompts/events/wantsChangePrompt */ "./src/v2/prompts/events/wantsChangePrompt.ts");
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Relationship Wants Change Event Extractor
  *
  * Detects when a character's desires/wants toward another character change.
  * This is a per-pair extractor that runs once for each present character pair.
  */
+
 
 
 
@@ -108466,8 +108619,23 @@ const wantsChangeExtractor = {
         // Apply message limiting
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getMaxMessages)(settings, this.name);
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Fetch worldinfo for the relationship pair if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_3__.getWorldinfoForRelationship)(messagesForWorldinfo, pair);
+        }
         // Build prompt with relationship pair context
-        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_wantsChangePrompt__WEBPACK_IMPORTED_MODULE_0__.wantsChangePrompt, context, projection, settings, messageStart, messageEnd, { relationshipPair: pair });
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_wantsChangePrompt__WEBPACK_IMPORTED_MODULE_0__.wantsChangePrompt, context, projection, settings, messageStart, messageEnd, {
+            relationshipPair: pair,
+            worldinfo: worldinfo || 'No worldinfo available',
+        });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getExtractorTemperature)(settings, this.prompt.name, 'relationships', this.defaultTemperature);
         // Generate and parse response
@@ -108875,12 +109043,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Initial Character Profiles Extractor
  *
  * Extracts condensed profiles (sex, species, age, appearance tags, personality tags)
  * for characters present in the opening messages of a roleplay.
  */
+
 
 
 
@@ -108931,8 +109101,21 @@ const initialCharacterProfilesExtractor = {
         let messageEnd = context.chat.length - 1;
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getMaxMessages)(settings, this.name);
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Get messages for worldinfo matching (shared across all characters)
+        const messagesForWorldinfo = [];
+        for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+            const msg = context.chat[i];
+            if (!msg.is_system) {
+                messagesForWorldinfo.push(msg.mes);
+            }
+        }
         // Extract profile for each character
         for (const characterName of characterNames) {
+            // Fetch worldinfo for this character if enabled
+            let worldinfo = '';
+            if (settings.includeWorldinfo) {
+                worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__.getWorldinfoForCharacter)(messagesForWorldinfo, characterName);
+            }
             // Build placeholder values for this character
             const placeholders = {
                 messages: (0,_utils__WEBPACK_IMPORTED_MODULE_1__.formatMessages)(context, messageStart, messageEnd),
@@ -108940,6 +109123,7 @@ const initialCharacterProfilesExtractor = {
                 characterDescription: (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getCharacterDescription)(context),
                 userDescription: (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getUserDescription)(context),
                 targetCharacterForProfile: characterName,
+                worldinfo: worldinfo || 'No worldinfo available',
             };
             // Build the prompt
             const builtPrompt = (0,_prompts__WEBPACK_IMPORTED_MODULE_2__.buildPrompt)(_prompts_initial_characterProfilesPrompt__WEBPACK_IMPORTED_MODULE_0__.initialCharacterProfilesPrompt, placeholders, settings.customPrompts);
@@ -109486,11 +109670,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils */ "./src/v2/extractors/utils/index.ts");
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Initial Relationships Extractor
  *
  * Extracts the initial relationship states between characters from the opening messages of a roleplay.
  */
+
 
 
 
@@ -109543,12 +109729,25 @@ const initialRelationshipsExtractor = {
         let messageEnd = context.chat.length - 1;
         const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getMaxMessages)(settings, this.name);
         ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Fetch worldinfo if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_5__.getWorldinfoForPrompt)(messagesForWorldinfo);
+        }
         // Build placeholder values
         const placeholders = {
             messages: (0,_utils__WEBPACK_IMPORTED_MODULE_2__.formatMessages)(context, messageStart, messageEnd),
             characterName: context.name2,
             characterDescription: (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getCharacterDescription)(context),
             characterPairs: pairsText,
+            worldinfo: worldinfo || 'No worldinfo available',
         };
         // Build the prompt
         const builtPrompt = (0,_prompts__WEBPACK_IMPORTED_MODULE_3__.buildPrompt)(_prompts_initial_relationshipsPrompt__WEBPACK_IMPORTED_MODULE_1__.initialRelationshipsPrompt, placeholders, settings.customPrompts);
@@ -110634,6 +110833,10 @@ function buildPlaceholderValues(context, projection, messageStart, messageEnd, o
         values.relationshipState = formatRelationshipState(projection, options.relationshipPair);
         // Add profiles for both characters in the relationship
         values.relationshipProfiles = formatRelationshipProfiles(projection, options.relationshipPair);
+    }
+    // Add worldinfo if provided
+    if (options?.worldinfo) {
+        values.worldinfo = options.worldinfo;
     }
     // Merge additional values (allows extractors to add custom placeholders)
     if (options?.additionalValues) {
@@ -115056,12 +115259,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _types_event__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../types/event */ "./src/v2/types/event.ts");
 /* harmony import */ var _narrative_computeNarrativeEvents__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../narrative/computeNarrativeEvents */ "./src/v2/narrative/computeNarrativeEvents.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Chapter Invalidation Handler
  *
  * Handles chapter snapshot invalidation due to swipe changes and manual recalculation.
  * When a chapter's trigger message swipe changes, the chapter needs to be re-evaluated.
  */
+
 
 
 
@@ -115252,6 +115457,20 @@ async function regenerateChapterDescription(generator, store, context, settings,
     const chapterMilestones = computeChapterMilestones(store, chapterIndex, swipeContext);
     // Get current state projection
     const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
+    // Fetch worldinfo if enabled
+    let worldinfo = 'No worldinfo available';
+    if (settings.includeWorldinfo) {
+        const messagesForWorldinfo = [];
+        for (let i = chapterStartMsg; i <= currentMessage.messageId && i < context.chat.length; i++) {
+            const msg = context.chat[i];
+            if (!msg.is_system) {
+                messagesForWorldinfo.push(msg.mes);
+            }
+        }
+        worldinfo =
+            (await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_7__.getWorldinfoForPrompt)(messagesForWorldinfo)) ||
+                'No worldinfo available';
+    }
     // Build additional placeholder values
     const additionalValues = {
         allChapterMessages,
@@ -115259,6 +115478,7 @@ async function regenerateChapterDescription(generator, store, context, settings,
         chapterMilestones: formatMilestones(chapterMilestones),
         chapterTimeRange: formatTimeRange(chapterNarrativeEvents),
         chapterSummaries: formatChapterSummaries(store, swipeContext, chapterIndex),
+        worldinfo,
     };
     // Build the prompt
     const builtPrompt = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_chapterDescriptionPrompt__WEBPACK_IMPORTED_MODULE_2__.chapterDescriptionPrompt, context, projection, settings, chapterStartMsg, currentMessage.messageId, { additionalValues });
@@ -116717,6 +116937,7 @@ const appearedCharacterOutfitPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.messages,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterName,
         APPEARED_CHARACTER_PLACEHOLDER,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to extract what a NEWLY ARRIVED character is wearing.
 
@@ -117086,13 +117307,16 @@ Name: {{characterName}}
 
 IMPORTANT: Extract the outfit ONLY for {{appearedCharacter}}. Ignore all other characters.
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Messages to Analyze
 {{messages}}
 
 ## Task
 Extract the outfit for {{appearedCharacter}} who just appeared/entered the scene.
 - Focus on how they are described when they enter
-- Use the character description as defaults if not specified in the scene
+- Use the character description and worldinfo as defaults if not specified in the scene
 - Make reasonable inferences (socks with shoes, underwear under clothes)
 - Be specific with colors, materials, and styles when provided
 - DO NOT include any other characters - only {{appearedCharacter}}`,
@@ -117582,6 +117806,7 @@ const chapterDescriptionPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.charactersPresent,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.currentLocation,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.chapterSummaries,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are creating chapter summaries for a roleplay narrative. Return ONLY valid JSON.
 
@@ -117878,6 +118103,10 @@ Chapter 2: First containment breach and emergency protocols.
 <time_range>
 {{chapterTimeRange}}
 </time_range>
+
+<worldinfo>
+{{worldinfo}}
+</worldinfo>
 
 <previous_chapters>
 {{chapterSummaries}}
@@ -119422,6 +119651,7 @@ const feelingsChangePrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipPair,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipState,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to detect changes in one character's emotional feelings toward another character.
 
@@ -119470,6 +119700,9 @@ ${BAD_EXAMPLES}
     userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -119483,6 +119716,8 @@ For BOTH directions of the relationship, determine:
 1. Which feelings have newly emerged?
 2. Which feelings have faded or been replaced?
 3. Why did these changes occur?
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 Return your analysis as JSON with a "changes" array containing both directions.`,
     responseSchema: _schemas__WEBPACK_IMPORTED_MODULE_0__.feelingsChangeSchema,
@@ -120250,6 +120485,7 @@ const milestoneDescriptionPrompt = {
     placeholders: [
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.messages,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
         MILESTONE_PLACEHOLDERS.milestoneType,
         MILESTONE_PLACEHOLDERS.characterPair,
         MILESTONE_PLACEHOLDERS.timeOfDay,
@@ -120433,6 +120669,9 @@ Elena: "Don't. Just don't." *She walked out*
 <character_profiles>
 {{relationshipProfiles}}
 </character_profiles>
+<worldinfo>
+{{worldinfo}}
+</worldinfo>
 <character_details>
 {{characters}}
 </character_details>
@@ -121639,6 +121878,7 @@ const narrativeDescriptionPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.messages,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterName,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are summarizing roleplay messages for a narrative log.
 
@@ -121665,6 +121905,9 @@ Name: {{characterName}}
 
 ## Character Profiles
 {{characterProfiles}}
+
+## Worldinfo/Lorebook Context
+{{worldinfo}}
 
 ## Messages to Summarize
 {{messages}}
@@ -125353,6 +125596,7 @@ const relationshipAttitudeConsolidationPrompt = {
     placeholders: [
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.messages,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
         // Custom placeholders for this prompt - not in PLACEHOLDERS since they're specific to this use case
         {
             name: 'fromCharacter',
@@ -125408,6 +125652,9 @@ ${BAD_EXAMPLES}
     userTemplate: `## Character Profiles
 {{characterProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Direction
 We are consolidating {{fromCharacter}}'s feelings and wants TOWARD {{towardCharacter}}.
 
@@ -125420,6 +125667,8 @@ Wants: {{currentWants}}
 
 ## Task
 Consolidate {{fromCharacter}}'s feelings and wants toward {{towardCharacter}}.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 Rules:
 - Each list must have 2-5 items
@@ -126292,6 +126541,7 @@ const secretsChangePrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipPair,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipState,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to detect changes in secrets one character holds about another.
 
@@ -126387,6 +126637,9 @@ ${BAD_EXAMPLES}
     userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -126395,6 +126648,8 @@ ${BAD_EXAMPLES}
 
 ## Task
 Analyze these messages for changes in secrets between {{relationshipPair}}.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 For BOTH directions of the relationship, determine:
 1. What new hidden information was discovered?
@@ -126988,6 +127243,7 @@ const statusChangePrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipPair,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipState,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to detect changes in the overall relationship status between two characters.
 
@@ -127032,6 +127288,9 @@ ${BAD_EXAMPLES}
     userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -127040,6 +127299,8 @@ ${BAD_EXAMPLES}
 
 ## Task
 Analyze whether the relationship status between {{relationshipPair}} has fundamentally changed.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 Consider:
 1. Was there a significant shift in how they relate to each other?
@@ -127988,6 +128249,7 @@ const subjectsPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.messages,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.charactersPresent,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to identify significant interaction subjects between character pairs.
 
@@ -128115,11 +128377,16 @@ ${BAD_EXAMPLES}
 ## Character Profiles
 {{characterProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Messages to Analyze
 {{messages}}
 
 ## Task
 Identify any significant interaction subjects that occurred between character pairs.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 For each significant interaction:
 1. Identify the two characters involved (alphabetically sorted)
@@ -130048,6 +130315,7 @@ const wantsChangePrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipPair,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipState,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.relationshipProfiles,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to detect changes in what one character wants from or regarding another character.
 
@@ -130102,6 +130370,9 @@ ${BAD_EXAMPLES}
     userTemplate: `## Character Profiles
 {{relationshipProfiles}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Current Relationship State
 {{relationshipState}}
 
@@ -130110,6 +130381,8 @@ ${BAD_EXAMPLES}
 
 ## Task
 Analyze these messages for changes in wants/desires between {{relationshipPair}}.
+
+Use any relevant worldinfo context to inform your understanding of the characters and their relationship dynamics.
 
 For BOTH directions of the relationship, determine:
 1. What new desires have emerged?
@@ -132077,6 +132350,7 @@ const initialCharacterProfilesPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.characterName,
         _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.characterDescription,
         _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.userDescription,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.worldinfo,
         TARGET_CHARACTER_PLACEHOLDER,
     ],
     systemPrompt: `You are analyzing roleplay messages to extract a condensed character profile.
@@ -132157,6 +132431,9 @@ Description: {{characterDescription}}
 ## User Persona
 {{userDescription}}
 
+## Worldinfo/Lorebook Context
+{{worldinfo}}
+
 ## Target Character to Profile
 {{targetCharacterForProfile}}
 
@@ -132169,6 +132446,7 @@ Extract a condensed profile for **{{targetCharacterForProfile}}** based on avail
 Remember:
 - Check both the character card (if this is the main character) and the messages
 - If this is the user character, use the User Persona description
+- Use any relevant worldinfo/lorebook entries for additional character details
 - Make reasonable inferences for unstated attributes
 - Provide 8-10 tags each for appearance and personality
 - Estimate age from context clues if not explicit`,
@@ -135450,6 +135728,7 @@ const initialRelationshipsPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterName,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterDescription,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterPairs,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
     ],
     systemPrompt: `You are analyzing roleplay messages to extract the relationships between characters.
 
@@ -135502,6 +135781,9 @@ ${BAD_EXAMPLES}
     userTemplate: `## Character Context
 Name: {{characterName}}
 Description: {{characterDescription}}
+
+## Worldinfo/Lorebook Context
+{{worldinfo}}
 
 ## Messages to Analyze
 {{messages}}
@@ -137248,6 +137530,12 @@ const PLACEHOLDERS = {
         description: 'Example output matching the schema',
         example: '{ "area": "Downtown Seattle", "place": "The Rusty Nail bar", ... }',
     },
+    // Worldinfo placeholder
+    worldinfo: {
+        name: 'worldinfo',
+        description: 'Relevant worldinfo (lorebook) entries containing character lore, relationship history, and world-building context',
+        example: '[Elena Background]\nElena grew up on the streets of Seattle before being taken in by the Thieves Guild at age 12...\n\n[Marcus History]\nMarcus served 20 years on the Seattle PD before retiring under suspicious circumstances...',
+    },
 };
 // ============================================
 // Placeholder Replacement
@@ -138523,6 +138811,7 @@ function createDefaultV2Settings() {
         v2AutoExtract: true,
         v2MaxTokens: 4096,
         v2MaxReqsPerMinute: 0, // disabled by default
+        v2IncludeWorldinfo: true, // include lorebook data in extractors
         // Debug & Display
         v2DebugLogging: false,
         v2DisplayPosition: 'below',
@@ -138563,6 +138852,7 @@ function mergeV2WithDefaults(partial) {
         v2AutoExtract: partial.v2AutoExtract ?? defaults.v2AutoExtract,
         v2MaxTokens: partial.v2MaxTokens ?? defaults.v2MaxTokens,
         v2MaxReqsPerMinute: partial.v2MaxReqsPerMinute ?? defaults.v2MaxReqsPerMinute,
+        v2IncludeWorldinfo: partial.v2IncludeWorldinfo ?? defaults.v2IncludeWorldinfo,
         // Debug & Display
         v2DebugLogging: partial.v2DebugLogging ?? defaults.v2DebugLogging,
         v2DisplayPosition: partial.v2DisplayPosition ?? defaults.v2DisplayPosition,
@@ -138754,6 +139044,7 @@ function isV2Settings(obj) {
         typeof s.v2AutoExtract === 'boolean' &&
         (typeof s.v2MaxTokens === 'number' || s.v2MaxTokens === undefined) &&
         (typeof s.v2MaxReqsPerMinute === 'number' || s.v2MaxReqsPerMinute === undefined) &&
+        (typeof s.v2IncludeWorldinfo === 'boolean' || s.v2IncludeWorldinfo === undefined) &&
         typeof s.v2DebugLogging === 'boolean' &&
         typeof s.v2DisplayPosition === 'string' &&
         typeof s.v2TemperatureUnit === 'string' &&
@@ -143847,7 +144138,7 @@ function V2SettingsPanel() {
     if (!settings) {
         return (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-settings-loading", children: "Loading..." });
     }
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "blazetracker-settings-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-profile", children: "Connection Profile" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Select which API connection to use for state extraction" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { id: "bt-v2-profile", className: "text_pole", value: settings.v2ProfileId, onChange: e => handleUpdate('v2ProfileId', e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "-- Select a profile --" }), profiles.map(profile => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: profile.id, children: profile.name || profile.id }, profile.id)))] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-autoextract", label: "Auto Extract", description: "Automatically extract state from new messages", checked: settings.v2AutoExtract, onChange: checked => handleUpdate('v2AutoExtract', checked) }), !settings.v2AutoExtract && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-warning-box", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-triangle-exclamation" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Not Recommended:" }), " Some extractors will not run when manually extracting."] })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-section-header", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Display" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.SelectField, { id: "bt-v2-position", label: "State Display Position", description: "Show state block above or below the message", value: settings.v2DisplayPosition, options: [
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "blazetracker-settings-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-profile", children: "Connection Profile" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Select which API connection to use for state extraction" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { id: "bt-v2-profile", className: "text_pole", value: settings.v2ProfileId, onChange: e => handleUpdate('v2ProfileId', e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "-- Select a profile --" }), profiles.map(profile => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: profile.id, children: profile.name || profile.id }, profile.id)))] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-autoextract", label: "Auto Extract", description: "Automatically extract state from new messages", checked: settings.v2AutoExtract, onChange: checked => handleUpdate('v2AutoExtract', checked) }), !settings.v2AutoExtract && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-warning-box", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-triangle-exclamation" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Not Recommended:" }), " Some extractors will not run when manually extracting."] })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-includeworldinfo", label: "Include Worldinfo", description: "Include lorebook data in extractor prompts for better character and relationship accuracy", checked: settings.v2IncludeWorldinfo, onChange: checked => handleUpdate('v2IncludeWorldinfo', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-section-header", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Display" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.SelectField, { id: "bt-v2-position", label: "State Display Position", description: "Show state block above or below the message", value: settings.v2DisplayPosition, options: [
                     { value: 'below', label: 'Below message' },
                     { value: 'above', label: 'Above message' },
                 ], onChange: v => handleUpdate('v2DisplayPosition', v) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.SelectField, { id: "bt-v2-tempunit", label: "Temperature Unit", description: "Display temperatures in Fahrenheit or Celsius", value: settings.v2TemperatureUnit, options: [
@@ -146723,6 +147014,272 @@ async function countTokensTotal(texts) {
 
 /***/ },
 
+/***/ "./src/v2/utils/worldinfo.ts"
+/*!***********************************!*\
+  !*** ./src/v2/utils/worldinfo.ts ***!
+  \***********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   filterEntriesByCharacter: () => (/* binding */ filterEntriesByCharacter),
+/* harmony export */   filterEntriesByRelationship: () => (/* binding */ filterEntriesByRelationship),
+/* harmony export */   formatEntriesForPrompt: () => (/* binding */ formatEntriesForPrompt),
+/* harmony export */   getMatchedWorldinfo: () => (/* binding */ getMatchedWorldinfo),
+/* harmony export */   getWorldinfoForCharacter: () => (/* binding */ getWorldinfoForCharacter),
+/* harmony export */   getWorldinfoForPrompt: () => (/* binding */ getWorldinfoForPrompt),
+/* harmony export */   getWorldinfoForRelationship: () => (/* binding */ getWorldinfoForRelationship)
+/* harmony export */ });
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/**
+ * World Info Utility Module
+ *
+ * Provides functions to fetch and format worldinfo (lorebook) data
+ * for use in BlazeTracker extractors.
+ */
+
+// ============================================
+// Main Functions
+// ============================================
+/**
+ * Build global scan data from current SillyTavern context.
+ * This includes character descriptions, persona, etc. that worldinfo can match against.
+ */
+function buildGlobalScanData() {
+    try {
+        const context = SillyTavern.getContext();
+        const characterId = context.characterId;
+        const character = characterId !== undefined ? context.characters[characterId] : null;
+        return {
+            trigger: 'blazetracker',
+            personaDescription: context.persona || '',
+            characterDescription: character?.description || '',
+            characterPersonality: character?.personality || '',
+            characterDepthPrompt: character?.depth_prompt_prompt || '',
+            scenario: character?.scenario || '',
+            creatorNotes: character?.creatorcomment || '',
+        };
+    }
+    catch {
+        return {
+            trigger: 'blazetracker',
+            personaDescription: '',
+            characterDescription: '',
+            characterPersonality: '',
+            characterDepthPrompt: '',
+            scenario: '',
+            creatorNotes: '',
+        };
+    }
+}
+/**
+ * Dynamically import the checkWorldInfo function from SillyTavern.
+ * Returns null if not available.
+ */
+async function getCheckWorldInfo() {
+    try {
+        // Use dynamic import with the correct path for ST extensions
+        // Path is relative to dist/index.js -> scripts/world-info.js
+        const worldInfoModule = await Promise.resolve(/*! import() */).then(__webpack_require__.bind(__webpack_require__, /*! ../../../../world-info.js */ "../../../../world-info.js"));
+        if (typeof worldInfoModule.checkWorldInfo === 'function') {
+            return worldInfoModule.checkWorldInfo;
+        }
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_0__.debugWarn)('checkWorldInfo is not a function in world-info module');
+        return null;
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_0__.debugWarn)('Failed to import world-info module:', error);
+        return null;
+    }
+}
+/**
+ * Fetch worldinfo entries that match the given messages.
+ *
+ * Uses SillyTavern's checkWorldInfo API to find entries that would activate
+ * based on the message content.
+ *
+ * @param messages - Array of message content strings to scan (most recent first)
+ * @returns Promise resolving to WorldinfoResult with matched entries
+ */
+async function getMatchedWorldinfo(messages) {
+    const emptyResult = {
+        entries: [],
+        formattedBefore: '',
+        formattedAfter: '',
+    };
+    try {
+        const checkWorldInfo = await getCheckWorldInfo();
+        if (!checkWorldInfo) {
+            return emptyResult;
+        }
+        // Build global scan data from current context
+        const globalScanData = buildGlobalScanData();
+        // Run ST's matching against our messages
+        // Use a large maxContext to get all matches (we'll format them ourselves)
+        const result = await checkWorldInfo(messages, Infinity, // maxContext - we want all matches
+        true, // isDryRun - don't emit events
+        globalScanData);
+        // Convert Set to Array
+        const entries = Array.from(result.allActivatedEntries || []);
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_0__.debugLog)(`Worldinfo: Found ${entries.length} activated entries`);
+        return {
+            entries,
+            formattedBefore: result.worldInfoBefore || '',
+            formattedAfter: result.worldInfoAfter || '',
+        };
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_0__.debugWarn)('Failed to fetch worldinfo:', error);
+        return emptyResult;
+    }
+}
+/**
+ * Filter worldinfo entries to those relevant to a specific character.
+ *
+ * Matches entries where the character name appears in primary or secondary keywords.
+ *
+ * @param entries - Array of worldinfo entries to filter
+ * @param characterName - Name of the character to filter for
+ * @returns Filtered array of entries relevant to the character
+ */
+function filterEntriesByCharacter(entries, characterName) {
+    if (!characterName || entries.length === 0) {
+        return [];
+    }
+    const nameLower = characterName.toLowerCase();
+    return entries.filter(entry => {
+        // Check primary keys
+        const primaryMatch = entry.key?.some(key => key.toLowerCase().includes(nameLower));
+        if (primaryMatch)
+            return true;
+        // Check secondary keys
+        const secondaryMatch = entry.keysecondary?.some(key => key.toLowerCase().includes(nameLower));
+        if (secondaryMatch)
+            return true;
+        // Check if comment/name mentions the character
+        const commentMatch = entry.comment?.toLowerCase().includes(nameLower);
+        if (commentMatch)
+            return true;
+        return false;
+    });
+}
+/**
+ * Filter worldinfo entries to those relevant to a relationship pair.
+ *
+ * Matches entries where either character name appears in keywords.
+ *
+ * @param entries - Array of worldinfo entries to filter
+ * @param pair - Tuple of two character names
+ * @returns Filtered array of entries relevant to the relationship
+ */
+function filterEntriesByRelationship(entries, pair) {
+    if (entries.length === 0) {
+        return [];
+    }
+    const [charA, charB] = pair;
+    const charALower = charA.toLowerCase();
+    const charBLower = charB.toLowerCase();
+    return entries.filter(entry => {
+        const allKeys = [...(entry.key || []), ...(entry.keysecondary || [])];
+        const keysLower = allKeys.map(k => k.toLowerCase());
+        // Entry is relevant if it mentions either character
+        const mentionsA = keysLower.some(k => k.includes(charALower)) ||
+            entry.comment?.toLowerCase().includes(charALower);
+        const mentionsB = keysLower.some(k => k.includes(charBLower)) ||
+            entry.comment?.toLowerCase().includes(charBLower);
+        // Prioritize entries that mention both (more relevant to relationship)
+        // but include entries that mention at least one
+        return mentionsA || mentionsB;
+    });
+}
+/**
+ * Format worldinfo entries as readable text for inclusion in LLM prompts.
+ *
+ * @param entries - Array of worldinfo entries to format
+ * @param maxEntries - Maximum number of entries to include (default: 10)
+ * @returns Formatted string with entry contents
+ */
+function formatEntriesForPrompt(entries, maxEntries = 10) {
+    if (entries.length === 0) {
+        return '';
+    }
+    // Sort by order (higher priority first) and take top entries
+    const sortedEntries = [...entries].sort((a, b) => (b.order || 0) - (a.order || 0));
+    const topEntries = sortedEntries.slice(0, maxEntries);
+    // Format each entry
+    const formattedEntries = topEntries
+        .map(entry => {
+        const content = entry.content?.trim();
+        if (!content)
+            return null;
+        // Include comment as context if available
+        const label = entry.comment ? `[${entry.comment}]` : `[Lore Entry]`;
+        return `${label}\n${content}`;
+    })
+        .filter(Boolean);
+    if (formattedEntries.length === 0) {
+        return '';
+    }
+    return formattedEntries.join('\n\n');
+}
+/**
+ * Get worldinfo formatted for a character-focused extractor.
+ *
+ * Fetches matched worldinfo and filters/formats for the specified character.
+ *
+ * @param messages - Message content to scan
+ * @param characterName - Character to focus on (optional, includes all if not specified)
+ * @returns Formatted worldinfo string for prompt inclusion
+ */
+async function getWorldinfoForCharacter(messages, characterName) {
+    const result = await getMatchedWorldinfo(messages);
+    let entries = result.entries;
+    // Filter to character-relevant entries if specified
+    if (characterName) {
+        entries = filterEntriesByCharacter(entries, characterName);
+    }
+    return formatEntriesForPrompt(entries);
+}
+/**
+ * Get worldinfo formatted for a relationship-focused extractor.
+ *
+ * Fetches matched worldinfo and filters/formats for the specified character pair.
+ *
+ * @param messages - Message content to scan
+ * @param pair - Character pair to focus on
+ * @returns Formatted worldinfo string for prompt inclusion
+ */
+async function getWorldinfoForRelationship(messages, pair) {
+    const result = await getMatchedWorldinfo(messages);
+    const entries = filterEntriesByRelationship(result.entries, pair);
+    return formatEntriesForPrompt(entries);
+}
+/**
+ * Get all matched worldinfo formatted for prompt inclusion.
+ *
+ * Uses the pre-formatted content from SillyTavern when available,
+ * falling back to manual formatting.
+ *
+ * @param messages - Message content to scan
+ * @returns Formatted worldinfo string for prompt inclusion
+ */
+async function getWorldinfoForPrompt(messages) {
+    const result = await getMatchedWorldinfo(messages);
+    // Prefer ST's formatted output if available
+    const stFormatted = [result.formattedBefore, result.formattedAfter]
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
+    if (stFormatted) {
+        return stFormatted;
+    }
+    // Fall back to manual formatting
+    return formatEntriesForPrompt(result.entries);
+}
+
+
+/***/ },
+
 /***/ "./src/v2Bridge.ts"
 /*!*************************!*\
   !*** ./src/v2Bridge.ts ***!
@@ -146894,6 +147451,7 @@ function buildExtractionSettingsFromV2(settings) {
         maxChapterMessagesToSend: settings.v2MaxChapterMessagesToSend,
         promptPrefix: settings.v2PromptPrefix || undefined,
         promptSuffix: settings.v2PromptSuffix || undefined,
+        includeWorldinfo: settings.v2IncludeWorldinfo,
     };
 }
 // ============================================

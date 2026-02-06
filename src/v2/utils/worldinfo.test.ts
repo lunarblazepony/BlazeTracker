@@ -22,7 +22,7 @@ vi.mock('../../utils/debug', () => ({
 
 // Mock the dynamic import of world-info.js
 const mockCheckWorldInfo = vi.fn();
-vi.mock('../../../../scripts/world-info.js', () => ({
+vi.mock('../../../../world-info.js', () => ({
 	checkWorldInfo: mockCheckWorldInfo,
 }));
 

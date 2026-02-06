@@ -81,7 +81,8 @@ type CheckWorldInfoFn = (
 async function getCheckWorldInfo(): Promise<CheckWorldInfoFn | null> {
 	try {
 		// Use dynamic import with the correct path for ST extensions
-		const worldInfoModule = await import('../../../../scripts/world-info.js');
+		// Path is relative to dist/index.js -> scripts/world-info.js
+		const worldInfoModule = await import('../../../../world-info.js');
 
 		if (typeof worldInfoModule.checkWorldInfo === 'function') {
 			return worldInfoModule.checkWorldInfo as CheckWorldInfoFn;

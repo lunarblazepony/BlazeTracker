@@ -4,7 +4,7 @@
  * This allows TypeScript to recognize dynamic imports of the world-info.js module.
  */
 
-declare module '*scripts/world-info.js' {
+declare module '*world-info.js' {
 	export interface WIGlobalScanData {
 		personaDescription: string;
 		characterDescription: string;
