@@ -73,7 +73,7 @@ export function createDefaultV2Settings(): V2Settings {
 		// Prompt customization
 		v2PromptPrefix: '',
 		v2PromptSuffix: '',
-		v2InjectionDepth: -1,
+		v2InjectionDepth: 1,
 
 		// Context-aware injection settings
 		v2MaxRecentChapters: 5,

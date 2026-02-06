@@ -113735,34 +113735,18 @@ async function handlePromptReady(eventData) {
             const lastMessage = chatMessages[chatMessages.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
                 // Prefill/continuation - insert before the assistant's partial response if custom depth is disabled.
-                chatMessages.splice(chatMessages.length -
-                    (settings.v2InjectionDepth > -1
-                        ? settings.v2InjectionDepth
-                        : 1), 0, {
+                chatMessages.splice(chatMessages.length - settings.v2InjectionDepth, 0, {
                     role: 'user',
                     content: stateContent,
                 });
-                if (settings.v2InjectionDepth < 0) {
-                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
-                }
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
             }
             else {
-                if (settings.v2InjectionDepth > -1) {
-                    chatMessages.splice(settings.v2InjectionDepth, 0, {
-                        role: 'user',
-                        content: stateContent,
-                    });
-                }
-                else {
-                    // Normal case - append at the end
-                    chatMessages.push({
-                        role: 'user',
-                        content: stateContent,
-                    });
-                }
-                if (settings.v2InjectionDepth < 0) {
-                    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state at end of messages');
-                }
+                chatMessages.splice(chatMessages.length - (settings.v2InjectionDepth + 1), 0, {
+                    role: 'user',
+                    content: stateContent,
+                });
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state at end of messages');
             }
         }
         // Insert chapters/events after the system message
@@ -113920,9 +113904,7 @@ async function handleTextCompletionPromptReady(eventData) {
                 // Continuation mode: append state to second-to-last message
                 // (the last one is the assistant's prefill)
                 const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length -
-                    (settings.v2InjectionDepth > -1
-                        ? settings.v2InjectionDepth
-                        : 2)];
+                    settings.v2InjectionDepth];
                 targetMessage.message =
                     targetMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
@@ -113930,9 +113912,7 @@ async function handleTextCompletionPromptReady(eventData) {
             else {
                 // Normal mode OR only one message: append to last message
                 const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length -
-                    (settings.v2InjectionDepth > -1
-                        ? settings.v2InjectionDepth
-                        : 1)];
+                    (settings.v2InjectionDepth + 1)];
                 lastMessage.message = lastMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state after messages');
             }
@@ -138565,7 +138545,7 @@ function createDefaultV2Settings() {
         // Prompt customization
         v2PromptPrefix: '',
         v2PromptSuffix: '',
-        v2InjectionDepth: -1,
+        v2InjectionDepth: 1,
         // Context-aware injection settings
         v2MaxRecentChapters: 5,
         v2MaxRecentEvents: 15,
@@ -143928,7 +143908,7 @@ function V2SettingsPanel() {
                                                         value >= 0) {
                                                         handleUpdate('v2InjectionTokenBudget', value);
                                                     }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectdepth", children: "Injection Depth" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Chat depth that the tracker will be injected at (Set to -1 for default depth behaviour)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectiondepth", type: "number", className: "text_pole", min: "-1", max: "999", step: "1", value: settings.v2InjectionDepth, onChange: e => {
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectdepth", children: "Injection Depth" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Chat depth that the tracker will be injected at" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectiondepth", type: "number", className: "text_pole", min: "0", max: "999", step: "1", value: settings.v2InjectionDepth, onChange: e => {
                                                     const value = parseInt(e.target.value, 10);
                                                     if (!isNaN(value) &&
                                                         value >= 0) {
