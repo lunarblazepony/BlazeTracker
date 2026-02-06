@@ -452,7 +452,7 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 			if (lastMessage && lastMessage.role === 'assistant') {
 				// Prefill/continuation - insert before the assistant's partial response if custom depth is disabled.
 				chatMessages.splice(
-					chatMessages.length - (settings.v2InjectionDepth + 2),
+					chatMessages.length - (settings.v2InjectionDepth + 1),
 					0,
 					{
 						role: 'user' as const,
@@ -462,7 +462,7 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 				debugLog('Injected BlazeTracker state before assistant prefill');
 			} else {
 				chatMessages.splice(
-					chatMessages.length - (settings.v2InjectionDepth + 1),
+					chatMessages.length - settings.v2InjectionDepth,
 					0,
 					{
 						role: 'user' as const,
@@ -660,7 +660,7 @@ async function handleTextCompletionPromptReady(
 				const targetMessage =
 					eventData.finalMesSend[
 						eventData.finalMesSend.length -
-							(settings.v2InjectionDepth + 1)
+							(settings.v2InjectionDepth + 2)
 					];
 				targetMessage.message =
 					targetMessage.message + '\n\n' + stateContent;
@@ -670,7 +670,7 @@ async function handleTextCompletionPromptReady(
 				const lastMessage =
 					eventData.finalMesSend[
 						eventData.finalMesSend.length -
-							settings.v2InjectionDepth
+							(settings.v2InjectionDepth + 1)
 					];
 				lastMessage.message = lastMessage.message + '\n\n' + stateContent;
 				debugLog('Injected BlazeTracker state after messages');
