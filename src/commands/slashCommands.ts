@@ -4,7 +4,12 @@
 
 import type { STContext } from '../types/st';
 import { EXTENSION_NAME, EXTENSION_KEY } from '../constants';
-import { getMostRecentMessageId, getStateForMessage, countExtractedMessages } from './helpers';
+import {
+	getMostRecentMessageId,
+	getStateForMessage,
+	countExtractedMessages,
+	findFirstUnextractedMessageId,
+} from './helpers';
 import {
 	clearV2EventStore,
 	runV2ExtractionAll,
@@ -26,6 +31,7 @@ import {
 import { openEventStoreModal } from './eventStoreModal';
 import { getV2Settings } from '../v2/settings';
 import { debugWarn } from '../utils/debug';
+import { st_echo } from 'sillytavern-utils-lib/config';
 
 // Slash command types are retrieved from SillyTavern context at registration time
 
@@ -189,6 +195,11 @@ async function extractAllCommand(args: Record<string, unknown>, _value: string):
 				updateV2ExtractionProgress(progress);
 			},
 			onMessageStart: (messageId: number) => {
+				// Show toast progress notification
+				st_echo(
+					'info',
+					`Extracting for message ${messageId}/${totalMessages - 1}`,
+				);
 				// Set extraction state and mount the loading display
 				setV2ExtractionInProgress(messageId, true);
 				mountV2ProjectionDisplay(messageId);
@@ -255,20 +266,14 @@ async function extractRemainingCommand(
 		return 'Error: No messages to extract (chat is empty or only has system message)';
 	}
 
-	// Find the last message with v2 events
+	// Find the first message on the canonical path with no snapshot and no events
 	const store = getV2EventStore();
-	let lastExtractedId = -1;
+	const swipeContext = buildSwipeContext(context);
+	let startId = 1;
 
 	if (hasV2InitialSnapshot()) {
-		// Find the highest message ID with events
-		const messageIds = store.getMessageIdsWithEvents();
-		if (messageIds.length > 0) {
-			lastExtractedId = messageIds[messageIds.length - 1];
-		}
+		startId = findFirstUnextractedMessageId(store, swipeContext, totalMessages);
 	}
-
-	// Determine starting point
-	const startId = lastExtractedId === -1 ? 1 : lastExtractedId + 1;
 
 	// Check if there's anything to extract
 	if (startId >= totalMessages) {
@@ -293,6 +298,11 @@ async function extractRemainingCommand(
 				updateV2ExtractionProgress(progress);
 			},
 			onMessageStart: (messageId: number) => {
+				// Show toast progress notification
+				st_echo(
+					'info',
+					`Extracting for message ${messageId}/${totalMessages - 1}`,
+				);
 				setV2ExtractionInProgress(messageId, true);
 				mountV2ProjectionDisplay(messageId);
 			},
@@ -327,7 +337,7 @@ async function extractRemainingCommand(
 	if (failed > 0) results.push(`${failed} failed`);
 	if (aborted) results.push('aborted');
 
-	const startInfo = lastExtractedId === -1 ? 'from start' : `from message ${startId}`;
+	const startInfo = startId === 1 ? 'from start' : `from message ${startId}`;
 	return `Extraction complete (${startInfo}): ${results.join(', ')}`;
 }
 

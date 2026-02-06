@@ -47,6 +47,8 @@ import {
 	isPromptHookRegistered,
 	registerBridgeFunctions,
 } from './v2/injectors/promptHook';
+// V2 Macros
+import { registerMacros, registerMacroBridgeFunctions } from './v2/injectors/macros';
 
 // Use debugLog instead of local log function
 const log = debugLog;
@@ -160,19 +162,27 @@ function updateV2Injection(forMessageId: number): void {
 	const swipeContext = buildSwipeContext(stContext);
 
 	const settings = getV2Settings();
+
+	// If both injection types are disabled, clear injection and return
+	if (!settings.v2InjectState && !settings.v2InjectNarrative) {
+		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0);
+		return;
+	}
+
 	v2InjectState(
 		projection,
 		store,
 		swipeContext,
 		{
-			includeTime: settings.v2Track.time,
-			includeLocation: settings.v2Track.location,
-			includeClimate: settings.v2Track.climate,
-			includeCharacters: settings.v2Track.characters,
-			includeRelationships: settings.v2Track.relationships,
-			includeScene: settings.v2Track.scene,
-			includeChapters: true,
-			includeEvents: settings.v2Track.narrative,
+			includeTime: settings.v2InjectState && settings.v2Track.time,
+			includeLocation: settings.v2InjectState && settings.v2Track.location,
+			includeClimate: settings.v2InjectState && settings.v2Track.climate,
+			includeCharacters: settings.v2InjectState && settings.v2Track.characters,
+			includeRelationships:
+				settings.v2InjectState && settings.v2Track.relationships,
+			includeScene: settings.v2InjectState && settings.v2Track.scene,
+			includeChapters: settings.v2InjectNarrative,
+			includeEvents: settings.v2InjectNarrative && settings.v2Track.narrative,
 		},
 		settings.v2InjectionDepth,
 	);
@@ -206,6 +216,14 @@ async function init() {
 		hasV2InitialSnapshot,
 		buildSwipeContext,
 	});
+
+	// Register bridge functions for macros and register ST macros
+	registerMacroBridgeFunctions({
+		getV2EventStore,
+		hasV2InitialSnapshot,
+		buildSwipeContext,
+	});
+	registerMacros();
 
 	// Register the context-aware prompt hook if available
 	// This hooks into CHAT_COMPLETION_PROMPT_READY to inject chapters, events, and state

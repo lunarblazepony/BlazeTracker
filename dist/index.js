@@ -101006,6 +101006,7 @@ function openEventStoreModal(store, swipeContext) {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   countExtractedMessages: () => (/* binding */ countExtractedMessages),
+/* harmony export */   findFirstUnextractedMessageId: () => (/* binding */ findFirstUnextractedMessageId),
 /* harmony export */   getLastExtractedMessageId: () => (/* binding */ getLastExtractedMessageId),
 /* harmony export */   getMostRecentMessageId: () => (/* binding */ getMostRecentMessageId),
 /* harmony export */   getStateForMessage: () => (/* binding */ getStateForMessage)
@@ -101058,6 +101059,36 @@ function getLastExtractedMessageId(context) {
     }
     return -1;
 }
+/**
+ * Find the first message ID on the canonical swipe path that has no snapshot
+ * and no active events. Walks messages from 1 to totalMessages-1.
+ *
+ * Returns totalMessages if all messages are covered.
+ */
+function findFirstUnextractedMessageId(store, swipeContext, totalMessages) {
+    // Build set of message IDs that have snapshots on the canonical path
+    const coveredMessageIds = new Set();
+    for (const snapshot of store.snapshots) {
+        const canonicalSwipeId = swipeContext.getCanonicalSwipeId(snapshot.source.messageId);
+        if (snapshot.swipeId === canonicalSwipeId) {
+            coveredMessageIds.add(snapshot.source.messageId);
+        }
+    }
+    // Add message IDs that have canonical active events
+    for (const event of store.getActiveEvents()) {
+        const canonicalSwipeId = swipeContext.getCanonicalSwipeId(event.source.messageId);
+        if (event.source.swipeId === canonicalSwipeId) {
+            coveredMessageIds.add(event.source.messageId);
+        }
+    }
+    // Walk forward from message 1 to find the first uncovered message
+    for (let i = 1; i < totalMessages; i++) {
+        if (!coveredMessageIds.has(i)) {
+            return i;
+        }
+    }
+    return totalMessages;
+}
 
 
 /***/ },
@@ -101081,9 +101112,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _eventStoreModal__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./eventStoreModal */ "./src/commands/eventStoreModal.tsx");
 /* harmony import */ var _v2_settings__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../v2/settings */ "./src/v2/settings/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! sillytavern-utils-lib/config */ "./node_modules/sillytavern-utils-lib/dist/config.js");
 // ============================================
 // BlazeTracker Slash Commands (STScript)
 // ============================================
+
 
 
 
@@ -101219,6 +101252,8 @@ async function extractAllCommand(args, _value) {
                 (0,_v2_ui_mountV2Display__WEBPACK_IMPORTED_MODULE_3__.updateV2ExtractionProgress)(progress);
             },
             onMessageStart: (messageId) => {
+                // Show toast progress notification
+                (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_7__.st_echo)('info', `Extracting for message ${messageId}/${totalMessages - 1}`);
                 // Set extraction state and mount the loading display
                 (0,_v2_ui_mountV2Display__WEBPACK_IMPORTED_MODULE_3__.setV2ExtractionInProgress)(messageId, true);
                 (0,_v2_ui_mountV2Display__WEBPACK_IMPORTED_MODULE_3__.mountV2ProjectionDisplay)(messageId);
@@ -101276,18 +101311,13 @@ async function extractRemainingCommand(args, _value) {
     if (totalMessages <= 1) {
         return 'Error: No messages to extract (chat is empty or only has system message)';
     }
-    // Find the last message with v2 events
+    // Find the first message on the canonical path with no snapshot and no events
     const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_2__.getV2EventStore)();
-    let lastExtractedId = -1;
+    const swipeContext = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_2__.buildSwipeContext)(context);
+    let startId = 1;
     if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_2__.hasV2InitialSnapshot)()) {
-        // Find the highest message ID with events
-        const messageIds = store.getMessageIdsWithEvents();
-        if (messageIds.length > 0) {
-            lastExtractedId = messageIds[messageIds.length - 1];
-        }
+        startId = (0,_helpers__WEBPACK_IMPORTED_MODULE_1__.findFirstUnextractedMessageId)(store, swipeContext, totalMessages);
     }
-    // Determine starting point
-    const startId = lastExtractedId === -1 ? 1 : lastExtractedId + 1;
     // Check if there's anything to extract
     if (startId >= totalMessages) {
         return 'Already caught up! All messages have been extracted.';
@@ -101306,6 +101336,8 @@ async function extractRemainingCommand(args, _value) {
                 (0,_v2_ui_mountV2Display__WEBPACK_IMPORTED_MODULE_3__.updateV2ExtractionProgress)(progress);
             },
             onMessageStart: (messageId) => {
+                // Show toast progress notification
+                (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_7__.st_echo)('info', `Extracting for message ${messageId}/${totalMessages - 1}`);
                 (0,_v2_ui_mountV2Display__WEBPACK_IMPORTED_MODULE_3__.setV2ExtractionInProgress)(messageId, true);
                 (0,_v2_ui_mountV2Display__WEBPACK_IMPORTED_MODULE_3__.mountV2ProjectionDisplay)(messageId);
             },
@@ -101342,7 +101374,7 @@ async function extractRemainingCommand(args, _value) {
         results.push(`${failed} failed`);
     if (aborted)
         results.push('aborted');
-    const startInfo = lastExtractedId === -1 ? 'from start' : `from message ${startId}`;
+    const startInfo = startId === 1 ? 'from start' : `from message ${startId}`;
     return `Extraction complete (${startInfo}): ${results.join(', ')}`;
 }
 // ============================================
@@ -101598,6 +101630,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
 /* harmony import */ var _ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./ui/personaDefaultsButton */ "./src/ui/personaDefaultsButton.ts");
 /* harmony import */ var _v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./v2/injectors/promptHook */ "./src/v2/injectors/promptHook.ts");
+/* harmony import */ var _v2_injectors_macros__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./v2/injectors/macros */ "./src/v2/injectors/macros.ts");
 
 
 
@@ -101619,6 +101652,8 @@ __webpack_require__.r(__webpack_exports__);
 
 
 // V2 Prompt Hook
+
+// V2 Macros
 
 // Use debugLog instead of local log function
 const log = _utils_debug__WEBPACK_IMPORTED_MODULE_4__.debugLog;
@@ -101714,15 +101749,20 @@ function updateV2Injection(forMessageId) {
     const projection = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getProjectionForMessage)(projectionMessageId);
     const swipeContext = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext)(stContext);
     const settings = (0,_v2_settings__WEBPACK_IMPORTED_MODULE_5__.getV2Settings)();
+    // If both injection types are disabled, clear injection and return
+    if (!settings.v2InjectState && !settings.v2InjectNarrative) {
+        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0);
+        return;
+    }
     (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(projection, store, swipeContext, {
-        includeTime: settings.v2Track.time,
-        includeLocation: settings.v2Track.location,
-        includeClimate: settings.v2Track.climate,
-        includeCharacters: settings.v2Track.characters,
-        includeRelationships: settings.v2Track.relationships,
-        includeScene: settings.v2Track.scene,
-        includeChapters: true,
-        includeEvents: settings.v2Track.narrative,
+        includeTime: settings.v2InjectState && settings.v2Track.time,
+        includeLocation: settings.v2InjectState && settings.v2Track.location,
+        includeClimate: settings.v2InjectState && settings.v2Track.climate,
+        includeCharacters: settings.v2InjectState && settings.v2Track.characters,
+        includeRelationships: settings.v2InjectState && settings.v2Track.relationships,
+        includeScene: settings.v2InjectState && settings.v2Track.scene,
+        includeChapters: settings.v2InjectNarrative,
+        includeEvents: settings.v2InjectNarrative && settings.v2Track.narrative,
     }, settings.v2InjectionDepth);
 }
 async function init() {
@@ -101746,6 +101786,13 @@ async function init() {
         hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
         buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
     });
+    // Register bridge functions for macros and register ST macros
+    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_14__.registerMacroBridgeFunctions)({
+        getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
+        hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
+        buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
+    });
+    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_14__.registerMacros)();
     // Register the context-aware prompt hook if available
     // This hooks into CHAT_COMPLETION_PROMPT_READY to inject chapters, events, and state
     if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.isPromptHookAvailable)()) {
@@ -113624,6 +113671,172 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ },
 
+/***/ "./src/v2/injectors/macros.ts"
+/*!************************************!*\
+  !*** ./src/v2/injectors/macros.ts ***!
+  \************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   registerMacroBridgeFunctions: () => (/* binding */ registerMacroBridgeFunctions),
+/* harmony export */   registerMacros: () => (/* binding */ registerMacros),
+/* harmony export */   unregisterMacros: () => (/* binding */ unregisterMacros)
+/* harmony export */ });
+/* harmony import */ var _settings__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../settings */ "./src/v2/settings/index.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _state__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./state */ "./src/v2/injectors/state.ts");
+/* harmony import */ var _chapters__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./chapters */ "./src/v2/injectors/chapters.ts");
+/* harmony import */ var _events__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./events */ "./src/v2/injectors/events.ts");
+/**
+ * ST Macro Registration for BlazeTracker
+ *
+ * Registers {{btState}} and {{btNarrative}} macros with SillyTavern's
+ * macro system, allowing users to manually place BlazeTracker content
+ * anywhere in their prompts.
+ */
+
+
+
+
+
+// Bridge functions - set by registerMacroBridgeFunctions to avoid circular dependency
+let bridgeFunctions = null;
+/**
+ * Register bridge functions for the macro handlers.
+ * Must be called before macros can function.
+ */
+function registerMacroBridgeFunctions(functions) {
+    bridgeFunctions = functions;
+}
+/**
+ * Get the store and swipe context for macro handlers.
+ * Returns null if not available.
+ */
+function getStoreAndContext() {
+    if (!bridgeFunctions) {
+        return null;
+    }
+    try {
+        const store = bridgeFunctions.getV2EventStore();
+        if (!store || !bridgeFunctions.hasV2InitialSnapshot()) {
+            return null;
+        }
+        const stContext = SillyTavern.getContext();
+        const swipeContext = bridgeFunctions.buildSwipeContext(stContext);
+        return { store, swipeContext, stContext };
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * Handler for the {{btState}} macro.
+ * Returns formatted scene state (time, location, characters, etc.)
+ * without chapters or events.
+ */
+function btStateHandler() {
+    const storeAndContext = getStoreAndContext();
+    if (!storeAndContext) {
+        return '';
+    }
+    const { store, swipeContext, stContext } = storeAndContext;
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    try {
+        const lastMessageId = stContext.chat.length - 1;
+        const projectionMessageId = lastMessageId - 1;
+        if (projectionMessageId < 0) {
+            return '';
+        }
+        const projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
+        return (0,_state__WEBPACK_IMPORTED_MODULE_2__.formatStateForInjection)(projection, store, swipeContext, {
+            includeTime: settings.v2Track.time,
+            includeLocation: settings.v2Track.location,
+            includeClimate: settings.v2Track.climate,
+            includeCharacters: settings.v2Track.characters,
+            includeRelationships: settings.v2Track.relationships,
+            includeScene: settings.v2Track.scene,
+            includeChapters: false,
+            includeEvents: false,
+        });
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Error in btState macro handler:', error);
+        return '';
+    }
+}
+/**
+ * Handler for the {{btNarrative}} macro.
+ * Returns formatted chapter summaries and current chapter events.
+ */
+function btNarrativeHandler() {
+    const storeAndContext = getStoreAndContext();
+    if (!storeAndContext) {
+        return '';
+    }
+    const { store, swipeContext, stContext } = storeAndContext;
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    try {
+        const lastMessageId = stContext.chat.length - 1;
+        const projectionMessageId = lastMessageId - 1;
+        if (projectionMessageId < 0) {
+            return '';
+        }
+        const projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
+        const sections = [];
+        // Past chapters (Story So Far)
+        const chaptersContent = (0,_chapters__WEBPACK_IMPORTED_MODULE_3__.formatPastChaptersWithTags)(store, swipeContext, settings.v2MaxRecentChapters);
+        if (chaptersContent) {
+            sections.push(chaptersContent);
+        }
+        // Current chapter events
+        const events = (0,_events__WEBPACK_IMPORTED_MODULE_4__.getAllCurrentChapterEvents)(store, swipeContext, projection.currentChapter);
+        if (events.length > 0) {
+            const eventsContent = (0,_events__WEBPACK_IMPORTED_MODULE_4__.formatOutOfContextEvents)(events, settings.v2MaxRecentEvents);
+            if (eventsContent) {
+                sections.push(`[Recent Events]\n${eventsContent}\n[/Recent Events]`);
+            }
+        }
+        return sections.join('\n\n');
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Error in btNarrative macro handler:', error);
+        return '';
+    }
+}
+/**
+ * Register BlazeTracker macros with SillyTavern.
+ * Call after bridge functions are registered.
+ */
+function registerMacros() {
+    try {
+        const context = SillyTavern.getContext();
+        context.registerMacro('btState', btStateHandler, 'BlazeTracker scene state (time, location, characters, etc.)');
+        context.registerMacro('btNarrative', btNarrativeHandler, 'BlazeTracker narrative context (chapter summaries and events)');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Registered btState and btNarrative macros');
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Failed to register macros:', error);
+    }
+}
+/**
+ * Unregister BlazeTracker macros from SillyTavern.
+ */
+function unregisterMacros() {
+    try {
+        const context = SillyTavern.getContext();
+        context.unregisterMacro('btState');
+        context.unregisterMacro('btNarrative');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Unregistered btState and btNarrative macros');
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Failed to unregister macros:', error);
+    }
+}
+
+
+/***/ },
+
 /***/ "./src/v2/injectors/promptHook.ts"
 /*!****************************************!*\
   !*** ./src/v2/injectors/promptHook.ts ***!
@@ -113860,6 +114073,11 @@ async function handlePromptReady(eventData) {
     }
     const { store, swipeContext, stContext } = storeAndContext;
     const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    // If both injection types are disabled, nothing to do
+    if (!settings.v2InjectState && !settings.v2InjectNarrative) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Both state and narrative injection disabled');
+        return;
+    }
     try {
         // Get the chat messages
         const chatMessages = eventData.chat;
@@ -113886,8 +114104,10 @@ async function handlePromptReady(eventData) {
         // The budget available for messages + our injection is max minus fixed content
         const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
-        // Build state content to know its token cost
-        const stateContent = buildAfterMessagesContent(store, swipeContext, projection);
+        // Build state content to know its token cost (skip if state injection disabled)
+        const stateContent = settings.v2InjectState
+            ? buildAfterMessagesContent(store, swipeContext, projection)
+            : '';
         const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
         // Estimate message tokens from ST's chat array
         // Note: ST's chat array has messages in order, but may include system messages
@@ -113899,14 +114119,17 @@ async function handlePromptReady(eventData) {
             extra: m.extra,
         })), tokenCounter);
         // Compute optimal context with available budget (after fixed content)
+        // If narrative injection is disabled, set maxPastChapters and maxEvents to 0
         const plan = await (0,_contextBudget__WEBPACK_IMPORTED_MODULE_5__.computeOptimalContext)({
             budget: availableBudget,
             stateTokens,
             messageTokens,
             store,
             swipeContext,
-            maxPastChapters: settings.v2MaxRecentChapters,
-            maxEvents: settings.v2MaxRecentEvents,
+            maxPastChapters: settings.v2InjectNarrative
+                ? settings.v2MaxRecentChapters
+                : 0,
+            maxEvents: settings.v2InjectNarrative ? settings.v2MaxRecentEvents : 0,
             totalMessages: chatOnlyMessages.length,
             tokenCounter,
         });
@@ -114003,6 +114226,11 @@ async function handleTextCompletionPromptReady(eventData) {
     }
     const { store, swipeContext, stContext } = storeAndContext;
     const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
+    // If both injection types are disabled, nothing to do
+    if (!settings.v2InjectState && !settings.v2InjectNarrative) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Both state and narrative injection disabled');
+        return;
+    }
     try {
         // Validate finalMesSend is available
         if (!eventData.finalMesSend || eventData.finalMesSend.length === 0) {
@@ -114033,8 +114261,10 @@ async function handleTextCompletionPromptReady(eventData) {
         // The budget available for messages + our injection is max minus fixed content
         const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
-        // Build state content to know its token cost
-        const stateContent = buildAfterMessagesContent(store, swipeContext, projection);
+        // Build state content to know its token cost (skip if state injection disabled)
+        const stateContent = settings.v2InjectState
+            ? buildAfterMessagesContent(store, swipeContext, projection)
+            : '';
         const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
         // Count tokens for each message in finalMesSend
         // Each entry has: { message: string, extensionPrompts: string[] }
@@ -114049,14 +114279,17 @@ async function handleTextCompletionPromptReady(eventData) {
         // Compute optimal context with proper per-message token counts
         // Note: stateTokens is passed separately, and beforeContent tokens
         // are calculated inside computeOptimalContext as part of chapters/events
+        // If narrative injection is disabled, set maxPastChapters and maxEvents to 0
         const plan = await (0,_contextBudget__WEBPACK_IMPORTED_MODULE_5__.computeOptimalContext)({
             budget: availableBudget,
             stateTokens,
             messageTokens,
             store,
             swipeContext,
-            maxPastChapters: settings.v2MaxRecentChapters,
-            maxEvents: settings.v2MaxRecentEvents,
+            maxPastChapters: settings.v2InjectNarrative
+                ? settings.v2MaxRecentChapters
+                : 0,
+            maxEvents: settings.v2InjectNarrative ? settings.v2MaxRecentEvents : 0,
             totalMessages: eventData.finalMesSend.length,
             tokenCounter,
         });
@@ -138835,6 +139068,9 @@ function createDefaultV2Settings() {
         v2PromptPrefix: '',
         v2PromptSuffix: '',
         v2InjectionDepth: 0,
+        // Auto-injection toggles
+        v2InjectState: true,
+        v2InjectNarrative: true,
         // Context-aware injection settings
         v2MaxRecentChapters: 5,
         v2MaxRecentEvents: 15,
@@ -138891,6 +139127,9 @@ function mergeV2WithDefaults(partial) {
         v2PromptPrefix: partial.v2PromptPrefix ?? defaults.v2PromptPrefix,
         v2PromptSuffix: partial.v2PromptSuffix ?? defaults.v2PromptSuffix,
         v2InjectionDepth: partial.v2InjectionDepth ?? defaults.v2InjectionDepth,
+        // Auto-injection toggles
+        v2InjectState: partial.v2InjectState ?? defaults.v2InjectState,
+        v2InjectNarrative: partial.v2InjectNarrative ?? defaults.v2InjectNarrative,
         // Context-aware injection settings
         v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,
         v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
@@ -139065,7 +139304,9 @@ function isV2Settings(obj) {
             s.v2MaxRecentChapters === undefined) &&
         (typeof s.v2MaxRecentEvents === 'number' || s.v2MaxRecentEvents === undefined) &&
         (typeof s.v2InjectionTokenBudget === 'number' ||
-            s.v2InjectionTokenBudget === undefined));
+            s.v2InjectionTokenBudget === undefined) &&
+        (typeof s.v2InjectState === 'boolean' || s.v2InjectState === undefined) &&
+        (typeof s.v2InjectNarrative === 'boolean' || s.v2InjectNarrative === undefined));
 }
 /**
  * Track toggle dependency rules.
@@ -144480,7 +144721,7 @@ function V2SettingsPanel() {
                                                         value >= 1) {
                                                         handleUpdate('v2MaxChapterMessagesToSend', value);
                                                     }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Settings for injecting story context into prompts" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Settings for injecting story context into prompts" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectstate", label: "Auto Inject State", description: "Automatically inject scene state (time, location, characters, etc.) into prompts", checked: settings.v2InjectState, onChange: checked => handleUpdate('v2InjectState', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectnarrative", label: "Auto Inject Narrative", description: "Automatically inject chapter summaries and events into prompts", checked: settings.v2InjectNarrative, onChange: checked => handleUpdate('v2InjectNarrative', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
                                                     const value = parseInt(e.target.value, 10);
                                                     if (!isNaN(value) &&
                                                         value >= 0 &&

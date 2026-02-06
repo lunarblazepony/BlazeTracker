@@ -76,6 +76,10 @@ export function createDefaultV2Settings(): V2Settings {
 		v2PromptSuffix: '',
 		v2InjectionDepth: 0,
 
+		// Auto-injection toggles
+		v2InjectState: true,
+		v2InjectNarrative: true,
+
 		// Context-aware injection settings
 		v2MaxRecentChapters: 5,
 		v2MaxRecentEvents: 15,
@@ -143,6 +147,10 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2PromptPrefix: partial.v2PromptPrefix ?? defaults.v2PromptPrefix,
 		v2PromptSuffix: partial.v2PromptSuffix ?? defaults.v2PromptSuffix,
 		v2InjectionDepth: partial.v2InjectionDepth ?? defaults.v2InjectionDepth,
+
+		// Auto-injection toggles
+		v2InjectState: partial.v2InjectState ?? defaults.v2InjectState,
+		v2InjectNarrative: partial.v2InjectNarrative ?? defaults.v2InjectNarrative,
 
 		// Context-aware injection settings
 		v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,

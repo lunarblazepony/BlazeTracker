@@ -1091,6 +1091,32 @@ function V2SettingsPanel() {
 							</small>
 						</div>
 
+						<CheckboxField
+							id="bt-v2-injectstate"
+							label="Auto Inject State"
+							description="Automatically inject scene state (time, location, characters, etc.) into prompts"
+							checked={settings.v2InjectState}
+							onChange={checked =>
+								handleUpdate(
+									'v2InjectState',
+									checked,
+								)
+							}
+						/>
+
+						<CheckboxField
+							id="bt-v2-injectnarrative"
+							label="Auto Inject Narrative"
+							description="Automatically inject chapter summaries and events into prompts"
+							checked={settings.v2InjectNarrative}
+							onChange={checked =>
+								handleUpdate(
+									'v2InjectNarrative',
+									checked,
+								)
+							}
+						/>
+
 						{/* Max Recent Chapters */}
 						<div
 							className="flex-container flexFlowColumn"

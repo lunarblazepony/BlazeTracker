@@ -51,6 +51,16 @@ describe('V2 Settings', () => {
 			expect(settings.v2Track.scene).toBe(true);
 			expect(settings.v2Track.narrative).toBe(true);
 		});
+
+		it('v2InjectState defaults to true', () => {
+			const settings = createDefaultV2Settings();
+			expect(settings.v2InjectState).toBe(true);
+		});
+
+		it('v2InjectNarrative defaults to true', () => {
+			const settings = createDefaultV2Settings();
+			expect(settings.v2InjectNarrative).toBe(true);
+		});
 	});
 
 	describe('mergeV2WithDefaults', () => {
@@ -128,6 +138,26 @@ describe('V2 Settings', () => {
 			// Others should be defaults
 			expect(merged.v2Temperatures.characters).toBe(0.5);
 		});
+
+		it('preserves v2InjectState when provided', () => {
+			const merged = mergeV2WithDefaults({ v2InjectState: false });
+			expect(merged.v2InjectState).toBe(false);
+		});
+
+		it('uses default v2InjectState when not provided', () => {
+			const merged = mergeV2WithDefaults({ v2ProfileId: 'test' });
+			expect(merged.v2InjectState).toBe(true);
+		});
+
+		it('preserves v2InjectNarrative when provided', () => {
+			const merged = mergeV2WithDefaults({ v2InjectNarrative: false });
+			expect(merged.v2InjectNarrative).toBe(false);
+		});
+
+		it('uses default v2InjectNarrative when not provided', () => {
+			const merged = mergeV2WithDefaults({ v2ProfileId: 'test' });
+			expect(merged.v2InjectNarrative).toBe(true);
+		});
 	});
 
 	describe('isV2Settings', () => {
@@ -194,6 +224,50 @@ describe('V2 Settings', () => {
 				unknown
 			>;
 			settings.v2MaxReqsPerMinute = 'not a number';
+			expect(isV2Settings(settings)).toBe(false);
+		});
+
+		it('returns true when v2InjectState is missing (allows upgrade)', () => {
+			const settings = createDefaultV2Settings();
+			const partial = { ...settings } as Record<string, unknown>;
+			delete partial.v2InjectState;
+			expect(isV2Settings(partial)).toBe(true);
+		});
+
+		it('returns true when v2InjectState is a boolean', () => {
+			const settings = createDefaultV2Settings();
+			settings.v2InjectState = false;
+			expect(isV2Settings(settings)).toBe(true);
+		});
+
+		it('returns false when v2InjectState is wrong type', () => {
+			const settings = createDefaultV2Settings() as unknown as Record<
+				string,
+				unknown
+			>;
+			settings.v2InjectState = 'not a boolean';
+			expect(isV2Settings(settings)).toBe(false);
+		});
+
+		it('returns true when v2InjectNarrative is missing (allows upgrade)', () => {
+			const settings = createDefaultV2Settings();
+			const partial = { ...settings } as Record<string, unknown>;
+			delete partial.v2InjectNarrative;
+			expect(isV2Settings(partial)).toBe(true);
+		});
+
+		it('returns true when v2InjectNarrative is a boolean', () => {
+			const settings = createDefaultV2Settings();
+			settings.v2InjectNarrative = false;
+			expect(isV2Settings(settings)).toBe(true);
+		});
+
+		it('returns false when v2InjectNarrative is wrong type', () => {
+			const settings = createDefaultV2Settings() as unknown as Record<
+				string,
+				unknown
+			>;
+			settings.v2InjectNarrative = 'not a boolean';
 			expect(isV2Settings(settings)).toBe(false);
 		});
 	});

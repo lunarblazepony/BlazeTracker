@@ -345,6 +345,12 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 	const { store, swipeContext, stContext } = storeAndContext;
 	const settings = getV2Settings();
 
+	// If both injection types are disabled, nothing to do
+	if (!settings.v2InjectState && !settings.v2InjectNarrative) {
+		debugLog('Both state and narrative injection disabled');
+		return;
+	}
+
 	try {
 		// Get the chat messages
 		const chatMessages = eventData.chat;
@@ -383,8 +389,10 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 			`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`,
 		);
 
-		// Build state content to know its token cost
-		const stateContent = buildAfterMessagesContent(store, swipeContext, projection);
+		// Build state content to know its token cost (skip if state injection disabled)
+		const stateContent = settings.v2InjectState
+			? buildAfterMessagesContent(store, swipeContext, projection)
+			: '';
 		const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
 
 		// Estimate message tokens from ST's chat array
@@ -402,14 +410,17 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 		);
 
 		// Compute optimal context with available budget (after fixed content)
+		// If narrative injection is disabled, set maxPastChapters and maxEvents to 0
 		const plan = await computeOptimalContext({
 			budget: availableBudget,
 			stateTokens,
 			messageTokens,
 			store,
 			swipeContext,
-			maxPastChapters: settings.v2MaxRecentChapters,
-			maxEvents: settings.v2MaxRecentEvents,
+			maxPastChapters: settings.v2InjectNarrative
+				? settings.v2MaxRecentChapters
+				: 0,
+			maxEvents: settings.v2InjectNarrative ? settings.v2MaxRecentEvents : 0,
 			totalMessages: chatOnlyMessages.length,
 			tokenCounter,
 		});
@@ -529,6 +540,12 @@ async function handleTextCompletionPromptReady(
 	const { store, swipeContext, stContext } = storeAndContext;
 	const settings = getV2Settings();
 
+	// If both injection types are disabled, nothing to do
+	if (!settings.v2InjectState && !settings.v2InjectNarrative) {
+		debugLog('Both state and narrative injection disabled');
+		return;
+	}
+
 	try {
 		// Validate finalMesSend is available
 		if (!eventData.finalMesSend || eventData.finalMesSend.length === 0) {
@@ -568,8 +585,10 @@ async function handleTextCompletionPromptReady(
 			`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`,
 		);
 
-		// Build state content to know its token cost
-		const stateContent = buildAfterMessagesContent(store, swipeContext, projection);
+		// Build state content to know its token cost (skip if state injection disabled)
+		const stateContent = settings.v2InjectState
+			? buildAfterMessagesContent(store, swipeContext, projection)
+			: '';
 		const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
 
 		// Count tokens for each message in finalMesSend
@@ -587,14 +606,17 @@ async function handleTextCompletionPromptReady(
 		// Compute optimal context with proper per-message token counts
 		// Note: stateTokens is passed separately, and beforeContent tokens
 		// are calculated inside computeOptimalContext as part of chapters/events
+		// If narrative injection is disabled, set maxPastChapters and maxEvents to 0
 		const plan = await computeOptimalContext({
 			budget: availableBudget,
 			stateTokens,
 			messageTokens,
 			store,
 			swipeContext,
-			maxPastChapters: settings.v2MaxRecentChapters,
-			maxEvents: settings.v2MaxRecentEvents,
+			maxPastChapters: settings.v2InjectNarrative
+				? settings.v2MaxRecentChapters
+				: 0,
+			maxEvents: settings.v2InjectNarrative ? settings.v2MaxRecentEvents : 0,
 			totalMessages: eventData.finalMesSend.length,
 			tokenCounter,
 		});

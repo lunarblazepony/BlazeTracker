@@ -109,8 +109,32 @@ Each section is controlled by its corresponding track toggle:
 
 If a track toggle is disabled, its corresponding sections are omitted from injection.
 
+## Auto-Injection Toggles
+
+You can independently disable auto-injection for state and narrative content:
+
+| Setting | Controls | Default |
+|---------|----------|---------|
+| **Auto Inject State** | Scene State + Relationships | `true` |
+| **Auto Inject Narrative** | Story So Far + Recent Events + Knowledge Gaps | `true` |
+
+These settings are in **Advanced Settings** > **Context Injection**.
+
+When you disable auto-injection for a category, BlazeTracker stops inserting that content into prompts automatically. However, extraction still runs normally — the data is still tracked, just not injected.
+
+This is useful when you want to place content manually using [ST Macros](../../guides/macros) (`{{btState}}` and `{{btNarrative}}`).
+
 ## Token Budget
 
 The injection content counts against your context window. For a fully-tracked scene with several characters and chapters, the injection might be 500-1500 tokens.
 
 The **Token Budget** setting lets you cap injection size. When set to 0 (default), it uses SillyTavern's full context size. Setting a lower value trims older chapters and events first.
+
+## ST Macros
+
+BlazeTracker registers two macros that can be placed anywhere in your prompts:
+
+- `{{btState}}` — Current scene state (time, location, characters, relationships)
+- `{{btNarrative}}` — Chapter summaries and current chapter events
+
+These work independently of auto-injection — you can use them even when auto-injection is disabled. See the [ST Macros guide](../../guides/macros) for details and examples.

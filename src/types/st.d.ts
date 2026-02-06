@@ -46,6 +46,9 @@ export interface STContext {
 		role?: string,
 	) => void;
 
+	registerMacro: (key: string, value: string | (() => string), description?: string) => void;
+	unregisterMacro: (key: string) => void;
+
 	// Persistence
 	saveChat(): Promise<void>;
 	saveMetadataDebounced(): void;

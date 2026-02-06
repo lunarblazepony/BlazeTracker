@@ -46,6 +46,8 @@ Enable or disable extraction modules. Disabling modules reduces LLM calls per me
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
+| Auto Inject State | boolean | `true` | Automatically inject scene state (time, location, characters, etc.) into prompts. Disable for [macro-only workflows](../../guides/macros). |
+| Auto Inject Narrative | boolean | `true` | Automatically inject chapter summaries and events into prompts. Disable for [macro-only workflows](../../guides/macros). |
 | Injection Depth | number | `0` | Prompt injection depth (0 = near most recent messages). |
 | Max Recent Chapters | number | `5` | Maximum past chapters in "Story So Far" injection. |
 | Max Recent Events | number | `15` | Maximum out-of-context events from current chapter. |
