@@ -103280,7 +103280,7 @@ module.exports = __webpack_require__.p + "98f63538dbab08bc5ddc.css";
   \********************************/
 (module, __unused_webpack_exports, __webpack_require__) {
 
-module.exports = __webpack_require__.p + "2a9d0afb256ab44b0281.css";
+module.exports = __webpack_require__.p + "7d0e6ec8e35b4fb0c6e9.css";
 
 /***/ },
 
@@ -142545,6 +142545,307 @@ function ProjectionDisplay({ projection, messageId: _messageId, isExtracting, ex
 
 /***/ },
 
+/***/ "./src/v2/ui/SnapshotFieldsEditor.tsx"
+/*!********************************************!*\
+  !*** ./src/v2/ui/SnapshotFieldsEditor.tsx ***!
+  \********************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   SnapshotFieldsEditor: () => (/* binding */ SnapshotFieldsEditor)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../types/snapshot */ "./src/v2/types/snapshot.ts");
+/* harmony import */ var _types_common__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../types/common */ "./src/v2/types/common.ts");
+/* harmony import */ var _ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../ui/components/form/TagInput */ "./src/ui/components/form/TagInput.tsx");
+
+/**
+ * Snapshot Fields Editor
+ *
+ * Controlled form component for editing all fields of an initial snapshot.
+ * Uses collapsible <details> sections for each state category.
+ * All updates are immutable - each change produces a new snapshot object.
+ */
+
+
+
+
+function SnapshotFieldsEditor({ snapshot, onChange }) {
+    const [newCharName, setNewCharName] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
+    const [newRelA, setNewRelA] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
+    const [newRelB, setNewRelB] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
+    // Helper to produce a new snapshot with updated fields
+    const update = (0,react__WEBPACK_IMPORTED_MODULE_1__.useCallback)((updater) => {
+        const next = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.cloneSnapshot)(snapshot);
+        updater(next);
+        onChange(next);
+    }, [snapshot, onChange]);
+    const characterNames = Object.keys(snapshot.characters);
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-section", open: true, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-regular fa-clock" }), " Time"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-snapshot-section-body", children: snapshot.time !== null ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "datetime-local", value: isoToDatetimeLocal(snapshot.time), onChange: e => update(s => {
+                                        s.time =
+                                            datetimeLocalToIso(e
+                                                .target
+                                                .value);
+                                    }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-snapshot-remove-btn", onClick: () => update(s => {
+                                        s.time = null;
+                                    }), title: "Clear time", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }) })] })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-add-btn", onClick: () => update(s => {
+                                s.time =
+                                    new Date().toISOString();
+                            }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), " Set Time"] })) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-section", open: true, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-location-dot" }), " Location"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-snapshot-section-body", children: snapshot.location !== null ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Area" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: snapshot.location
+                                                .area, onChange: e => update(s => {
+                                                s.location.area =
+                                                    e.target.value;
+                                            }), placeholder: "Area name" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Place" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: snapshot.location
+                                                .place, onChange: e => update(s => {
+                                                s.location.place =
+                                                    e.target.value;
+                                            }), placeholder: "Place name" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Position" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: snapshot.location
+                                                .position, onChange: e => update(s => {
+                                                s.location.position =
+                                                    e.target.value;
+                                            }), placeholder: "Position description" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Type" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: snapshot.location
+                                                .locationType, onChange: e => update(s => {
+                                                s.location.locationType =
+                                                    e
+                                                        .target
+                                                        .value;
+                                            }), children: _types_common__WEBPACK_IMPORTED_MODULE_3__.LOCATION_TYPES.map(t => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: t, children: t }, t))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Props" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: snapshot.location
+                                                .props, onChange: tags => update(s => {
+                                                s.location.props =
+                                                    tags;
+                                            }), placeholder: "Add prop..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-remove-btn", onClick: () => update(s => {
+                                        s.location = null;
+                                    }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }), ' ', "Clear Location"] })] })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-add-btn", onClick: () => update(s => {
+                                s.location =
+                                    (0,_types_common__WEBPACK_IMPORTED_MODULE_3__.createEmptyLocationState)();
+                            }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), " Add Location"] })) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-section", open: true, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-theater-masks" }), " Scene"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-snapshot-section-body", children: snapshot.scene !== null ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Topic" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: snapshot.scene.topic, onChange: e => update(s => {
+                                                s.scene.topic =
+                                                    e.target.value;
+                                            }), placeholder: "Scene topic" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tone" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: snapshot.scene.tone, onChange: e => update(s => {
+                                                s.scene.tone =
+                                                    e.target.value;
+                                            }), placeholder: "Scene tone" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Level" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: snapshot.scene
+                                                .tension
+                                                .level, onChange: e => update(s => {
+                                                s.scene.tension.level =
+                                                    e
+                                                        .target
+                                                        .value;
+                                            }), children: _types_common__WEBPACK_IMPORTED_MODULE_3__.TENSION_LEVELS.map(l => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: l, children: l }, l))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Type" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: snapshot.scene
+                                                .tension
+                                                .type, onChange: e => update(s => {
+                                                s.scene.tension.type =
+                                                    e
+                                                        .target
+                                                        .value;
+                                            }), children: _types_common__WEBPACK_IMPORTED_MODULE_3__.TENSION_TYPES.map(t => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: t, children: t }, t))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Tension Direction" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: snapshot.scene
+                                                .tension
+                                                .direction, onChange: e => update(s => {
+                                                s.scene.tension.direction =
+                                                    e
+                                                        .target
+                                                        .value;
+                                            }), children: _types_common__WEBPACK_IMPORTED_MODULE_3__.TENSION_DIRECTIONS.map(d => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: d, children: d }, d))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-remove-btn", onClick: () => update(s => {
+                                        s.scene = null;
+                                    }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }), ' ', "Clear Scene"] })] })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-add-btn", onClick: () => update(s => {
+                                s.scene =
+                                    (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.createEmptySceneState)();
+                            }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), " Add Scene"] })) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-section", open: true, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-users" }), " Characters (", characterNames.length, ")"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-section-body", children: [characterNames.map(name => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(CharacterEditor, { character: snapshot.characters[name], onUpdate: updated => update(s => {
+                                    s.characters[name] =
+                                        updated;
+                                }), onDelete: () => update(s => {
+                                    delete s.characters[name];
+                                    // Remove relationships involving this character
+                                    for (const key of Object.keys(s.relationships)) {
+                                        const rel = s
+                                            .relationships[key];
+                                        if (rel
+                                            .pair[0] ===
+                                            name ||
+                                            rel
+                                                .pair[1] ===
+                                                name) {
+                                            delete s
+                                                .relationships[key];
+                                        }
+                                    }
+                                }) }, name))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-add-row", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: newCharName, onChange: e => setNewCharName(e.target.value), onKeyDown: e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                addCharacter();
+                                            }
+                                        }, placeholder: "Character name..." }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-add-btn", onClick: addCharacter, disabled: !newCharName.trim() ||
+                                            newCharName.trim() in
+                                                snapshot.characters, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), " Add Character"] })] })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-section", open: true, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-heart" }), " Relationships (", Object.keys(snapshot.relationships).length, ")"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-section-body", children: [Object.entries(snapshot.relationships).map(([key, rel]) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(RelationshipEditor, { relationship: rel, onUpdate: updated => update(s => {
+                                    s.relationships[key] = updated;
+                                }), onDelete: () => update(s => {
+                                    delete s
+                                        .relationships[key];
+                                }) }, key))), characterNames.length >= 2 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-add-row", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: newRelA, onChange: e => setNewRelA(e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Character A..." }), characterNames.map(n => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: n, children: n }, n)))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: newRelB, onChange: e => setNewRelB(e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Character B..." }), characterNames
+                                                .filter(n => n !== newRelA)
+                                                .map(n => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: n, children: n }, n)))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-add-btn", onClick: addRelationship, disabled: !canAddRelationship(), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), ' ', "Add"] })] }))] })] })] }));
+    function addCharacter() {
+        const name = newCharName.trim();
+        if (!name || name in snapshot.characters)
+            return;
+        update(s => {
+            s.characters[name] = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.createEmptyCharacterState)(name);
+        });
+        setNewCharName('');
+    }
+    function canAddRelationship() {
+        if (!newRelA || !newRelB || newRelA === newRelB)
+            return false;
+        const pair = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.sortPair)(newRelA, newRelB);
+        const key = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.getRelationshipKey)(pair);
+        return !(key in snapshot.relationships);
+    }
+    function addRelationship() {
+        if (!canAddRelationship())
+            return;
+        const pair = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.sortPair)(newRelA, newRelB);
+        const key = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.getRelationshipKey)(pair);
+        update(s => {
+            s.relationships[key] = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.createEmptyRelationshipState)(pair);
+        });
+        setNewRelA('');
+        setNewRelB('');
+    }
+}
+function CharacterEditor({ character, onUpdate, onDelete }) {
+    const updateField = (key, value) => {
+        onUpdate({ ...character, [key]: value });
+    };
+    const updateProfile = (profile) => {
+        onUpdate({ ...character, profile });
+    };
+    const updateOutfitSlot = (slot, value) => {
+        onUpdate({
+            ...character,
+            outfit: { ...character.outfit, [slot]: value || null },
+        });
+    };
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-char-card", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-char-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-snapshot-char-name", children: character.name }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-snapshot-remove-btn bt-snapshot-delete-char", onClick: e => {
+                            e.preventDefault();
+                            onDelete();
+                        }, title: "Delete character", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-trash" }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-char-body", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-subsection", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-subsection-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { children: "Profile" }), character.profile ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-snapshot-remove-btn", onClick: () => updateProfile(undefined), children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }) })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-snapshot-add-btn", onClick: () => updateProfile({
+                                            sex: 'O',
+                                            species: '',
+                                            age: 0,
+                                            appearance: [],
+                                            personality: [],
+                                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-plus" }), ' ', "Add"] }))] }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-profile-fields", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Sex" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: character.profile
+                                                    .sex, onChange: e => updateProfile({
+                                                    ...character.profile,
+                                                    sex: e
+                                                        .target
+                                                        .value,
+                                                }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "M", children: "Male" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "F", children: "Female" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "O", children: "Other" })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Species" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.profile
+                                                    .species, onChange: e => updateProfile({
+                                                    ...character.profile,
+                                                    species: e
+                                                        .target
+                                                        .value,
+                                                }), placeholder: "Species" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Age" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", value: character.profile
+                                                    .age, onChange: e => updateProfile({
+                                                    ...character.profile,
+                                                    age: parseInt(e
+                                                        .target
+                                                        .value) ||
+                                                        0,
+                                                }), min: "0" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Appearance" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.profile
+                                                    .appearance, onChange: tags => updateProfile({
+                                                    ...character.profile,
+                                                    appearance: tags,
+                                                }), placeholder: "Add trait..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Personality" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.profile
+                                                    .personality, onChange: tags => updateProfile({
+                                                    ...character.profile,
+                                                    personality: tags,
+                                                }), placeholder: "Add trait..." })] })] }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Position" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.position, onChange: e => updateField('position', e.target.value), placeholder: "Position" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Activity" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.activity || '', onChange: e => updateField('activity', e.target.value || null), placeholder: "Activity" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Mood" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.mood, onChange: tags => updateField('mood', tags), placeholder: "Add mood..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Physical State" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.physicalState, onChange: tags => updateField('physicalState', tags), placeholder: "Add state..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-subsection", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-snapshot-subsection-header", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { children: "Outfit" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-outfit-grid", children: _types_common__WEBPACK_IMPORTED_MODULE_3__.OUTFIT_SLOTS.map(slot => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-outfit-slot", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: slot }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-outfit-row", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character
+                                                        .outfit[slot] || '', onChange: e => updateOutfitSlot(slot, e
+                                                        .target
+                                                        .value), placeholder: "None" }), character.outfit[slot] && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => updateOutfitSlot(slot, null), className: "bt-x", children: "\u00D7" }))] })] }, slot))) })] })] })] }));
+}
+function RelationshipEditor({ relationship, onUpdate, onDelete }) {
+    const [charA, charB] = relationship.pair;
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("details", { className: "bt-snapshot-rel-card", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("summary", { className: "bt-snapshot-rel-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-snapshot-rel-pair", children: [charA, " & ", charB] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-snapshot-rel-status", children: relationship.status }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-snapshot-remove-btn bt-snapshot-delete-rel", onClick: e => {
+                            e.preventDefault();
+                            onDelete();
+                        }, title: "Delete relationship", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-trash" }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-rel-body", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Status" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: relationship.status, onChange: e => onUpdate({
+                                    ...relationship,
+                                    status: e.target
+                                        .value,
+                                }), children: _types_common__WEBPACK_IMPORTED_MODULE_3__.RELATIONSHIP_STATUSES.map(s => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: s, children: s }, s))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-attitude", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-attitude-label", children: [charA, " \u2192 ", charB] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Feelings" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: relationship.aToB.feelings, onChange: tags => onUpdate({
+                                            ...relationship,
+                                            aToB: {
+                                                ...relationship.aToB,
+                                                feelings: tags,
+                                            },
+                                        }), placeholder: "Add feeling..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Secrets" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: relationship.aToB.secrets, onChange: tags => onUpdate({
+                                            ...relationship,
+                                            aToB: {
+                                                ...relationship.aToB,
+                                                secrets: tags,
+                                            },
+                                        }), placeholder: "Add secret..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Wants" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: relationship.aToB.wants, onChange: tags => onUpdate({
+                                            ...relationship,
+                                            aToB: {
+                                                ...relationship.aToB,
+                                                wants: tags,
+                                            },
+                                        }), placeholder: "Add want..." })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-attitude", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-attitude-label", children: [charB, " \u2192 ", charA] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Feelings" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: relationship.bToA.feelings, onChange: tags => onUpdate({
+                                            ...relationship,
+                                            bToA: {
+                                                ...relationship.bToA,
+                                                feelings: tags,
+                                            },
+                                        }), placeholder: "Add feeling..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Secrets" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: relationship.bToA.secrets, onChange: tags => onUpdate({
+                                            ...relationship,
+                                            bToA: {
+                                                ...relationship.bToA,
+                                                secrets: tags,
+                                            },
+                                        }), placeholder: "Add secret..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Wants" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: relationship.bToA.wants, onChange: tags => onUpdate({
+                                            ...relationship,
+                                            bToA: {
+                                                ...relationship.bToA,
+                                                wants: tags,
+                                            },
+                                        }), placeholder: "Add want..." })] })] })] })] }));
+}
+// ============================================
+// Helpers
+// ============================================
+/**
+ * Convert ISO string to datetime-local input format.
+ */
+function isoToDatetimeLocal(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime()))
+        return '';
+    // Format as YYYY-MM-DDThh:mm
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+/**
+ * Convert datetime-local input value to ISO string.
+ */
+function datetimeLocalToIso(value) {
+    if (!value)
+        return new Date().toISOString();
+    return new Date(value).toISOString();
+}
+
+
+/***/ },
+
 /***/ "./src/v2/ui/V2EventEditor.tsx"
 /*!*************************************!*\
   !*** ./src/v2/ui/V2EventEditor.tsx ***!
@@ -144271,6 +144572,88 @@ function unmountV2SettingsUI() {
 
 /***/ },
 
+/***/ "./src/v2/ui/V2SnapshotEditorModal.tsx"
+/*!*********************************************!*\
+  !*** ./src/v2/ui/V2SnapshotEditorModal.tsx ***!
+  \*********************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   V2SnapshotEditorModal: () => (/* binding */ V2SnapshotEditorModal),
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../types/snapshot */ "./src/v2/types/snapshot.ts");
+/* harmony import */ var _SnapshotFieldsEditor__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./SnapshotFieldsEditor */ "./src/v2/ui/SnapshotFieldsEditor.tsx");
+/* harmony import */ var _V2ProjectionPreview__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./V2ProjectionPreview */ "./src/v2/ui/V2ProjectionPreview.tsx");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+
+/**
+ * V2 Snapshot Editor Modal
+ *
+ * Split-pane modal for editing the initial snapshot directly.
+ * Left pane: Snapshot fields editor
+ * Right pane: Live projection preview
+ */
+
+
+
+
+
+/**
+ * Modal for editing the initial snapshot directly.
+ * Uses a cloned snapshot for isolated editing.
+ */
+function V2SnapshotEditorModal({ eventStore, messageId, swipeId, swipeContext, onSave, onClose, }) {
+    // Deep-clone the initial snapshot for editing
+    const [editedSnapshot, setEditedSnapshot] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(() => {
+        const initial = eventStore.initialSnapshot;
+        if (!initial) {
+            throw new Error('V2SnapshotEditorModal: No initial snapshot found');
+        }
+        return (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.cloneSnapshot)(initial);
+    });
+    // Compute live preview projection from the edited snapshot
+    const projection = (0,react__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => {
+        try {
+            return (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.createProjectionFromSnapshot)(editedSnapshot, {
+                messageId,
+                swipeId,
+            });
+        }
+        catch (e) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.debugWarn)('V2SnapshotEditorModal: Failed to compute projection:', e);
+            return null;
+        }
+    }, [editedSnapshot, messageId, swipeId]);
+    // Handle save
+    const handleSave = (0,react__WEBPACK_IMPORTED_MODULE_1__.useCallback)(() => {
+        const finalStore = eventStore.getDeepClone();
+        finalStore.replaceInitialSnapshot(editedSnapshot);
+        onSave(finalStore);
+    }, [editedSnapshot, eventStore, onSave]);
+    // Handle backdrop click
+    const handleBackdropClick = (0,react__WEBPACK_IMPORTED_MODULE_1__.useCallback)((e) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    }, [onClose]);
+    // Handle escape key
+    const handleKeyDown = (0,react__WEBPACK_IMPORTED_MODULE_1__.useCallback)((e) => {
+        if (e.key === 'Escape') {
+            onClose();
+        }
+    }, [onClose]);
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-v2-editor-modal-backdrop", onClick: handleBackdropClick, onKeyDown: handleKeyDown, tabIndex: -1, children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-modal", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("h3", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-camera" }), "Edit Initial Snapshot - Message #", messageId, swipeId > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-swipe-badge", children: ["Swipe ", swipeId + 1] }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-v2-editor-close", onClick: onClose, title: "Close", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-split", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-left", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-v2-pane-header", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-sliders" }), ' ', "Snapshot Fields"] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-v2-pane-content", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_SnapshotFieldsEditor__WEBPACK_IMPORTED_MODULE_3__.SnapshotFieldsEditor, { snapshot: editedSnapshot, onChange: setEditedSnapshot }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-right", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-pane-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-eye" }), "Preview"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-v2-pane-content", children: projection ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_V2ProjectionPreview__WEBPACK_IMPORTED_MODULE_4__.V2ProjectionPreview, { projection: projection, swipeContext: swipeContext })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-empty", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-ghost" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { children: "No state to preview" })] })) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-editor-actions", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-btn", onClick: onClose, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }), "Cancel"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "bt-btn bt-btn-primary", onClick: handleSave, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-save" }), "Save Changes"] })] })] }) }));
+}
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (V2SnapshotEditorModal);
+
+
+/***/ },
+
 /***/ "./src/v2/ui/components/V2ChapterSummaryCard.tsx"
 /*!*******************************************************!*\
   !*** ./src/v2/ui/components/V2ChapterSummaryCard.tsx ***!
@@ -145976,12 +146359,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _ProjectionDisplay__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./ProjectionDisplay */ "./src/v2/ui/ProjectionDisplay.tsx");
 /* harmony import */ var _EventStoreEditor__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./EventStoreEditor */ "./src/v2/ui/EventStoreEditor.tsx");
 /* harmony import */ var _V2EventEditorModal__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./V2EventEditorModal */ "./src/v2/ui/V2EventEditorModal.tsx");
-/* harmony import */ var _V2NarrativeModal__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./V2NarrativeModal */ "./src/v2/ui/V2NarrativeModal.tsx");
-/* harmony import */ var _v2Bridge__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../v2Bridge */ "./src/v2Bridge.ts");
-/* harmony import */ var _narrative_computeChapters__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../narrative/computeChapters */ "./src/v2/narrative/computeChapters.ts");
-/* harmony import */ var _index__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../../index */ "./src/index.ts");
-/* harmony import */ var _settings__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../settings */ "./src/v2/settings/index.ts");
-/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _V2SnapshotEditorModal__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./V2SnapshotEditorModal */ "./src/v2/ui/V2SnapshotEditorModal.tsx");
+/* harmony import */ var _V2NarrativeModal__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./V2NarrativeModal */ "./src/v2/ui/V2NarrativeModal.tsx");
+/* harmony import */ var _v2Bridge__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../v2Bridge */ "./src/v2Bridge.ts");
+/* harmony import */ var _narrative_computeChapters__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../narrative/computeChapters */ "./src/v2/narrative/computeChapters.ts");
+/* harmony import */ var _index__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../../index */ "./src/index.ts");
+/* harmony import */ var _settings__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ../settings */ "./src/v2/settings/index.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+
 
 
 
@@ -146046,33 +146431,33 @@ function updateV2ExtractionProgress(progress) {
  * Get the temperature unit from v2 settings.
  */
 function getTemperatureUnit() {
-    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_9__.getV2Settings)();
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_10__.getV2Settings)();
     return settings.v2TemperatureUnit === 'celsius' ? 'C' : 'F';
 }
 /**
  * Get the time format from v2 settings.
  */
 function getTimeFormat() {
-    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_9__.getV2Settings)();
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_10__.getV2Settings)();
     return settings.v2TimeFormat;
 }
 /**
  * Handle opening the narrative modal (full editor).
  */
 async function handleOpenEditor(messageId, swipeId) {
-    const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStoreForEditor)();
+    const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getV2EventStoreForEditor)();
     if (!store) {
-        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_10__.debugWarn)('No event store available for editing');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_11__.debugWarn)('No event store available for editing');
         return;
     }
     const saved = await (0,_EventStoreEditor__WEBPACK_IMPORTED_MODULE_3__.openV2EventStoreEditor)(store, messageId, swipeId, async (editedStore) => {
         // Replace the store with the edited version
-        (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.replaceV2EventStore)(editedStore);
+        (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.replaceV2EventStore)(editedStore);
         // Re-render all displays to reflect changes
         mountAllV2ProjectionDisplays();
     });
     if (saved) {
-        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_10__.debugLog)('Event store edits saved');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_11__.debugLog)('Event store edits saved');
     }
 }
 /**
@@ -146108,9 +146493,9 @@ function closeNarrativeModal() {
  * @param targetChapter - Optional chapter index to scroll to and highlight
  */
 function handleOpenNarrativeModal(messageId, targetChapter) {
-    const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStoreForEditor)();
+    const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getV2EventStoreForEditor)();
     if (!store) {
-        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_10__.debugWarn)('No event store available for narrative modal');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_11__.debugWarn)('No event store available for narrative modal');
         return;
     }
     const stContext = SillyTavern.getContext();
@@ -146126,12 +146511,12 @@ function handleOpenNarrativeModal(messageId, targetChapter) {
     }
     // Handler for recalculating a chapter
     const handleRecalculateChapter = async (localStore, chapterIndex) => {
-        const updatedStore = await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.recalculateV2Chapter)(localStore, chapterIndex, status => (0,_utils_debug__WEBPACK_IMPORTED_MODULE_10__.debugLog)(`[Chapter Recalculation] ${status}`));
+        const updatedStore = await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.recalculateV2Chapter)(localStore, chapterIndex, status => (0,_utils_debug__WEBPACK_IMPORTED_MODULE_11__.debugLog)(`[Chapter Recalculation] ${status}`));
         return updatedStore;
     };
     // Render the modal
-    narrativeModalRoot.render((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_V2NarrativeModal__WEBPACK_IMPORTED_MODULE_5__.V2NarrativeModal, { eventStore: store, chat: stContext.chat, latestMessageId: messageId, onClose: closeNarrativeModal, onSave: async (editedStore) => {
-            await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.replaceV2EventStore)(editedStore);
+    narrativeModalRoot.render((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_V2NarrativeModal__WEBPACK_IMPORTED_MODULE_6__.V2NarrativeModal, { eventStore: store, chat: stContext.chat, latestMessageId: messageId, onClose: closeNarrativeModal, onSave: async (editedStore) => {
+            await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.replaceV2EventStore)(editedStore);
             mountAllV2ProjectionDisplays();
             closeNarrativeModal();
         }, onRecalculateChapter: handleRecalculateChapter, initialTab: targetChapter !== undefined ? 'chapters' : 'relationships', targetChapter: targetChapter }));
@@ -146142,37 +146527,43 @@ function handleOpenNarrativeModal(messageId, targetChapter) {
  */
 async function handleRetryExtraction(messageId, swipeId) {
     // Delete existing events for this message/swipe
-    await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.deleteV2EventsForSwipe)(messageId, swipeId);
+    await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.deleteV2EventsForSwipe)(messageId, swipeId);
     // Mark manual extraction in progress to prevent GENERATION_ENDED from triggering another extraction
-    (0,_index__WEBPACK_IMPORTED_MODULE_8__.setManualExtractionInProgress)(true);
+    (0,_index__WEBPACK_IMPORTED_MODULE_9__.setManualExtractionInProgress)(true);
     // Set extraction in progress
     setV2ExtractionInProgress(messageId, true);
     mountV2ProjectionDisplay(messageId);
     try {
         // Run extraction
-        await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.runV2Extraction)(messageId, {
+        await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.runV2Extraction)(messageId, {
             onProgress: updateV2ExtractionProgress,
         });
     }
     finally {
         // Clear extraction state
         // Delay clearing manual flag to avoid race condition with GENERATION_ENDED event
-        setTimeout(() => (0,_index__WEBPACK_IMPORTED_MODULE_8__.setManualExtractionInProgress)(false), 50);
+        setTimeout(() => (0,_index__WEBPACK_IMPORTED_MODULE_9__.setManualExtractionInProgress)(false), 50);
         setV2ExtractionInProgress(messageId, false);
         mountV2ProjectionDisplay(messageId);
     }
 }
 /**
  * Handle opening the per-message event editor.
+ * For the initial snapshot message, opens the snapshot editor instead.
  */
 function handleEditEvents(messageId, swipeId) {
-    const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStoreForEditor)();
+    const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getV2EventStoreForEditor)();
     if (!store) {
-        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_10__.debugWarn)('No event store available for editing');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_11__.debugWarn)('No event store available for editing');
         return;
     }
     const stContext = SillyTavern.getContext();
-    const swipeContext = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext)(stContext);
+    const swipeContext = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.buildSwipeContext)(stContext);
+    // Branch: initial snapshot message gets the snapshot editor
+    if (messageId === store.initialSnapshotMessageId) {
+        openSnapshotEditorModal(store, messageId, swipeId, swipeContext);
+        return;
+    }
     // Create container if needed
     if (!eventEditorContainer) {
         eventEditorContainer = document.createElement('div');
@@ -146185,7 +146576,26 @@ function handleEditEvents(messageId, swipeId) {
     }
     // Render the modal
     eventEditorRoot.render((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_V2EventEditorModal__WEBPACK_IMPORTED_MODULE_4__.V2EventEditorModal, { eventStore: store, messageId: messageId, swipeId: swipeId, swipeContext: swipeContext, onSave: async (editedStore) => {
-            await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.replaceV2EventStore)(editedStore);
+            await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.replaceV2EventStore)(editedStore);
+            mountAllV2ProjectionDisplays();
+            closeEventEditorModal();
+        }, onClose: closeEventEditorModal }));
+}
+/**
+ * Open the snapshot editor modal for the initial snapshot message.
+ */
+function openSnapshotEditorModal(store, messageId, swipeId, swipeContext) {
+    // Reuse the same container/root as event editor (only one editor at a time)
+    if (!eventEditorContainer) {
+        eventEditorContainer = document.createElement('div');
+        eventEditorContainer.id = 'bt-v2-event-editor-container';
+        document.body.appendChild(eventEditorContainer);
+    }
+    if (!eventEditorRoot) {
+        eventEditorRoot = react_dom_client__WEBPACK_IMPORTED_MODULE_1__.createRoot(eventEditorContainer);
+    }
+    eventEditorRoot.render((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_V2SnapshotEditorModal__WEBPACK_IMPORTED_MODULE_5__.V2SnapshotEditorModal, { eventStore: store, messageId: messageId, swipeId: swipeId, swipeContext: swipeContext, onSave: async (editedStore) => {
+            await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.replaceV2EventStore)(editedStore);
             mountAllV2ProjectionDisplays();
             closeEventEditorModal();
         }, onClose: closeEventEditorModal }));
@@ -146200,7 +146610,7 @@ function mountV2ProjectionDisplay(messageId) {
     const mesBlock = messageElement.querySelector('.mes_block');
     if (!mesBlock)
         return;
-    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_9__.getV2Settings)();
+    const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_10__.getV2Settings)();
     const isAbove = settings.v2DisplayPosition === 'above';
     // Get or create container
     let container = messageElement.querySelector('.bt-v2-state-root');
@@ -146234,9 +146644,9 @@ function mountV2ProjectionDisplay(messageId) {
     }
     // Get projection and state
     const isExtracting = extractionInProgress.has(messageId);
-    const projection = isExtracting ? null : (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getProjectionForMessage)(messageId);
+    const projection = isExtracting ? null : (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getProjectionForMessage)(messageId);
     // Get milestones at this message (from raw events, not just narrativeEvents)
-    const milestones = isExtracting ? [] : (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getMilestonesAtMessage)(messageId);
+    const milestones = isExtracting ? [] : (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getMilestonesAtMessage)(messageId);
     // Get swipe ID for editor
     const context = SillyTavern.getContext();
     const message = context.chat[messageId];
@@ -146244,9 +146654,9 @@ function mountV2ProjectionDisplay(messageId) {
     // Check if this specific message has been extracted
     const hasEventsAtThisMessage = isExtracting
         ? false
-        : (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasEventsAtMessage)(messageId, swipeId);
+        : (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.hasEventsAtMessage)(messageId, swipeId);
     // Check if this is the initial snapshot message (don't show "incomplete" for it)
-    const initialSnapshotMsgId = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getInitialSnapshotMessageId)();
+    const initialSnapshotMsgId = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getInitialSnapshotMessageId)();
     const isInitialSnapshotMessage = messageId === initialSnapshotMsgId;
     // Determine if this is the latest message (for showing retry button)
     const isLatestMessage = messageId === context.chat.length - 1;
@@ -146254,12 +146664,12 @@ function mountV2ProjectionDisplay(messageId) {
     let previousChapter = null;
     if (projection && projection.currentChapter > 0) {
         try {
-            const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore)();
-            const swipeContext = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext)(context);
-            previousChapter = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_7__.computeChapterData)(store, projection.currentChapter - 1, swipeContext);
+            const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.getV2EventStore)();
+            const swipeContext = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.buildSwipeContext)(context);
+            previousChapter = (0,_narrative_computeChapters__WEBPACK_IMPORTED_MODULE_8__.computeChapterData)(store, projection.currentChapter - 1, swipeContext);
         }
         catch (e) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_10__.debugWarn)('Failed to compute previous chapter:', e);
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_11__.debugWarn)('Failed to compute previous chapter:', e);
         }
     }
     // Render the component
@@ -146270,7 +146680,7 @@ function mountV2ProjectionDisplay(messageId) {
  */
 function mountAllV2ProjectionDisplays() {
     // Only mount if we have v2 data
-    if (!(0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
+    if (!(0,_v2Bridge__WEBPACK_IMPORTED_MODULE_7__.hasV2InitialSnapshot)()) {
         return;
     }
     const context = SillyTavern.getContext();

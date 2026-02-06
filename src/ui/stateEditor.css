@@ -1726,3 +1726,299 @@
 .bt-prompt-section-header label {
 	margin-bottom: 0;
 }
+
+/* =============================================
+   V2 Snapshot Editor
+   ============================================= */
+
+.bt-snapshot-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+/* Collapsible section */
+.bt-snapshot-section {
+	background: #252525;
+	border-radius: 6px;
+	border: 1px solid #333;
+	overflow: hidden;
+}
+
+.bt-snapshot-section-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.6rem 0.75rem;
+	font-weight: 600;
+	font-size: 0.85rem;
+	color: #ccc;
+	cursor: pointer;
+	background: #2a2a2a;
+	user-select: none;
+	list-style: none;
+}
+
+.bt-snapshot-section-header::-webkit-details-marker {
+	display: none;
+}
+
+.bt-snapshot-section-header::before {
+	content: '\f078';
+	font-family: 'Font Awesome 6 Free';
+	font-weight: 900;
+	font-size: 0.7rem;
+	color: #888;
+	transition: transform 0.2s;
+}
+
+.bt-snapshot-section:not([open]) .bt-snapshot-section-header::before {
+	transform: rotate(-90deg);
+}
+
+.bt-snapshot-section-header:hover {
+	background: #333;
+}
+
+.bt-snapshot-section-header i {
+	color: #f80;
+	width: 1rem;
+}
+
+.bt-snapshot-section-body {
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* Field row */
+.bt-snapshot-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.bt-snapshot-field > label {
+	font-size: 0.75rem;
+	color: #888;
+	text-transform: capitalize;
+}
+
+.bt-snapshot-field > input,
+.bt-snapshot-field > select {
+	padding: 0.4rem 0.6rem;
+	border: 1px solid #444;
+	border-radius: 3px;
+	background: #1a1a1a;
+	color: #fff;
+	font-size: 0.85rem;
+}
+
+.bt-snapshot-field > input:focus,
+.bt-snapshot-field > select:focus {
+	outline: none;
+	border-color: #f80;
+}
+
+/* Add/Remove buttons */
+.bt-snapshot-add-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.4rem 0.7rem;
+	font-size: 0.8rem;
+	background: transparent;
+	border: 1px dashed #f80;
+	border-radius: 4px;
+	color: #f80;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.bt-snapshot-add-btn:hover {
+	background: rgba(255, 136, 0, 0.1);
+}
+
+.bt-snapshot-add-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.bt-snapshot-remove-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.35rem 0.6rem;
+	font-size: 0.8rem;
+	background: transparent;
+	border: 1px solid #444;
+	border-radius: 4px;
+	color: #888;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.bt-snapshot-remove-btn:hover {
+	background: rgba(239, 68, 68, 0.15);
+	border-color: #ef4444;
+	color: #ef4444;
+}
+
+/* Add row (character/relationship creation) */
+.bt-snapshot-add-row {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	padding-top: 0.5rem;
+	border-top: 1px solid #333;
+	margin-top: 0.25rem;
+}
+
+.bt-snapshot-add-row input,
+.bt-snapshot-add-row select {
+	flex: 1;
+	padding: 0.4rem 0.6rem;
+	border: 1px solid #444;
+	border-radius: 3px;
+	background: #1a1a1a;
+	color: #fff;
+	font-size: 0.85rem;
+}
+
+.bt-snapshot-add-row input:focus,
+.bt-snapshot-add-row select:focus {
+	outline: none;
+	border-color: #f80;
+}
+
+/* Character card */
+.bt-snapshot-char-card {
+	background: #1e1e1e;
+	border-radius: 4px;
+	border: 1px solid #333;
+	overflow: hidden;
+}
+
+.bt-snapshot-char-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.6rem 0.75rem;
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+}
+
+.bt-snapshot-char-header::-webkit-details-marker {
+	display: none;
+}
+
+.bt-snapshot-char-header:hover {
+	background: #252525;
+}
+
+.bt-snapshot-char-name {
+	font-weight: 600;
+	color: #fff;
+	font-size: 0.9rem;
+}
+
+.bt-snapshot-delete-char,
+.bt-snapshot-delete-rel {
+	margin-left: auto;
+}
+
+.bt-snapshot-char-body {
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	border-top: 1px solid #333;
+}
+
+/* Subsection (Profile, Outfit) */
+.bt-snapshot-subsection {
+	border: 1px solid #333;
+	border-radius: 4px;
+	padding: 0.5rem;
+}
+
+.bt-snapshot-subsection-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #aaa;
+	margin-bottom: 0.5rem;
+}
+
+.bt-snapshot-profile-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* Relationship card */
+.bt-snapshot-rel-card {
+	background: #1e1e1e;
+	border-radius: 4px;
+	border: 1px solid #333;
+	overflow: hidden;
+}
+
+.bt-snapshot-rel-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.6rem 0.75rem;
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+}
+
+.bt-snapshot-rel-header::-webkit-details-marker {
+	display: none;
+}
+
+.bt-snapshot-rel-header:hover {
+	background: #252525;
+}
+
+.bt-snapshot-rel-pair {
+	font-weight: 600;
+	color: #fff;
+	font-size: 0.9rem;
+}
+
+.bt-snapshot-rel-status {
+	font-size: 0.75rem;
+	color: #ec4899;
+	text-transform: capitalize;
+	padding: 0.15rem 0.4rem;
+	background: rgba(236, 72, 153, 0.15);
+	border-radius: 3px;
+}
+
+.bt-snapshot-rel-body {
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	border-top: 1px solid #333;
+}
+
+/* Attitude section */
+.bt-snapshot-attitude {
+	border: 1px solid #333;
+	border-radius: 4px;
+	padding: 0.5rem;
+}
+
+.bt-snapshot-attitude-label {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #aaa;
+	margin-bottom: 0.5rem;
+}

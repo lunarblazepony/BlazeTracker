@@ -9,6 +9,7 @@ import ReactDOM from 'react-dom/client';
 import { ProjectionDisplay } from './ProjectionDisplay';
 import { openV2EventStoreEditor } from './EventStoreEditor';
 import { V2EventEditorModal } from './V2EventEditorModal';
+import { V2SnapshotEditorModal } from './V2SnapshotEditorModal';
 import { V2NarrativeModal } from './V2NarrativeModal';
 import {
 	getProjectionForMessage,
@@ -27,6 +28,8 @@ import {
 } from '../../v2Bridge';
 import { computeChapterData } from '../narrative/computeChapters';
 import { setManualExtractionInProgress } from '../../index';
+import type { EventStore } from '../store/EventStore';
+import type { SwipeContext } from '../store/projection';
 import type { STContext } from '../../types/st';
 import { getV2Settings } from '../settings';
 import { debugLog, debugWarn } from '../../utils/debug';
@@ -245,6 +248,7 @@ async function handleRetryExtraction(messageId: number, swipeId: number): Promis
 
 /**
  * Handle opening the per-message event editor.
+ * For the initial snapshot message, opens the snapshot editor instead.
  */
 function handleEditEvents(messageId: number, swipeId: number): void {
 	const store = getV2EventStoreForEditor();
@@ -255,6 +259,12 @@ function handleEditEvents(messageId: number, swipeId: number): void {
 
 	const stContext = SillyTavern.getContext() as unknown as STContext;
 	const swipeContext = buildSwipeContext(stContext);
+
+	// Branch: initial snapshot message gets the snapshot editor
+	if (messageId === store.initialSnapshotMessageId) {
+		openSnapshotEditorModal(store, messageId, swipeId, swipeContext);
+		return;
+	}
 
 	// Create container if needed
 	if (!eventEditorContainer) {
@@ -271,6 +281,42 @@ function handleEditEvents(messageId: number, swipeId: number): void {
 	// Render the modal
 	eventEditorRoot.render(
 		<V2EventEditorModal
+			eventStore={store}
+			messageId={messageId}
+			swipeId={swipeId}
+			swipeContext={swipeContext}
+			onSave={async editedStore => {
+				await replaceV2EventStore(editedStore);
+				mountAllV2ProjectionDisplays();
+				closeEventEditorModal();
+			}}
+			onClose={closeEventEditorModal}
+		/>,
+	);
+}
+
+/**
+ * Open the snapshot editor modal for the initial snapshot message.
+ */
+function openSnapshotEditorModal(
+	store: EventStore,
+	messageId: number,
+	swipeId: number,
+	swipeContext: SwipeContext,
+): void {
+	// Reuse the same container/root as event editor (only one editor at a time)
+	if (!eventEditorContainer) {
+		eventEditorContainer = document.createElement('div');
+		eventEditorContainer.id = 'bt-v2-event-editor-container';
+		document.body.appendChild(eventEditorContainer);
+	}
+
+	if (!eventEditorRoot) {
+		eventEditorRoot = ReactDOM.createRoot(eventEditorContainer);
+	}
+
+	eventEditorRoot.render(
+		<V2SnapshotEditorModal
 			eventStore={store}
 			messageId={messageId}
 			swipeId={swipeId}
