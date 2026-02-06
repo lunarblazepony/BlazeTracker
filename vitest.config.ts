@@ -9,7 +9,7 @@ export default defineConfig({
 			provider: 'v8',
 			reporter: ['text', 'html', 'json-summary'],
 			include: ['src/**/*.ts', 'src/**/*.tsx'],
-			exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts'],
+			exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts', '**/*.tsx'],
 		},
 		// Use jsdom for React component tests, node for others
 		environmentMatchGlobs: [

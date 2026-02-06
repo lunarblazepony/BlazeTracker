@@ -77,12 +77,21 @@ function createMinimalSnapshot(): Snapshot {
 test.describe('Section rendering', () => {
 	test('renders all 5 sections with populated snapshot', async ({ mount }) => {
 		const component = await mount(
-			<SnapshotFieldsEditor snapshot={createPopulatedSnapshot()} onChange={() => {}} />,
+			<SnapshotFieldsEditor
+				snapshot={createPopulatedSnapshot()}
+				onChange={() => {}}
+			/>,
 		);
 
-		await expect(component.locator('.bt-snapshot-section-header', { hasText: 'Time' })).toBeVisible();
-		await expect(component.locator('.bt-snapshot-section-header', { hasText: 'Location' })).toBeVisible();
-		await expect(component.locator('.bt-snapshot-section-header', { hasText: 'Scene' })).toBeVisible();
+		await expect(
+			component.locator('.bt-snapshot-section-header', { hasText: 'Time' }),
+		).toBeVisible();
+		await expect(
+			component.locator('.bt-snapshot-section-header', { hasText: 'Location' }),
+		).toBeVisible();
+		await expect(
+			component.locator('.bt-snapshot-section-header', { hasText: 'Scene' }),
+		).toBeVisible();
 		await expect(component.getByText('Characters (2)')).toBeVisible();
 		await expect(component.getByText('Relationships (1)')).toBeVisible();
 	});
@@ -153,7 +162,9 @@ test.describe('Location section', () => {
 
 		await expect(component.locator('input[placeholder="Area name"]')).toBeVisible();
 		await expect(component.locator('input[placeholder="Place name"]')).toBeVisible();
-		await expect(component.locator('input[placeholder="Position description"]')).toBeVisible();
+		await expect(
+			component.locator('input[placeholder="Position description"]'),
+		).toBeVisible();
 		await expect(component.getByText('Clear Location')).toBeVisible();
 	});
 
@@ -261,8 +272,12 @@ test.describe('Characters section', () => {
 			<SnapshotFieldsEditor snapshot={snap} onChange={() => {}} />,
 		);
 
-		await expect(component.locator('.bt-snapshot-char-name', { hasText: 'Alice' })).toBeVisible();
-		await expect(component.locator('.bt-snapshot-char-name', { hasText: 'Bob' })).toBeVisible();
+		await expect(
+			component.locator('.bt-snapshot-char-name', { hasText: 'Alice' }),
+		).toBeVisible();
+		await expect(
+			component.locator('.bt-snapshot-char-name', { hasText: 'Bob' }),
+		).toBeVisible();
 	});
 
 	test('Add Character creates new character', async ({ mount }) => {
@@ -371,7 +386,9 @@ test.describe('Relationships section', () => {
 		);
 
 		await expect(component.locator('.bt-snapshot-rel-pair').first()).toBeVisible();
-		await expect(component.locator('.bt-snapshot-rel-status', { hasText: 'strangers' })).toBeVisible();
+		await expect(
+			component.locator('.bt-snapshot-rel-status', { hasText: 'strangers' }),
+		).toBeVisible();
 	});
 
 	test('status select changes relationship status', async ({ mount }) => {
