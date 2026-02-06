@@ -99,8 +99,6 @@ export interface V2Settings {
 	/** String to append to the user part of all prompts */
 	v2PromptSuffix: string;
 
-	v2InjectionDepth: number;
-
 	// Context-aware injection settings
 	/** Max past chapters to include in Story So Far (default: 5) */
 	v2MaxRecentChapters: number;
@@ -136,7 +134,6 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 			s.v2MaxChapterMessagesToSend === undefined) &&
 		(typeof s.v2PromptPrefix === 'string' || s.v2PromptPrefix === undefined) &&
 		(typeof s.v2PromptSuffix === 'string' || s.v2PromptSuffix === undefined) &&
-		typeof s.v2InjectionDepth === 'number' &&
 		(typeof s.v2MaxRecentChapters === 'number' ||
 			s.v2MaxRecentChapters === undefined) &&
 		(typeof s.v2MaxRecentEvents === 'number' || s.v2MaxRecentEvents === undefined) &&

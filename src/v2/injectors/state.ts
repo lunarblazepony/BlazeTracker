@@ -426,14 +426,12 @@ export function formatStateForInjection(
  * @param store - The event store for chapters/events
  * @param swipeContext - Context for swipe filtering
  * @param options - Injection options
- * @param injDepth - Prompt injection depth
  */
 export function injectState(
 	projection: Projection | null,
 	store: EventStore | null,
 	swipeContext: SwipeContext,
 	options: InjectOptions = {},
-	injDepth: number = 0,
 ): void {
 	const context = SillyTavern.getContext();
 
@@ -456,7 +454,7 @@ export function injectState(
 		EXTENSION_KEY,
 		formatted,
 		1, // extension_prompt_types.IN_CHAT
-		injDepth, // depth - 0 means at the bottom
+		0, // depth - 0 means at the bottom
 	);
 }
 

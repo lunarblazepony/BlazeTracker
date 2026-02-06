@@ -101702,13 +101702,13 @@ function updateV2Injection(forMessageId) {
     const stContext = SillyTavern.getContext();
     const store = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore)();
     if (!store || !(0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0);
+        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 });
         return;
     }
     // Always project to the message BEFORE the one we're extracting for
     const projectionMessageId = forMessageId - 1;
     if (projectionMessageId < 0) {
-        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0);
+        (0,_v2__WEBPACK_IMPORTED_MODULE_7__.injectState)(null, null, { getCanonicalSwipeId: () => 0 });
         return;
     }
     const projection = (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getProjectionForMessage)(projectionMessageId);
@@ -101723,7 +101723,7 @@ function updateV2Injection(forMessageId) {
         includeScene: settings.v2Track.scene,
         includeChapters: true,
         includeEvents: settings.v2Track.narrative,
-    }, settings.v2InjectionDepth);
+    });
 }
 async function init() {
     const context = SillyTavern.getContext();
@@ -113734,15 +113734,16 @@ async function handlePromptReady(eventData) {
         if (stateContent) {
             const lastMessage = chatMessages[chatMessages.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
-                // Prefill/continuation - insert before the assistant's partial response if custom depth is disabled.
-                chatMessages.splice(chatMessages.length - (settings.v2InjectionDepth + 1), 0, {
+                // Prefill/continuation - insert before the assistant's partial response
+                chatMessages.splice(chatMessages.length - 1, 0, {
                     role: 'user',
                     content: stateContent,
                 });
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
             }
             else {
-                chatMessages.splice(chatMessages.length - settings.v2InjectionDepth, 0, {
+                // Normal case - append at the end
+                chatMessages.push({
                     role: 'user',
                     content: stateContent,
                 });
@@ -113903,16 +113904,14 @@ async function handleTextCompletionPromptReady(eventData) {
             if (isContinuation && eventData.finalMesSend.length > 1) {
                 // Continuation mode: append state to second-to-last message
                 // (the last one is the assistant's prefill)
-                const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length -
-                    (settings.v2InjectionDepth + 2)];
+                const targetMessage = eventData.finalMesSend[eventData.finalMesSend.length - 2];
                 targetMessage.message =
                     targetMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state before assistant prefill');
             }
             else {
                 // Normal mode OR only one message: append to last message
-                const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length -
-                    (settings.v2InjectionDepth + 1)];
+                const lastMessage = eventData.finalMesSend[eventData.finalMesSend.length - 1];
                 lastMessage.message = lastMessage.message + '\n\n' + stateContent;
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Injected BlazeTracker state after messages');
             }
@@ -114318,9 +114317,8 @@ function formatStateForInjection(projection, store, swipeContext, options = {}) 
  * @param store - The event store for chapters/events
  * @param swipeContext - Context for swipe filtering
  * @param options - Injection options
- * @param injDepth - Prompt injection depth
  */
-function injectState(projection, store, swipeContext, options = {}, injDepth = 0) {
+function injectState(projection, store, swipeContext, options = {}) {
     const context = SillyTavern.getContext();
     if (!projection || !store) {
         context.setExtensionPrompt(EXTENSION_KEY, '', 0, 0);
@@ -114335,7 +114333,7 @@ function injectState(projection, store, swipeContext, options = {}, injDepth = 0
     // Position 1 = after main prompt, before chat
     // Depth 0 = at the end (near most recent messages)
     context.setExtensionPrompt(EXTENSION_KEY, formatted, 1, // extension_prompt_types.IN_CHAT
-    injDepth);
+    0);
 }
 /**
  * Clear the injection.
@@ -138545,7 +138543,6 @@ function createDefaultV2Settings() {
         // Prompt customization
         v2PromptPrefix: '',
         v2PromptSuffix: '',
-        v2InjectionDepth: 0,
         // Context-aware injection settings
         v2MaxRecentChapters: 5,
         v2MaxRecentEvents: 15,
@@ -138600,7 +138597,6 @@ function mergeV2WithDefaults(partial) {
         // Prompt customization
         v2PromptPrefix: partial.v2PromptPrefix ?? defaults.v2PromptPrefix,
         v2PromptSuffix: partial.v2PromptSuffix ?? defaults.v2PromptSuffix,
-        v2InjectionDepth: partial.v2InjectionDepth ?? defaults.v2InjectionDepth,
         // Context-aware injection settings
         v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,
         v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
@@ -138769,7 +138765,6 @@ function isV2Settings(obj) {
             s.v2MaxChapterMessagesToSend === undefined) &&
         (typeof s.v2PromptPrefix === 'string' || s.v2PromptPrefix === undefined) &&
         (typeof s.v2PromptSuffix === 'string' || s.v2PromptSuffix === undefined) &&
-        typeof s.v2InjectionDepth === 'number' &&
         (typeof s.v2MaxRecentChapters === 'number' ||
             s.v2MaxRecentChapters === undefined) &&
         (typeof s.v2MaxRecentEvents === 'number' || s.v2MaxRecentEvents === undefined) &&
@@ -143908,13 +143903,7 @@ function V2SettingsPanel() {
                                                         value >= 0) {
                                                         handleUpdate('v2InjectionTokenBudget', value);
                                                     }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectdepth", children: "Injection Depth" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Chat depth that the tracker will be injected at (0 = default behavior)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectiondepth", type: "number", className: "text_pole", min: "0", max: "999", step: "1", value: settings.v2InjectionDepth, onChange: e => {
-                                                    const value = parseInt(e.target.value, 10);
-                                                    if (!isNaN(value) &&
-                                                        value >= 0) {
-                                                        handleUpdate('v2InjectionDepth', value);
-                                                    }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));
 }
 // ============================================
 // Mount Function

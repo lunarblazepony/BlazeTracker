@@ -144,7 +144,7 @@ function updateV2Injection(forMessageId: number): void {
 	const store = getV2EventStore();
 
 	if (!store || !hasV2InitialSnapshot()) {
-		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0);
+		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 });
 		return;
 	}
 
@@ -152,7 +152,7 @@ function updateV2Injection(forMessageId: number): void {
 	const projectionMessageId = forMessageId - 1;
 
 	if (projectionMessageId < 0) {
-		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 }, {}, 0);
+		v2InjectState(null, null, { getCanonicalSwipeId: () => 0 });
 		return;
 	}
 
@@ -160,22 +160,16 @@ function updateV2Injection(forMessageId: number): void {
 	const swipeContext = buildSwipeContext(stContext);
 
 	const settings = getV2Settings();
-	v2InjectState(
-		projection,
-		store,
-		swipeContext,
-		{
-			includeTime: settings.v2Track.time,
-			includeLocation: settings.v2Track.location,
-			includeClimate: settings.v2Track.climate,
-			includeCharacters: settings.v2Track.characters,
-			includeRelationships: settings.v2Track.relationships,
-			includeScene: settings.v2Track.scene,
-			includeChapters: true,
-			includeEvents: settings.v2Track.narrative,
-		},
-		settings.v2InjectionDepth,
-	);
+	v2InjectState(projection, store, swipeContext, {
+		includeTime: settings.v2Track.time,
+		includeLocation: settings.v2Track.location,
+		includeClimate: settings.v2Track.climate,
+		includeCharacters: settings.v2Track.characters,
+		includeRelationships: settings.v2Track.relationships,
+		includeScene: settings.v2Track.scene,
+		includeChapters: true,
+		includeEvents: settings.v2Track.narrative,
+	});
 }
 
 async function init() {

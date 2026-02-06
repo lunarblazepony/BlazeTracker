@@ -1261,45 +1261,6 @@ function V2SettingsPanel() {
 							/>
 						</div>
 
-						{/* Injection Depth */}
-						<div
-							className="flex-container flexFlowColumn"
-							style={{ marginBottom: '1em' }}
-						>
-							<label htmlFor="bt-v2-injectdepth">
-								Injection Depth
-							</label>
-							<small>
-								Chat depth that the tracker will be
-								injected at (0 = default behavior)
-							</small>
-							<input
-								id="bt-v2-injectiondepth"
-								type="number"
-								className="text_pole"
-								min="0"
-								max="999"
-								step="1"
-								value={settings.v2InjectionDepth}
-								onChange={e => {
-									const value = parseInt(
-										e.target.value,
-										10,
-									);
-									if (
-										!isNaN(value) &&
-										value >= 0
-									) {
-										handleUpdate(
-											'v2InjectionDepth',
-											value,
-										);
-									}
-								}}
-								style={{ width: '120px' }}
-							/>
-						</div>
-
 						{/* Temperature Sliders */}
 						<div className="bt-temperature-section">
 							<div className="bt-section-header">
