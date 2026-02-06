@@ -1271,7 +1271,7 @@ function V2SettingsPanel() {
 							</label>
 							<small>
 								Chat depth that the tracker will be
-								injected at
+								injected at (0 = default behavior)
 							</small>
 							<input
 								id="bt-v2-injectiondepth"
