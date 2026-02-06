@@ -138565,11 +138565,11 @@ function createDefaultV2Settings() {
         // Prompt customization
         v2PromptPrefix: '',
         v2PromptSuffix: '',
-        v2InjectionDepth: 0,
+        v2InjectionDepth: -1,
         // Context-aware injection settings
         v2MaxRecentChapters: 5,
         v2MaxRecentEvents: 15,
-        v2InjectionTokenBudget: -1, // 0 = use ST's context size
+        v2InjectionTokenBudget: 0, // 0 = use ST's context size
     };
 }
 /**
