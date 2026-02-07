@@ -132,6 +132,7 @@ function createMockSnapshot(): Snapshot {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 			Marcus: {
 				name: 'Marcus',
@@ -150,6 +151,7 @@ function createMockSnapshot(): Snapshot {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 		},
 		relationships: {

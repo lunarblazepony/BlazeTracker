@@ -23,6 +23,9 @@ export { moodPhysicalChangeExtractor } from './moodPhysicalChangeExtractor';
 // Consolidation extractors (periodic cleanup)
 export { characterStateConsolidationExtractor } from './characterStateConsolidationExtractor';
 
+// Periodic nickname extractor
+export { nicknameExtractor } from './nicknameExtractor';
+
 import type { EventExtractor, PerCharacterExtractor } from '../../types';
 import { presenceChangeExtractor } from './presenceChangeExtractor';
 import { appearedCharacterProfileExtractor } from './appearedCharacterProfileExtractor';
@@ -31,16 +34,19 @@ import { positionActivityChangeExtractor } from './positionActivityChangeExtract
 import { moodPhysicalChangeExtractor } from './moodPhysicalChangeExtractor';
 import { outfitChangeExtractor } from './outfitChangeExtractor';
 import { characterStateConsolidationExtractor } from './characterStateConsolidationExtractor';
+import { nicknameExtractor } from './nicknameExtractor';
 
 /**
  * Character extractors that run globally (not per-character).
  * Note: appearedCharacterProfileExtractor and appearedCharacterOutfitExtractor
  * should run AFTER presenceChangeExtractor so they can access the CharacterAppearedEvents in turnEvents.
+ * nicknameExtractor runs periodically (every 8 messages) to catch in-RP pet names and aliases.
  */
 export const globalCharacterExtractors: EventExtractor[] = [
 	presenceChangeExtractor,
 	appearedCharacterProfileExtractor,
 	appearedCharacterOutfitExtractor,
+	nicknameExtractor,
 ];
 
 /**

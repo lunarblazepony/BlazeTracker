@@ -20,6 +20,7 @@ import type {
 	TopicToneEvent,
 	TensionEvent,
 	ChapterEndedEvent,
+	CharacterAkasAddEvent,
 } from '../types/event';
 import type { Projection } from '../types/snapshot';
 import { createEmptySnapshot, createProjectionFromSnapshot } from '../types/snapshot';
@@ -572,6 +573,7 @@ describe('applyEventToProjection', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			};
 			projection.charactersPresent = ['Alice'];
 
@@ -608,6 +610,7 @@ describe('applyEventToProjection', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			};
 
 			const event: CharacterPositionChangedEvent = {
@@ -644,6 +647,7 @@ describe('applyEventToProjection', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			};
 
 			const event: CharacterMoodAddedEvent = {
@@ -679,6 +683,7 @@ describe('applyEventToProjection', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			};
 
 			const event: CharacterMoodRemovedEvent = {
@@ -714,6 +719,7 @@ describe('applyEventToProjection', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			};
 
 			const event: CharacterOutfitChangedEvent = {
@@ -876,6 +882,98 @@ describe('applyEventToProjection', () => {
 			applyEventToProjection(projection, event);
 
 			expect(projection.currentChapter).toBe(1);
+		});
+	});
+
+	describe('character akas_add events', () => {
+		it('adds AKAs to an existing character', () => {
+			const projection = createTestProjection();
+			projection.characters['Alice'] = {
+				name: 'Alice',
+				position: 'standing',
+				activity: null,
+				mood: [],
+				physicalState: [],
+				outfit: {
+					head: null,
+					neck: null,
+					jacket: null,
+					back: null,
+					torso: null,
+					legs: null,
+					footwear: null,
+					socks: null,
+					underwear: null,
+				},
+				akas: [],
+			};
+
+			const event: CharacterAkasAddEvent = {
+				...createBaseEvent(),
+				kind: 'character',
+				subkind: 'akas_add',
+				character: 'Alice',
+				akas: ['Ali', 'Alice Smith'],
+			};
+
+			applyEventToProjection(projection, event);
+
+			expect(projection.characters['Alice'].akas).toEqual(['Ali', 'Alice Smith']);
+		});
+
+		it('merges additively with existing AKAs', () => {
+			const projection = createTestProjection();
+			projection.characters['Alice'] = {
+				name: 'Alice',
+				position: 'standing',
+				activity: null,
+				mood: [],
+				physicalState: [],
+				outfit: {
+					head: null,
+					neck: null,
+					jacket: null,
+					back: null,
+					torso: null,
+					legs: null,
+					footwear: null,
+					socks: null,
+					underwear: null,
+				},
+				akas: ['Ali'],
+			};
+
+			const event: CharacterAkasAddEvent = {
+				...createBaseEvent(),
+				kind: 'character',
+				subkind: 'akas_add',
+				character: 'Alice',
+				akas: ['Alice Smith', 'Ali'],
+			};
+
+			applyEventToProjection(projection, event);
+
+			// Should merge additively, deduplicating case-insensitively
+			expect(projection.characters['Alice'].akas).toContain('Ali');
+			expect(projection.characters['Alice'].akas).toContain('Alice Smith');
+			expect(projection.characters['Alice'].akas).toHaveLength(2);
+		});
+
+		it('creates character if missing', () => {
+			const projection = createTestProjection();
+
+			const event: CharacterAkasAddEvent = {
+				...createBaseEvent(),
+				kind: 'character',
+				subkind: 'akas_add',
+				character: 'Bob',
+				akas: ['Bobby'],
+			};
+
+			applyEventToProjection(projection, event);
+
+			expect(projection.characters['Bob']).toBeDefined();
+			expect(projection.characters['Bob'].akas).toContain('Bobby');
 		});
 	});
 

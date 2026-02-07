@@ -854,6 +854,42 @@ function ProfileSection({
 					disabled={!enabled}
 				/>
 
+				<PillInputWithLabel
+					label="Nicknames / AKAs"
+					values={profile?.nicknames ?? []}
+					onChange={nicknames => updateField('nicknames', nicknames)}
+					placeholder='e.g., "Johnny", "Dr. Smith", "The Shadow"'
+					disabled={!enabled}
+				/>
+
+				<div className="bt-defaults-field">
+					<label>Nicknames Mode</label>
+					<select
+						value={profile?.nicknamesMode ?? 'additive'}
+						onChange={e =>
+							updateField(
+								'nicknamesMode',
+								e.target.value as
+									| 'additive'
+									| 'replace',
+							)
+						}
+						disabled={!enabled}
+					>
+						<option value="additive">
+							Additive (merge with extracted)
+						</option>
+						<option value="replace">
+							Replace (override extracted)
+						</option>
+					</select>
+					<div className="bt-defaults-help">
+						Additive: these nicknames are added to LLM-extracted
+						ones. Replace: these nicknames completely replace
+						extracted ones.
+					</div>
+				</div>
+
 				<div className="bt-defaults-help">
 					Leave empty to let extraction determine. Specified values
 					will override extraction.

@@ -119,6 +119,7 @@ export interface ExtractedCharacterProfile {
 		age: number;
 		appearance: string[];
 		personality: string[];
+		nicknames?: string[];
 	};
 }
 
@@ -458,6 +459,18 @@ export interface ExtractedChapterDescription {
 	reasoning: string;
 	title: string;
 	summary: string;
+}
+
+/**
+ * LLM response for periodic nickname extraction.
+ * Extracts pet names, shortened names, titles, aliases used in recent messages.
+ */
+export interface ExtractedNicknames {
+	reasoning: string;
+	nicknames: Array<{
+		character: string;
+		names: string[];
+	}>;
 }
 
 // ============================================

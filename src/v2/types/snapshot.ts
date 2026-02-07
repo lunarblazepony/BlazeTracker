@@ -55,6 +55,8 @@ export interface CharacterState {
 	mood: string[];
 	physicalState: string[];
 	outfit: CharacterOutfit;
+	/** Known alternate names/nicknames for this character */
+	akas: string[];
 }
 
 /**
@@ -78,6 +80,7 @@ export function createEmptyCharacterState(name: string): CharacterState {
 			socks: null,
 			underwear: null,
 		},
+		akas: [],
 	};
 }
 
@@ -323,6 +326,7 @@ export function createProjectionFromSnapshot(
 					mood: [...char.mood],
 					physicalState: [...char.physicalState],
 					outfit: { ...char.outfit },
+					akas: [...(char.akas ?? [])],
 				},
 			]),
 		),
@@ -417,6 +421,7 @@ export function createSnapshotFromProjection(
 					mood: [...char.mood],
 					physicalState: [...char.physicalState],
 					outfit: { ...char.outfit },
+					akas: [...(char.akas ?? [])],
 				},
 			]),
 		),
@@ -626,6 +631,7 @@ export function cloneSnapshot(snapshot: Snapshot): Snapshot {
 					mood: [...char.mood],
 					physicalState: [...char.physicalState],
 					outfit: { ...char.outfit },
+					akas: [...(char.akas ?? [])],
 				},
 			]),
 		),
@@ -709,6 +715,7 @@ export function cloneProjection(projection: Projection): Projection {
 					mood: [...char.mood],
 					physicalState: [...char.physicalState],
 					outfit: { ...char.outfit },
+					akas: [...(char.akas ?? [])],
 				},
 			]),
 		),

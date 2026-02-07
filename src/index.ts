@@ -26,6 +26,7 @@ import {
 import { injectState as v2InjectState } from './v2';
 // V2 Card Extensions
 import { clearNameResolutionCache } from './v2/cardExtensions';
+import { clearUnresolvedNameCache } from './v2/ui/unresolvedNamePopup';
 // V2 UI Mount Functions
 import {
 	mountV2ProjectionDisplay,
@@ -451,8 +452,9 @@ async function init() {
 			}
 		}
 
-		// Clear name resolution cache (user selections don't persist across chats)
+		// Clear name resolution caches (user selections don't persist across chats)
 		clearNameResolutionCache();
+		clearUnresolvedNameCache();
 
 		// Unmount old v2 displays before chat change
 		unmountAllV2ProjectionDisplays();

@@ -8,7 +8,7 @@
 /**
  * Common titles to strip from names for matching.
  */
-const TITLES_TO_STRIP = [
+export const TITLES_TO_STRIP = [
 	'dr.',
 	'dr',
 	'mr.',

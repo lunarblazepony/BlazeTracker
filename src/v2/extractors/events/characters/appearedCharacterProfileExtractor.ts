@@ -8,7 +8,7 @@
 
 import type { Generator } from '../../../generator';
 import type { EventStore } from '../../../store';
-import type { Event, CharacterProfileSetEvent, MessageAndSwipe } from '../../../types';
+import type { Event, MessageAndSwipe } from '../../../types';
 import { isCharacterAppearedEvent } from '../../../types';
 import type { ExtractedCharacterProfile } from '../../../types/extraction';
 import type {
@@ -30,6 +30,7 @@ import {
 import { buildPrompt } from '../../../prompts';
 import { generateEventId } from '../../../store/serialization';
 import { debugLog, debugWarn } from '../../../../utils/debug';
+import { computeAkas } from '../../utils/akaComputation';
 
 /**
  * Appeared Character Profile Extractor
@@ -98,7 +99,15 @@ export const appearedCharacterProfileExtractor: EventExtractor<ExtractedCharacte
 			this.defaultTemperature,
 		);
 
-		const allEvents: CharacterProfileSetEvent[] = [];
+		const allEvents: Event[] = [];
+
+		// Gather all known character names for disambiguation
+		// Use the initial snapshot's characters + appeared characters from turn events
+		const snapshotCharNames = Object.keys(store.initialSnapshot?.characters ?? {});
+		const allCharacterNames = [
+			...snapshotCharNames,
+			...appearedCharacters.filter(name => !snapshotCharNames.includes(name)),
+		];
 
 		// Process each appeared character separately
 		for (const appearedCharacter of appearedCharacters) {
@@ -158,6 +167,30 @@ export const appearedCharacterProfileExtractor: EventExtractor<ExtractedCharacte
 					personality: [...extracted.profile.personality],
 				},
 			});
+
+			// Compute AKAs for the appeared character
+			const nicknames = extracted.profile.nicknames ?? [];
+			const fullName =
+				extracted.character !== appearedCharacter
+					? extracted.character
+					: null;
+			const akas = computeAkas(
+				appearedCharacter,
+				fullName,
+				nicknames,
+				allCharacterNames,
+			);
+			if (akas.length > 0) {
+				allEvents.push({
+					id: generateEventId(),
+					source: currentMessage,
+					timestamp: Date.now(),
+					kind: 'character',
+					subkind: 'akas_add',
+					character: appearedCharacter,
+					akas,
+				});
+			}
 		}
 
 		if (allEvents.length > 0) {

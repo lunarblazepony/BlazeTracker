@@ -38,7 +38,8 @@ OUTPUT:
     "species": "Human",
     "age": 28,
     "appearance": ["auburn hair", "green eyes", "scar on left cheek", "athletic build", "sharp features", "confident posture", "fair skin"],
-    "personality": ["clever", "resourceful", "tough", "compassionate", "guarded", "determined", "street-smart"]
+    "personality": ["clever", "resourceful", "tough", "compassionate", "guarded", "determined", "street-smart"],
+    "nicknames": []
   }
 }
 
@@ -62,7 +63,8 @@ OUTPUT:
     "species": "Elf",
     "age": 300,
     "appearance": ["silver hair", "violet eyes", "tall", "willowy build", "elegant features", "pale skin", "ageless beauty"],
-    "personality": ["aloof", "caring", "studious", "intellectual", "patient", "protective", "reserved", "wise"]
+    "personality": ["aloof", "caring", "studious", "intellectual", "patient", "protective", "reserved", "wise"],
+    "nicknames": ["Thal"]
   }
 }
 
@@ -86,7 +88,8 @@ OUTPUT:
     "species": "Android",
     "age": 25,
     "appearance": ["chrome-silver hair", "glowing blue eyes", "synthetic skin", "humanoid", "youthful appearance", "precise movements", "metallic undertones"],
-    "personality": ["curious", "analytical", "naive", "empathetic", "logical", "observant", "innocent", "questioning"]
+    "personality": ["curious", "analytical", "naive", "empathetic", "logical", "observant", "innocent", "questioning"],
+    "nicknames": []
   }
 }
 
@@ -111,7 +114,8 @@ OUTPUT:
     "species": "Human",
     "age": 47,
     "appearance": ["middle-aged", "tired eyes", "weathered features", "average build", "disheveled hair", "unshaven"],
-    "personality": ["cynical", "gruff", "direct", "world-weary", "no-nonsense", "practical"]
+    "personality": ["cynical", "gruff", "direct", "world-weary", "no-nonsense", "practical"],
+    "nicknames": []
   }
 }
 
@@ -135,7 +139,8 @@ OUTPUT:
     "species": "Human",
     "age": 20,
     "appearance": ["tall", "messy brown hair", "young", "lanky", "brown eyes", "clean-shaven"],
-    "personality": ["awkward", "well-meaning", "nervous", "intelligent", "earnest", "friendly"]
+    "personality": ["awkward", "well-meaning", "nervous", "intelligent", "earnest", "friendly"],
+    "nicknames": []
   }
 }
 `;
@@ -284,6 +289,12 @@ export const characterProfileSchema: JSONSchema = {
 					description:
 						'8-10 personality tags (traits, demeanor, behavior patterns)',
 				},
+				nicknames: {
+					type: 'array',
+					items: { type: 'string' },
+					description:
+						'Known nicknames, aliases, shortened names, or alternate names',
+				},
 			},
 			required: ['sex', 'species', 'age', 'appearance', 'personality'],
 		},
@@ -377,6 +388,15 @@ Include core character traits:
 - Flaws (stubborn, reckless, insecure)
 - Behavioral patterns (cautious, impulsive)
 
+### Nicknames
+- Extract any nicknames, aliases, titles, or alternate names the character goes by
+- Include shortened versions of their name if used (e.g., "Tommy" for "Thomas")
+- Include titles used as names (e.g., "Detective" for "Detective Morrison")
+- Include the full name if different from the tracked name
+- Check the character card description for explicit nicknames
+- Only include names actually used or referenced
+- Return empty array if no nicknames
+
 ## Important Rules
 1. **Always provide 8-10 tags** for both appearance and personality
 2. **Make reasonable inferences** - don't leave things blank
@@ -459,6 +479,12 @@ Remember:
 				personality: profile.personality.filter(
 					(tag): tag is string => typeof tag === 'string',
 				),
+				nicknames: Array.isArray(profile.nicknames)
+					? profile.nicknames.filter(
+							(tag): tag is string =>
+								typeof tag === 'string',
+						)
+					: [],
 			},
 		};
 	},

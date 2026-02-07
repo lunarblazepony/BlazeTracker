@@ -70,6 +70,13 @@ Same body slot system as personas. Set what the AI character is wearing at the s
 
 Character details like sex, species, age, and other information.
 
+The **Nicknames/AKAs** field lets you pre-configure alternate names for the character. These are used for automatic name resolution during extraction — if a character is referred to by a pet name or alias, BlazeTracker can match it back to the correct character.
+
+- **Additive mode** (default) — New AKAs from extraction are merged with existing ones
+- **Replace mode** — If you edit AKAs in the snapshot editor, you can fully replace the list
+
+Nicknames are also auto-extracted by the LLM: once at character appearance (from context clues) and periodically during extraction (every 8 messages) to catch in-RP pet names, shortened names, and aliases that develop over the story.
+
 ### Relationships
 
 Configure initial relationship states with other characters. Set starting status, feelings, secrets, and wants.

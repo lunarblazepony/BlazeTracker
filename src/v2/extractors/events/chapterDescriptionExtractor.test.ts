@@ -132,6 +132,7 @@ function createMockSnapshot(): Snapshot {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 		},
 		relationships: {},

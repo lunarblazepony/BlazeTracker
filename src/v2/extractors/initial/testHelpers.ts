@@ -125,6 +125,7 @@ export function createMockCharacter(
 			socks: null,
 			footwear: null,
 		},
+		akas: [],
 		...overrides,
 	};
 }

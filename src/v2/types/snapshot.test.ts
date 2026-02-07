@@ -38,6 +38,7 @@ describe('snapshot utility functions', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			});
 		});
 
@@ -174,6 +175,7 @@ describe('projection creation', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 		},
 		relationships: {
@@ -332,6 +334,7 @@ describe('cloning functions', () => {
 							socks: null,
 							underwear: null,
 						},
+						akas: [],
 					},
 				},
 				relationships: {
@@ -415,6 +418,7 @@ describe('cloning functions', () => {
 							socks: null,
 							underwear: null,
 						},
+						akas: [],
 					},
 				},
 				relationships: {},

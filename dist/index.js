@@ -101625,12 +101625,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _v2Bridge__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./v2Bridge */ "./src/v2Bridge.ts");
 /* harmony import */ var _v2__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./v2 */ "./src/v2/index.ts");
 /* harmony import */ var _v2_cardExtensions__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./v2/cardExtensions */ "./src/v2/cardExtensions/index.ts");
-/* harmony import */ var _v2_ui__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./v2/ui */ "./src/v2/ui/index.ts");
-/* harmony import */ var _ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./ui/cardDefaultsButton */ "./src/ui/cardDefaultsButton.ts");
-/* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
-/* harmony import */ var _ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./ui/personaDefaultsButton */ "./src/ui/personaDefaultsButton.ts");
-/* harmony import */ var _v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./v2/injectors/promptHook */ "./src/v2/injectors/promptHook.ts");
-/* harmony import */ var _v2_injectors_macros__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./v2/injectors/macros */ "./src/v2/injectors/macros.ts");
+/* harmony import */ var _v2_ui_unresolvedNamePopup__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./v2/ui/unresolvedNamePopup */ "./src/v2/ui/unresolvedNamePopup.ts");
+/* harmony import */ var _v2_ui__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./v2/ui */ "./src/v2/ui/index.ts");
+/* harmony import */ var _ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./ui/cardDefaultsButton */ "./src/ui/cardDefaultsButton.ts");
+/* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
+/* harmony import */ var _ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./ui/personaDefaultsButton */ "./src/ui/personaDefaultsButton.ts");
+/* harmony import */ var _v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./v2/injectors/promptHook */ "./src/v2/injectors/promptHook.ts");
+/* harmony import */ var _v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./v2/injectors/macros */ "./src/v2/injectors/macros.ts");
 
 
 
@@ -101644,6 +101645,7 @@ __webpack_require__.r(__webpack_exports__);
 // V2 Injection
 
 // V2 Card Extensions
+
 
 // V2 UI Mount Functions
 
@@ -101731,7 +101733,7 @@ function setManualExtractionInProgress(value) {
 function updateV2Injection(forMessageId) {
     // Skip if prompt hooks are handling injection
     // The prompt hooks inject at the right positions with budget awareness
-    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.isPromptHookRegistered)()) {
+    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.isPromptHookRegistered)()) {
         return;
     }
     const stContext = SillyTavern.getContext();
@@ -101768,7 +101770,7 @@ function updateV2Injection(forMessageId) {
 async function init() {
     const context = SillyTavern.getContext();
     // Inject V2 CSS
-    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.injectV2Styles)();
+    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.injectV2Styles)();
     // Initialize V2 settings and debug logging
     const v2Settings = await (0,_v2_settings__WEBPACK_IMPORTED_MODULE_5__.initializeV2Settings)();
     (0,_utils_debug__WEBPACK_IMPORTED_MODULE_4__.setDebugEnabled)(v2Settings.v2DebugLogging);
@@ -101777,26 +101779,26 @@ async function init() {
     // Register slash commands
     (0,_commands_slashCommands__WEBPACK_IMPORTED_MODULE_3__.registerSlashCommands)();
     // Initialize card defaults button for character editor
-    (0,_ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_10__.initCardDefaultsButton)(_ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_11__.openCardDefaultsModal);
+    (0,_ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_11__.initCardDefaultsButton)(_ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_12__.openCardDefaultsModal);
     // Initialize persona defaults buttons in persona management UI
-    (0,_ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_12__.initPersonaDefaultsButtons)();
+    (0,_ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_13__.initPersonaDefaultsButtons)();
     // Register bridge functions for the prompt hook (avoids circular dependency)
-    (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.registerBridgeFunctions)({
+    (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.registerBridgeFunctions)({
         getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
         hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
         buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
     });
     // Register bridge functions for macros and register ST macros
-    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_14__.registerMacroBridgeFunctions)({
+    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__.registerMacroBridgeFunctions)({
         getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
         hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
         buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
     });
-    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_14__.registerMacros)();
+    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__.registerMacros)();
     // Register the context-aware prompt hook if available
     // This hooks into CHAT_COMPLETION_PROMPT_READY to inject chapters, events, and state
-    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.isPromptHookAvailable)()) {
-        (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_13__.registerPromptHook)();
+    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.isPromptHookAvailable)()) {
+        (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.registerPromptHook)();
         log('Context-aware prompt hook registered');
     }
     else {
@@ -101808,20 +101810,20 @@ async function init() {
         if (autoExtract) {
             log('Auto-extracting for user message:', messageId);
             // Mark extraction in progress and mount display to show loading
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.setV2ExtractionInProgress)(messageId, true);
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.setV2ExtractionInProgress)(messageId, true);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
             try {
                 // Use v2 extraction with progress tracking
                 await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.runV2Extraction)(messageId, {
-                    onProgress: _v2_ui__WEBPACK_IMPORTED_MODULE_9__.updateV2ExtractionProgress,
+                    onProgress: _v2_ui__WEBPACK_IMPORTED_MODULE_10__.updateV2ExtractionProgress,
                 });
             }
             finally {
                 // Mark extraction complete
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.setV2ExtractionInProgress)(messageId, false);
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.setV2ExtractionInProgress)(messageId, false);
             }
             // Update v2 displays and injection after extraction
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
             // Set up injection for the NEXT message (the upcoming assistant response)
             updateV2Injection(messageId + 1);
         }
@@ -101829,7 +101831,7 @@ async function init() {
             // Just mount v2 display if available
             setTimeout(() => {
                 if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-                    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+                    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
                 }
             }, 100);
         }
@@ -101853,12 +101855,12 @@ async function init() {
                 log('Re-extracting for edited message:', messageId);
                 markExtractionStarted(messageId, swipeId);
                 // Mark extraction in progress and mount display to show loading
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.setV2ExtractionInProgress)(messageId, true);
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.setV2ExtractionInProgress)(messageId, true);
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
                 try {
                     // Use v2 extraction with progress tracking
                     const result = await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.runV2Extraction)(messageId, {
-                        onProgress: _v2_ui__WEBPACK_IMPORTED_MODULE_9__.updateV2ExtractionProgress,
+                        onProgress: _v2_ui__WEBPACK_IMPORTED_MODULE_10__.updateV2ExtractionProgress,
                     });
                     // Only mark this swipe as extracted if extraction succeeded (not aborted)
                     if (result) {
@@ -101867,12 +101869,12 @@ async function init() {
                 }
                 finally {
                     // Mark extraction complete (in-memory)
-                    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.setV2ExtractionInProgress)(messageId, false);
+                    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.setV2ExtractionInProgress)(messageId, false);
                     markExtractionEnded(messageId, swipeId);
                 }
                 // Update v2 displays and injection after extraction
                 // For edits, inject state FOR the edited message (state at messageId - 1)
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
                 updateV2Injection(messageId);
             }
         }
@@ -101897,7 +101899,7 @@ async function init() {
                 const stContext = SillyTavern.getContext();
                 const lastMsgId = stContext.chat.length - 1;
                 if (lastMsgId > 0 && (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-                    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(lastMsgId);
+                    (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(lastMsgId);
                 }
                 return;
             }
@@ -101935,12 +101937,12 @@ async function init() {
             log('Auto-extracting for completed generation:', lastMessageId);
             markExtractionStarted(lastMessageId, swipeId);
             // Mark extraction in progress and mount display to show loading
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.setV2ExtractionInProgress)(lastMessageId, true);
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(lastMessageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.setV2ExtractionInProgress)(lastMessageId, true);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(lastMessageId);
             try {
                 // Use v2 extraction with progress tracking
                 const result = await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.runV2Extraction)(lastMessageId, {
-                    onProgress: _v2_ui__WEBPACK_IMPORTED_MODULE_9__.updateV2ExtractionProgress,
+                    onProgress: _v2_ui__WEBPACK_IMPORTED_MODULE_10__.updateV2ExtractionProgress,
                 });
                 // Only mark this swipe as extracted if extraction succeeded (not aborted)
                 if (result) {
@@ -101949,11 +101951,11 @@ async function init() {
             }
             finally {
                 // Mark extraction complete (in-memory)
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.setV2ExtractionInProgress)(lastMessageId, false);
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.setV2ExtractionInProgress)(lastMessageId, false);
                 markExtractionEnded(lastMessageId, swipeId);
             }
             // Update v2 displays and injection after extraction
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(lastMessageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(lastMessageId);
             // Set up injection for the next message (after this response)
             updateV2Injection(lastMessageId + 1);
         }));
@@ -101972,14 +101974,15 @@ async function init() {
                 log('Cleaned up v2 events after branch (beyond message', lastMessageId, ')');
             }
         }
-        // Clear name resolution cache (user selections don't persist across chats)
+        // Clear name resolution caches (user selections don't persist across chats)
         (0,_v2_cardExtensions__WEBPACK_IMPORTED_MODULE_8__.clearNameResolutionCache)();
+        (0,_v2_ui_unresolvedNamePopup__WEBPACK_IMPORTED_MODULE_9__.clearUnresolvedNameCache)();
         // Unmount old v2 displays before chat change
-        (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.unmountAllV2ProjectionDisplays)();
+        (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.unmountAllV2ProjectionDisplays)();
         setTimeout(() => {
             // Mount v2 displays if we have v2 data
             if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountAllV2ProjectionDisplays)();
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountAllV2ProjectionDisplays)();
                 const lastMsgId = ctx.chat.length - 1;
                 // Set up injection for the next message to be generated
                 updateV2Injection(lastMsgId + 1);
@@ -102003,7 +102006,7 @@ async function init() {
                 // Clear the entire store since the baseline has changed
                 await (0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.clearV2EventStore)();
                 // Unmount all displays since state is now invalid
-                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.unmountAllV2ProjectionDisplays)();
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.unmountAllV2ProjectionDisplays)();
                 // Auto-extract if enabled, otherwise user will need to manually extract
                 const v2Settings = (0,_v2_settings__WEBPACK_IMPORTED_MODULE_5__.getV2Settings)();
                 if (v2Settings.v2AutoExtract) {
@@ -102012,7 +102015,7 @@ async function init() {
                     });
                     // Remount displays after extraction
                     if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-                        (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountAllV2ProjectionDisplays)();
+                        (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountAllV2ProjectionDisplays)();
                         updateV2Injection(messageId + 1);
                     }
                 }
@@ -102020,8 +102023,8 @@ async function init() {
             }
             // Normal swipe handling for other messages
             // Unmount and remount to show projection for the new swipe
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.unmountV2ProjectionDisplay)(messageId);
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.unmountV2ProjectionDisplay)(messageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
             // For swipes, inject state FOR the swiped message (state at messageId - 1)
             updateV2Injection(messageId);
         }
@@ -102067,8 +102070,8 @@ async function init() {
         }
         // Update v2 displays
         if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.unmountV2ProjectionDisplay)(messageId);
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountAllV2ProjectionDisplays)();
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.unmountV2ProjectionDisplay)(messageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountAllV2ProjectionDisplays)();
             const stContext = SillyTavern.getContext();
             const lastMsgId = stContext.chat.length - 1;
             // Set up injection for the next message after deletion
@@ -102090,7 +102093,7 @@ async function init() {
         }
         // Re-render displays
         if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
-            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_9__.mountV2ProjectionDisplay)(messageId);
+            (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
             const stContext = SillyTavern.getContext();
             const lastMsgId = stContext.chat.length - 1;
             // Set up injection for the next message
@@ -102564,7 +102567,7 @@ function ProfileSection({ profile, characterName, expanded, onToggle, onChange, 
                                         .value), disabled: !enabled, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Let extraction determine" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "M", children: "Male (M)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "F", children: "Female (F)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "O", children: "Other (O)" })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-defaults-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Species" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: profile?.species ?? '', onChange: e => updateField('species', e.target.value || undefined), placeholder: 'e.g., "human", "elf", "android"', disabled: !enabled })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-defaults-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Age" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "number", value: profile?.age ?? '', onChange: e => updateField('age', e.target.value
                                     ? parseInt(e.target
                                         .value, 10)
-                                    : undefined), placeholder: "e.g., 25", disabled: !enabled, min: 0 })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PillInputWithLabel, { label: "Appearance", values: profile?.appearance ?? [], onChange: appearance => updateField('appearance', appearance), placeholder: 'e.g., "tall", "blonde hair", "green eyes"', disabled: !enabled }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PillInputWithLabel, { label: "Personality", values: profile?.personality ?? [], onChange: personality => updateField('personality', personality), placeholder: 'e.g., "confident", "sarcastic", "loyal"', disabled: !enabled }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-defaults-help", children: "Leave empty to let extraction determine. Specified values will override extraction." })] })] }));
+                                    : undefined), placeholder: "e.g., 25", disabled: !enabled, min: 0 })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PillInputWithLabel, { label: "Appearance", values: profile?.appearance ?? [], onChange: appearance => updateField('appearance', appearance), placeholder: 'e.g., "tall", "blonde hair", "green eyes"', disabled: !enabled }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PillInputWithLabel, { label: "Personality", values: profile?.personality ?? [], onChange: personality => updateField('personality', personality), placeholder: 'e.g., "confident", "sarcastic", "loyal"', disabled: !enabled }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PillInputWithLabel, { label: "Nicknames / AKAs", values: profile?.nicknames ?? [], onChange: nicknames => updateField('nicknames', nicknames), placeholder: 'e.g., "Johnny", "Dr. Smith", "The Shadow"', disabled: !enabled }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-defaults-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Nicknames Mode" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: profile?.nicknamesMode ?? 'additive', onChange: e => updateField('nicknamesMode', e.target.value), disabled: !enabled, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "additive", children: "Additive (merge with extracted)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "replace", children: "Replace (override extracted)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-defaults-help", children: "Additive: these nicknames are added to LLM-extracted ones. Replace: these nicknames completely replace extracted ones." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-defaults-help", children: "Leave empty to let extraction determine. Specified values will override extraction." })] })] }));
 }
 /**
  * Relationships section component.
@@ -104231,6 +104234,23 @@ async function mergeProfile(snapshot, profile, characterName) {
             ? [...profile.personality]
             : [...existingProfile.personality],
     };
+    // Merge nicknames into AKAs
+    let newAkas = [...(existingChar.akas ?? [])];
+    if (profile.nicknames && profile.nicknames.length > 0) {
+        if (profile.nicknamesMode === 'replace') {
+            newAkas = [...profile.nicknames];
+        }
+        else {
+            // Additive (default): merge without duplicates (case-insensitive)
+            const existingLower = new Set(newAkas.map(a => a.toLowerCase()));
+            for (const nick of profile.nicknames) {
+                if (!existingLower.has(nick.toLowerCase())) {
+                    newAkas.push(nick);
+                    existingLower.add(nick.toLowerCase());
+                }
+            }
+        }
+    }
     return {
         ...snapshot,
         characters: {
@@ -104238,6 +104258,7 @@ async function mergeProfile(snapshot, profile, characterName) {
             [matchingCharacterKey]: {
                 ...existingChar,
                 profile: newProfile,
+                akas: newAkas,
             },
         },
     };
@@ -104375,6 +104396,7 @@ function cloneSnapshotForMerge(snapshot) {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             },
         ])),
         relationships: Object.fromEntries(Object.entries(snapshot.relationships).map(([key, rel]) => [
@@ -104679,6 +104701,23 @@ async function mergePersonaProfile(snapshot, profile, personaName) {
             ? [...profile.personality]
             : [...existingProfile.personality],
     };
+    // Merge nicknames into AKAs
+    let newAkas = [...(existingChar.akas ?? [])];
+    if (profile.nicknames && profile.nicknames.length > 0) {
+        if (profile.nicknamesMode === 'replace') {
+            newAkas = [...profile.nicknames];
+        }
+        else {
+            // Additive (default): merge without duplicates (case-insensitive)
+            const existingLower = new Set(newAkas.map(a => a.toLowerCase()));
+            for (const nick of profile.nicknames) {
+                if (!existingLower.has(nick.toLowerCase())) {
+                    newAkas.push(nick);
+                    existingLower.add(nick.toLowerCase());
+                }
+            }
+        }
+    }
     return {
         ...snapshot,
         characters: {
@@ -104686,6 +104725,7 @@ async function mergePersonaProfile(snapshot, profile, personaName) {
             [matchingCharacterKey]: {
                 ...existingChar,
                 profile: newProfile,
+                akas: newAkas,
             },
         },
     };
@@ -104727,6 +104767,7 @@ function cloneSnapshotForMerge(snapshot) {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             },
         ])),
         relationships: Object.fromEntries(Object.entries(snapshot.relationships).map(([key, rel]) => [
@@ -105131,6 +105172,12 @@ function isValidBTProfileExtension(value) {
     if (v.appearance !== undefined && !Array.isArray(v.appearance))
         return false;
     if (v.personality !== undefined && !Array.isArray(v.personality))
+        return false;
+    if (v.nicknames !== undefined && !Array.isArray(v.nicknames))
+        return false;
+    if (v.nicknamesMode !== undefined &&
+        v.nicknamesMode !== 'additive' &&
+        v.nicknamesMode !== 'replace')
         return false;
     return true;
 }
@@ -105791,6 +105838,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _store_serialization__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../store/serialization */ "./src/v2/store/serialization.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_akaComputation__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../utils/akaComputation */ "./src/v2/extractors/utils/akaComputation.ts");
 /**
  * Appeared Character Profile Extractor
  *
@@ -105798,6 +105846,7 @@ __webpack_require__.r(__webpack_exports__);
  * for characters who just appeared in the scene.
  * This runs after presenceChangeExtractor when CharacterAppearedEvents are generated.
  */
+
 
 
 
@@ -105845,6 +105894,13 @@ const appearedCharacterProfileExtractor = {
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getExtractorTemperature)(settings, this.prompt.name, 'characters', this.defaultTemperature);
         const allEvents = [];
+        // Gather all known character names for disambiguation
+        // Use the initial snapshot's characters + appeared characters from turn events
+        const snapshotCharNames = Object.keys(store.initialSnapshot?.characters ?? {});
+        const allCharacterNames = [
+            ...snapshotCharNames,
+            ...appearedCharacters.filter(name => !snapshotCharNames.includes(name)),
+        ];
         // Process each appeared character separately
         for (const appearedCharacter of appearedCharacters) {
             const placeholders = {
@@ -105882,6 +105938,23 @@ const appearedCharacterProfileExtractor = {
                     personality: [...extracted.profile.personality],
                 },
             });
+            // Compute AKAs for the appeared character
+            const nicknames = extracted.profile.nicknames ?? [];
+            const fullName = extracted.character !== appearedCharacter
+                ? extracted.character
+                : null;
+            const akas = (0,_utils_akaComputation__WEBPACK_IMPORTED_MODULE_6__.computeAkas)(appearedCharacter, fullName, nicknames, allCharacterNames);
+            if (akas.length > 0) {
+                allEvents.push({
+                    id: (0,_store_serialization__WEBPACK_IMPORTED_MODULE_4__.generateEventId)(),
+                    source: currentMessage,
+                    timestamp: Date.now(),
+                    kind: 'character',
+                    subkind: 'akas_add',
+                    character: appearedCharacter,
+                    akas,
+                });
+            }
         }
         if (allEvents.length > 0) {
             (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.debugLog)(`Extracted profiles for ${allEvents.length} newly appeared character(s)`);
@@ -106053,6 +106126,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   globalCharacterExtractors: () => (/* binding */ globalCharacterExtractors),
 /* harmony export */   moodChangeExtractor: () => (/* reexport safe */ _moodChangeExtractor__WEBPACK_IMPORTED_MODULE_5__.moodChangeExtractor),
 /* harmony export */   moodPhysicalChangeExtractor: () => (/* reexport safe */ _moodPhysicalChangeExtractor__WEBPACK_IMPORTED_MODULE_8__.moodPhysicalChangeExtractor),
+/* harmony export */   nicknameExtractor: () => (/* reexport safe */ _nicknameExtractor__WEBPACK_IMPORTED_MODULE_10__.nicknameExtractor),
 /* harmony export */   outfitChangeExtractor: () => (/* reexport safe */ _outfitChangeExtractor__WEBPACK_IMPORTED_MODULE_6__.outfitChangeExtractor),
 /* harmony export */   perCharacterExtractors: () => (/* binding */ perCharacterExtractors),
 /* harmony export */   positionActivityChangeExtractor: () => (/* reexport safe */ _positionActivityChangeExtractor__WEBPACK_IMPORTED_MODULE_7__.positionActivityChangeExtractor),
@@ -106069,6 +106143,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _positionActivityChangeExtractor__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./positionActivityChangeExtractor */ "./src/v2/extractors/events/characters/positionActivityChangeExtractor.ts");
 /* harmony import */ var _moodPhysicalChangeExtractor__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./moodPhysicalChangeExtractor */ "./src/v2/extractors/events/characters/moodPhysicalChangeExtractor.ts");
 /* harmony import */ var _characterStateConsolidationExtractor__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./characterStateConsolidationExtractor */ "./src/v2/extractors/events/characters/characterStateConsolidationExtractor.ts");
+/* harmony import */ var _nicknameExtractor__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./nicknameExtractor */ "./src/v2/extractors/events/characters/nicknameExtractor.ts");
 /**
  * V2 Character Event Extractors Index
  *
@@ -106089,6 +106164,9 @@ __webpack_require__.r(__webpack_exports__);
 
 // Consolidation extractors (periodic cleanup)
 
+// Periodic nickname extractor
+
+
 
 
 
@@ -106100,11 +106178,13 @@ __webpack_require__.r(__webpack_exports__);
  * Character extractors that run globally (not per-character).
  * Note: appearedCharacterProfileExtractor and appearedCharacterOutfitExtractor
  * should run AFTER presenceChangeExtractor so they can access the CharacterAppearedEvents in turnEvents.
+ * nicknameExtractor runs periodically (every 8 messages) to catch in-RP pet names and aliases.
  */
 const globalCharacterExtractors = [
     _presenceChangeExtractor__WEBPACK_IMPORTED_MODULE_0__.presenceChangeExtractor,
     _appearedCharacterProfileExtractor__WEBPACK_IMPORTED_MODULE_1__.appearedCharacterProfileExtractor,
     _appearedCharacterOutfitExtractor__WEBPACK_IMPORTED_MODULE_2__.appearedCharacterOutfitExtractor,
+    _nicknameExtractor__WEBPACK_IMPORTED_MODULE_10__.nicknameExtractor,
 ];
 /**
  * Character extractors that run once per present character.
@@ -106306,6 +106386,129 @@ const moodPhysicalChangeExtractor = {
             physicalRemoved: validatedPhysicalRemoved,
         };
         const events = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.mapMoodPhysicalChange)(validatedExtraction, currentMessage);
+        return events;
+    },
+};
+
+
+/***/ },
+
+/***/ "./src/v2/extractors/events/characters/nicknameExtractor.ts"
+/*!******************************************************************!*\
+  !*** ./src/v2/extractors/events/characters/nicknameExtractor.ts ***!
+  \******************************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   nicknameExtractor: () => (/* binding */ nicknameExtractor)
+/* harmony export */ });
+/* harmony import */ var _prompts_events_nicknameExtractionPrompt__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../prompts/events/nicknameExtractionPrompt */ "./src/v2/prompts/events/nicknameExtractionPrompt.ts");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../utils */ "./src/v2/extractors/utils/index.ts");
+/* harmony import */ var _store_serialization__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../store/serialization */ "./src/v2/store/serialization.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
+/**
+ * Nickname Extractor
+ *
+ * Periodically extracts pet names, nicknames, shortened names, titles used as names,
+ * and aliases from recent messages. Runs every 8 messages as a global character extractor.
+ *
+ * This catches in-RP names that develop over the course of the story,
+ * complementing the AKA computation done at initial extraction and character appearance.
+ */
+
+
+
+
+
+/**
+ * Nickname extractor - periodic global character extractor.
+ *
+ * Runs every 8 messages to extract pet names, nicknames, and aliases
+ * from recent messages. Emits CharacterAkasAddEvent for new AKAs.
+ */
+const nicknameExtractor = {
+    name: 'nicknameExtraction',
+    displayName: 'nicknames',
+    category: 'characters',
+    defaultTemperature: 0.5,
+    prompt: _prompts_events_nicknameExtractionPrompt__WEBPACK_IMPORTED_MODULE_0__.nicknameExtractionPrompt,
+    messageStrategy: { strategy: 'fixedNumber', n: 8 },
+    runStrategy: { strategy: 'everyNMessages', n: 8 },
+    shouldRun(context) {
+        return (context.settings.track.characters &&
+            (0,_utils__WEBPACK_IMPORTED_MODULE_1__.evaluateRunStrategy)(this.runStrategy, context));
+    },
+    async run(generator, context, settings, store, currentMessage, turnEvents, abortSignal) {
+        // Get current state projection including turn events
+        const projection = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.projectWithTurnEvents)(store, turnEvents, currentMessage.messageId, context);
+        // Calculate message range (last 8 messages)
+        const messageCount = 8;
+        let messageStart = Math.max(0, currentMessage.messageId - messageCount + 1);
+        let messageEnd = currentMessage.messageId;
+        // Apply message limiting
+        const maxMessages = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getMaxMessages)(settings, this.name);
+        ({ messageStart, messageEnd } = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.limitMessageRange)(messageStart, messageEnd, maxMessages));
+        // Fetch worldinfo if enabled
+        let worldinfo = '';
+        if (settings.includeWorldinfo) {
+            const messagesForWorldinfo = [];
+            for (let i = messageStart; i <= messageEnd && i < context.chat.length; i++) {
+                const msg = context.chat[i];
+                if (!msg.is_system) {
+                    messagesForWorldinfo.push(msg.mes);
+                }
+            }
+            worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__.getWorldinfoForPrompt)(messagesForWorldinfo);
+        }
+        // Build the prompt
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.buildExtractorPrompt)(_prompts_events_nicknameExtractionPrompt__WEBPACK_IMPORTED_MODULE_0__.nicknameExtractionPrompt, context, projection, settings, messageStart, messageEnd, { worldinfo: worldinfo || 'No worldinfo available' });
+        // Get temperature
+        const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.getExtractorTemperature)(settings, this.prompt.name, 'characters', this.defaultTemperature);
+        // Generate and parse response
+        const result = await (0,_utils__WEBPACK_IMPORTED_MODULE_1__.generateAndParse)(generator, _prompts_events_nicknameExtractionPrompt__WEBPACK_IMPORTED_MODULE_0__.nicknameExtractionPrompt, builtPrompt, temperature, { abortSignal });
+        if (!result.success || !result.data) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugWarn)('nicknameExtraction failed:', result.error);
+            return [];
+        }
+        const extracted = result.data;
+        const events = [];
+        // Get all character names from projection for resolution
+        const characterNames = Object.keys(projection.characters);
+        for (const entry of extracted.nicknames) {
+            // Resolve character name against projection
+            const resolvedName = (0,_utils__WEBPACK_IMPORTED_MODULE_1__.findMatchingCharacterKey)(entry.character, characterNames);
+            if (!resolvedName) {
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugWarn)(`nicknameExtraction: could not resolve character "${entry.character}"`);
+                continue;
+            }
+            // Get existing AKAs from projection
+            const characterState = projection.characters[resolvedName];
+            const existingAkas = new Set((characterState?.akas ?? []).map(a => a.toLowerCase()));
+            // Filter out duplicates (case-insensitive) and canonical names
+            const canonicalLower = resolvedName.toLowerCase();
+            const newAkas = entry.names.filter(name => {
+                const lower = name.trim().toLowerCase();
+                return (lower.length > 0 &&
+                    lower !== canonicalLower &&
+                    !existingAkas.has(lower));
+            });
+            if (newAkas.length > 0) {
+                events.push({
+                    id: (0,_store_serialization__WEBPACK_IMPORTED_MODULE_2__.generateEventId)(),
+                    source: currentMessage,
+                    timestamp: Date.now(),
+                    kind: 'character',
+                    subkind: 'akas_add',
+                    character: resolvedName,
+                    akas: newAkas,
+                });
+            }
+        }
+        if (events.length > 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugLog)(`Extracted nicknames: ${events.length} character(s) with new AKAs`);
+        }
         return events;
     },
 };
@@ -106967,6 +107170,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   moodPhysicalChangeExtractor: () => (/* reexport safe */ _characters__WEBPACK_IMPORTED_MODULE_11__.moodPhysicalChangeExtractor),
 /* harmony export */   narrativeDescriptionExtractor: () => (/* reexport safe */ _narrativeDescriptionExtractor__WEBPACK_IMPORTED_MODULE_7__.narrativeDescriptionExtractor),
 /* harmony export */   narrativeEventExtractors: () => (/* binding */ narrativeEventExtractors),
+/* harmony export */   nicknameExtractor: () => (/* reexport safe */ _characters__WEBPACK_IMPORTED_MODULE_11__.nicknameExtractor),
 /* harmony export */   outfitChangeExtractor: () => (/* reexport safe */ _characters__WEBPACK_IMPORTED_MODULE_11__.outfitChangeExtractor),
 /* harmony export */   perCharacterExtractors: () => (/* reexport safe */ _characters__WEBPACK_IMPORTED_MODULE_11__.perCharacterExtractors),
 /* harmony export */   perPairExtractors: () => (/* reexport safe */ _relationships__WEBPACK_IMPORTED_MODULE_12__.perPairExtractors),
@@ -109091,12 +109295,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _prompts__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../prompts */ "./src/v2/prompts/index.ts");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../utils/debug */ "./src/utils/debug.ts");
 /* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
+/* harmony import */ var _utils_akaComputation__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../utils/akaComputation */ "./src/v2/extractors/utils/akaComputation.ts");
 /**
  * Initial Character Profiles Extractor
  *
  * Extracts condensed profiles (sex, species, age, appearance tags, personality tags)
  * for characters present in the opening messages of a roleplay.
  */
+
 
 
 
@@ -109139,6 +109345,7 @@ const initialCharacterProfilesExtractor = {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             };
         }
         // Get temperature (prompt override → category → default)
@@ -109196,6 +109403,22 @@ const initialCharacterProfilesExtractor = {
                 appearance: [...extracted.profile.appearance],
                 personality: [...extracted.profile.personality],
             };
+            // Compute AKAs from extracted name, nicknames, and name parts
+            const fullName = extracted.character !== matchingKey ? extracted.character : null;
+            const nicknames = extracted.profile.nicknames ?? [];
+            const akas = (0,_utils_akaComputation__WEBPACK_IMPORTED_MODULE_5__.computeAkas)(matchingKey, fullName, nicknames, characterNames);
+            if (akas.length > 0) {
+                // Merge with existing AKAs (case-insensitive dedup)
+                const existing = new Set((char.akas ?? []).map(a => a.toLowerCase()));
+                const merged = [...(char.akas ?? [])];
+                for (const aka of akas) {
+                    if (!existing.has(aka.toLowerCase())) {
+                        merged.push(aka);
+                        existing.add(aka.toLowerCase());
+                    }
+                }
+                char.akas = merged;
+            }
         }
         return { characters: updatedCharacters };
     },
@@ -110503,6 +110726,172 @@ function createExtractorState() {
 
 /***/ },
 
+/***/ "./src/v2/extractors/utils/akaComputation.ts"
+/*!***************************************************!*\
+  !*** ./src/v2/extractors/utils/akaComputation.ts ***!
+  \***************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   computeAkas: () => (/* binding */ computeAkas),
+/* harmony export */   getNameParts: () => (/* binding */ getNameParts),
+/* harmony export */   isAmbiguousNamePart: () => (/* binding */ isAmbiguousNamePart),
+/* harmony export */   stripTitles: () => (/* binding */ stripTitles)
+/* harmony export */ });
+/* harmony import */ var _nameMatching__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./nameMatching */ "./src/v2/extractors/utils/nameMatching.ts");
+/**
+ * AKA (Also Known As) Computation
+ *
+ * Computes alternate names/nicknames for characters based on:
+ * - LLM-extracted nicknames
+ * - Full name vs canonical name differences
+ * - Name parts (first name, last name)
+ * - Title stripping
+ *
+ * Handles disambiguation when name parts are shared across characters.
+ */
+
+/**
+ * Strip all leading titles from a name.
+ * Returns the name with titles removed, lowercased.
+ */
+function stripTitles(name) {
+    let normalized = name.toLowerCase().trim();
+    // Strip titles iteratively (handles "Prof. Dr. John Smith")
+    let stripped = true;
+    while (stripped) {
+        stripped = false;
+        for (const title of _nameMatching__WEBPACK_IMPORTED_MODULE_0__.TITLES_TO_STRIP) {
+            if (normalized.startsWith(title + ' ')) {
+                normalized = normalized.slice(title.length + 1).trim();
+                stripped = true;
+                break;
+            }
+        }
+    }
+    return normalized;
+}
+/**
+ * Get the word parts of a name after title stripping.
+ * Filters out empty strings.
+ */
+function getNameParts(name) {
+    const stripped = stripTitles(name);
+    return stripped.split(/\s+/).filter(part => part.length > 0);
+}
+/**
+ * Check if a name part is ambiguous - i.e., it appears in the name parts
+ * of more than one character.
+ *
+ * @param part - The name part to check (lowercased)
+ * @param allCharacterNames - All canonical character names
+ * @returns true if the part is shared by multiple characters
+ */
+function isAmbiguousNamePart(part, allCharacterNames) {
+    const lowerPart = part.toLowerCase();
+    let count = 0;
+    for (const charName of allCharacterNames) {
+        const parts = getNameParts(charName);
+        if (parts.some(p => p === lowerPart)) {
+            count++;
+            if (count > 1)
+                return true;
+        }
+    }
+    return false;
+}
+/**
+ * Compute AKAs (alternate names) for a character.
+ *
+ * @param canonicalName - The tracked name for this character
+ * @param fullName - The full name if different from canonical (e.g., from card description), or null
+ * @param extractedNicknames - LLM-extracted nicknames
+ * @param allCharacterNames - All canonical character names (for disambiguation)
+ * @returns Deduplicated list of AKAs (excluding canonicalName itself)
+ */
+function computeAkas(canonicalName, fullName, extractedNicknames, allCharacterNames) {
+    const akas = new Set();
+    const canonicalLower = canonicalName.toLowerCase();
+    // 1. Add LLM-extracted nicknames
+    for (const nickname of extractedNicknames) {
+        const trimmed = nickname.trim();
+        if (trimmed && trimmed.toLowerCase() !== canonicalLower) {
+            akas.add(trimmed);
+        }
+    }
+    // 2. If fullName differs from canonicalName, add it
+    if (fullName && fullName.trim()) {
+        const trimmedFull = fullName.trim();
+        if (trimmedFull.toLowerCase() !== canonicalLower) {
+            akas.add(trimmedFull);
+        }
+        // 3. Strip titles from fullName, add if different
+        const titleStripped = stripTitles(trimmedFull);
+        if (titleStripped !== trimmedFull.toLowerCase() &&
+            titleStripped !== canonicalLower &&
+            titleStripped.length > 0) {
+            // Reconstruct with original casing for the first match
+            // Use the stripped version with proper casing
+            const words = trimmedFull.split(/\s+/);
+            const strippedWords = getNameParts(trimmedFull);
+            // Find where the stripped name starts in the original
+            const strippedName = words
+                .slice(words.length - strippedWords.length)
+                .join(' ');
+            if (strippedName.toLowerCase() !== canonicalLower) {
+                akas.add(strippedName);
+            }
+        }
+        // 4. Extract name parts for AKAs
+        const parts = getNameParts(trimmedFull);
+        const canonicalParts = getNameParts(canonicalName);
+        // Include the fullName in disambiguation to catch cross-name collisions
+        // e.g., "John Smith" fullName + "Jane Smith" canonical → "Smith" is ambiguous
+        const namesForDisambiguation = allCharacterNames.includes(trimmedFull)
+            ? allCharacterNames
+            : [...allCharacterNames, trimmedFull];
+        // Only add parts if the name has multiple words
+        if (parts.length > 1) {
+            for (const part of parts) {
+                // Skip if it matches the canonical name
+                if (part === canonicalLower)
+                    continue;
+                // Skip if it matches any canonical name part (already the canonical)
+                if (canonicalParts.some(cp => cp === part))
+                    continue;
+                // Skip titles
+                if (_nameMatching__WEBPACK_IMPORTED_MODULE_0__.TITLES_TO_STRIP.includes(part))
+                    continue;
+                // Skip ambiguous parts (shared by multiple characters)
+                if (isAmbiguousNamePart(part, namesForDisambiguation))
+                    continue;
+                // Add with original casing from the full name
+                const originalWord = trimmedFull
+                    .split(/\s+/)
+                    .find(w => w.toLowerCase() === part);
+                if (originalWord) {
+                    akas.add(originalWord);
+                }
+            }
+        }
+    }
+    // Deduplicate case-insensitively, keeping the first occurrence
+    const seen = new Set();
+    const result = [];
+    for (const aka of akas) {
+        const lower = aka.toLowerCase();
+        if (!seen.has(lower) && lower !== canonicalLower) {
+            seen.add(lower);
+            result.push(aka);
+        }
+    }
+    return result;
+}
+
+
+/***/ },
+
 /***/ "./src/v2/extractors/utils/buildPrompt.ts"
 /*!************************************************!*\
   !*** ./src/v2/extractors/utils/buildPrompt.ts ***!
@@ -111620,6 +112009,7 @@ function mapChapterDescription(extraction, source, chapterIndex) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   TITLES_TO_STRIP: () => (/* binding */ TITLES_TO_STRIP),
 /* harmony export */   buildNameLookup: () => (/* binding */ buildNameLookup),
 /* harmony export */   findMatchingCharacterKey: () => (/* binding */ findMatchingCharacterKey),
 /* harmony export */   findNameInLookup: () => (/* binding */ findNameInLookup),
@@ -111903,6 +112293,210 @@ async function generateAndParseOnce(generator, prompt, builtPrompt, temperature,
         maxRetries: 0,
         logReasoning,
     });
+}
+
+
+/***/ },
+
+/***/ "./src/v2/extractors/utils/resolveEventNames.ts"
+/*!******************************************************!*\
+  !*** ./src/v2/extractors/utils/resolveEventNames.ts ***!
+  \******************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   applyUserMappings: () => (/* binding */ applyUserMappings),
+/* harmony export */   buildAkaLookup: () => (/* binding */ buildAkaLookup),
+/* harmony export */   resolveCharacterName: () => (/* binding */ resolveCharacterName),
+/* harmony export */   resolveNamesInEvents: () => (/* binding */ resolveNamesInEvents)
+/* harmony export */ });
+/* harmony import */ var _types_event__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../types/event */ "./src/v2/types/event.ts");
+/* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../types/snapshot */ "./src/v2/types/snapshot.ts");
+/* harmony import */ var _nameMatching__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./nameMatching */ "./src/v2/extractors/utils/nameMatching.ts");
+/**
+ * Event Name Resolution
+ *
+ * Resolves alternate character names in extracted events to their canonical names.
+ * Uses AKA lookup tables built from CharacterState.akas fields.
+ */
+
+
+
+/**
+ * Build an AKA lookup map from character states.
+ * Maps each AKA (lowercased) to its canonical character name.
+ * Also maps canonical names (lowercased) to themselves.
+ */
+function buildAkaLookup(characters) {
+    const lookup = new Map();
+    for (const [name, char] of Object.entries(characters)) {
+        // Map canonical name to itself
+        lookup.set(name.toLowerCase(), name);
+        // Map each AKA to the canonical name
+        for (const aka of char.akas ?? []) {
+            lookup.set(aka.toLowerCase(), name);
+        }
+    }
+    return lookup;
+}
+/**
+ * Resolve a character name to its canonical form.
+ *
+ * Resolution order:
+ * 1. Direct AKA lookup (lowercased)
+ * 2. Normalized lookup (title-stripped)
+ * 3. Fuzzy match against canonical names
+ * 4. Fuzzy match against all AKA keys
+ *
+ * @returns The canonical name, or null if unresolvable
+ */
+function resolveCharacterName(name, akaLookup, allCanonicalNames) {
+    // 1. Direct AKA lookup
+    const direct = akaLookup.get(name.toLowerCase());
+    if (direct)
+        return direct;
+    // 2. Normalized lookup (title-stripped)
+    const normalized = (0,_nameMatching__WEBPACK_IMPORTED_MODULE_2__.normalizeName)(name);
+    const normalizedMatch = akaLookup.get(normalized);
+    if (normalizedMatch)
+        return normalizedMatch;
+    // 3. Fuzzy match against canonical names
+    for (const canonical of allCanonicalNames) {
+        if ((0,_nameMatching__WEBPACK_IMPORTED_MODULE_2__.namesMatch)(canonical, name)) {
+            return canonical;
+        }
+    }
+    // 4. Fuzzy match against all AKA keys
+    for (const [akaKey, canonical] of akaLookup.entries()) {
+        if ((0,_nameMatching__WEBPACK_IMPORTED_MODULE_2__.namesMatch)(akaKey, name)) {
+            return canonical;
+        }
+    }
+    return null;
+}
+/**
+ * Resolve character names in events to their canonical forms.
+ * Mutates events in place for efficiency.
+ *
+ * Rewrites:
+ * - `character` field on all CharacterEvent subtypes (except akas_add)
+ * - `fromCharacter`/`towardCharacter` on directional relationship events
+ * - `pair` on pair-based relationship events (re-sorted after resolution)
+ *
+ * @returns The resolved events and any unresolved names
+ */
+function resolveNamesInEvents(events, akaLookup, allCanonicalNames) {
+    const unresolvedSet = new Set();
+    for (const event of events) {
+        // Skip akas_set events - they define mappings, not reference characters by alternate names
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isCharacterAkasAddEvent)(event)) {
+            continue;
+        }
+        // Character events: rewrite `character` field
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isCharacterEvent)(event)) {
+            const resolved = resolveCharacterName(event.character, akaLookup, allCanonicalNames);
+            if (resolved) {
+                event.character = resolved;
+            }
+            else {
+                unresolvedSet.add(event.character);
+            }
+            continue;
+        }
+        // Directional relationship events: rewrite fromCharacter/towardCharacter
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isDirectionalRelationshipEvent)(event)) {
+            const resolvedFrom = resolveCharacterName(event.fromCharacter, akaLookup, allCanonicalNames);
+            if (resolvedFrom) {
+                event.fromCharacter = resolvedFrom;
+            }
+            else {
+                unresolvedSet.add(event.fromCharacter);
+            }
+            const resolvedToward = resolveCharacterName(event.towardCharacter, akaLookup, allCanonicalNames);
+            if (resolvedToward) {
+                event.towardCharacter =
+                    resolvedToward;
+            }
+            else {
+                unresolvedSet.add(event.towardCharacter);
+            }
+            continue;
+        }
+        // Pair-based relationship events: rewrite pair and re-sort
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isRelationshipStatusChangedEvent)(event) || (0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isRelationshipSubjectEvent)(event)) {
+            const resolvedA = resolveCharacterName(event.pair[0], akaLookup, allCanonicalNames);
+            const resolvedB = resolveCharacterName(event.pair[1], akaLookup, allCanonicalNames);
+            if (resolvedA) {
+                event.pair[0] = resolvedA;
+            }
+            else {
+                unresolvedSet.add(event.pair[0]);
+            }
+            if (resolvedB) {
+                event.pair[1] = resolvedB;
+            }
+            else {
+                unresolvedSet.add(event.pair[1]);
+            }
+            // Re-sort the pair
+            event.pair = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_1__.sortPair)(event.pair[0], event.pair[1]);
+        }
+    }
+    return {
+        resolvedEvents: events,
+        unresolvedNames: [...unresolvedSet],
+    };
+}
+/**
+ * Apply user-provided mappings to resolve remaining unresolved names in events.
+ * Mutates events in place.
+ */
+function applyUserMappings(events, mappings) {
+    // Build a quick lookup from unresolved name to resolved name
+    const mappingLookup = new Map();
+    for (const mapping of mappings) {
+        if (mapping.resolvedTo) {
+            mappingLookup.set(mapping.unresolvedName.toLowerCase(), mapping.resolvedTo);
+        }
+    }
+    if (mappingLookup.size === 0)
+        return;
+    for (const event of events) {
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isCharacterAkasAddEvent)(event))
+            continue;
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isCharacterEvent)(event)) {
+            const resolved = mappingLookup.get(event.character.toLowerCase());
+            if (resolved) {
+                event.character = resolved;
+            }
+            continue;
+        }
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isDirectionalRelationshipEvent)(event)) {
+            const resolvedFrom = mappingLookup.get(event.fromCharacter.toLowerCase());
+            if (resolvedFrom) {
+                event.fromCharacter = resolvedFrom;
+            }
+            const resolvedToward = mappingLookup.get(event.towardCharacter.toLowerCase());
+            if (resolvedToward) {
+                event.towardCharacter =
+                    resolvedToward;
+            }
+            continue;
+        }
+        if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isRelationshipStatusChangedEvent)(event) || (0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isRelationshipSubjectEvent)(event)) {
+            const resolvedA = mappingLookup.get(event.pair[0].toLowerCase());
+            if (resolvedA) {
+                event.pair[0] = resolvedA;
+            }
+            const resolvedB = mappingLookup.get(event.pair[1].toLowerCase());
+            if (resolvedB) {
+                event.pair[1] = resolvedB;
+            }
+            // Re-sort the pair
+            event.pair = (0,_types_snapshot__WEBPACK_IMPORTED_MODULE_1__.sortPair)(event.pair[0], event.pair[1]);
+        }
+    }
 }
 
 
@@ -115835,11 +116429,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   resetExtractorStates: () => (/* binding */ resetExtractorStates)
 /* harmony export */ });
 /* harmony import */ var _extractors_types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../extractors/types */ "./src/v2/extractors/types.ts");
-/* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../types/snapshot */ "./src/v2/types/snapshot.ts");
-/* harmony import */ var _extractors_utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../extractors/utils */ "./src/v2/extractors/utils/index.ts");
-/* harmony import */ var _extractors_events__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../extractors/events */ "./src/v2/extractors/events/index.ts");
-/* harmony import */ var _extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../extractors/progressTracker */ "./src/v2/extractors/progressTracker.ts");
-/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../types */ "./src/v2/types/index.ts");
+/* harmony import */ var _types_snapshot__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../types/snapshot */ "./src/v2/types/snapshot.ts");
+/* harmony import */ var _extractors_utils__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../extractors/utils */ "./src/v2/extractors/utils/index.ts");
+/* harmony import */ var _extractors_utils_resolveEventNames__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../extractors/utils/resolveEventNames */ "./src/v2/extractors/utils/resolveEventNames.ts");
+/* harmony import */ var _ui_unresolvedNamePopup__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../ui/unresolvedNamePopup */ "./src/v2/ui/unresolvedNamePopup.ts");
+/* harmony import */ var _store_serialization__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../store/serialization */ "./src/v2/store/serialization.ts");
+/* harmony import */ var _extractors_events__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../extractors/events */ "./src/v2/extractors/events/index.ts");
+/* harmony import */ var _extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../extractors/progressTracker */ "./src/v2/extractors/progressTracker.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+
+
+
+
 
 
 
@@ -115878,11 +116480,11 @@ async function extractEvents(generator, context, settings, store, currentMessage
     async function runExtractor(extractor) {
         const strategyContext = buildContext(extractor);
         if (!extractor.shouldRun(strategyContext)) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.debugLog)(`Skipping ${extractor.name} - shouldRun returned false`);
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.debugLog)(`Skipping ${extractor.name} - shouldRun returned false`);
             return;
         }
         const label = `Extracting ${extractor.displayName}...`;
-        (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.updateSectionLabel)(label);
+        (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.updateSectionLabel)(label);
         setStatus?.(label);
         try {
             const events = await extractor.run(generator, context, settings, store, currentMessage, turnEvents, abortSignal);
@@ -115891,16 +116493,16 @@ async function extractEvents(generator, context, settings, store, currentMessage
             state.ranAtMessages.push(currentMessage);
             if (events.length > 0) {
                 state.producedAtMessages.push(currentMessage);
-                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.debugLog)(`${extractor.name} produced ${events.length} events`);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.debugLog)(`${extractor.name} produced ${events.length} events`);
             }
             else {
-                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.debugLog)(`${extractor.name} produced no events`);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.debugLog)(`${extractor.name} produced no events`);
             }
             // Add events to turn
             turnEvents.push(...events);
         }
         catch (error) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.errorLog)(`${extractor.name} failed:`, error);
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.errorLog)(`${extractor.name} failed:`, error);
             errors.push({
                 extractor: extractor.name,
                 error: error instanceof Error ? error : new Error(String(error)),
@@ -115909,7 +116511,7 @@ async function extractEvents(generator, context, settings, store, currentMessage
     }
     // Helper to run per-character extractor for all present characters
     async function runPerCharacter(extractor) {
-        const swipeContext = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_2__.buildSwipeContextFromExtraction)(context);
+        const swipeContext = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_3__.buildSwipeContextFromExtraction)(context);
         const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
         const characters = projection.charactersPresent;
         for (const character of characters) {
@@ -115921,14 +116523,14 @@ async function extractEvents(generator, context, settings, store, currentMessage
             if (!extractor.shouldRun(strategyContext))
                 continue;
             const label = `Extracting ${extractor.displayName} for ${character}...`;
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.updateSectionLabel)(label);
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.updateSectionLabel)(label);
             setStatus?.(label);
             try {
                 const events = await extractor.run(generator, context, settings, store, currentMessage, turnEvents, character, abortSignal);
                 turnEvents.push(...events);
             }
             catch (error) {
-                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.errorLog)(`${extractor.name} (${character}) failed:`, error);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.errorLog)(`${extractor.name} (${character}) failed:`, error);
                 errors.push({
                     extractor: `${extractor.name}:${character}`,
                     error: error instanceof Error
@@ -115941,14 +116543,14 @@ async function extractEvents(generator, context, settings, store, currentMessage
     }
     // Helper to run per-pair extractor for all present pairs
     async function runPerPair(extractor) {
-        const swipeContext = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_2__.buildSwipeContextFromExtraction)(context);
+        const swipeContext = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_3__.buildSwipeContextFromExtraction)(context);
         const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
         const characters = projection.charactersPresent;
         // Generate all pairs
         const pairs = [];
         for (let i = 0; i < characters.length; i++) {
             for (let j = i + 1; j < characters.length; j++) {
-                pairs.push((0,_types_snapshot__WEBPACK_IMPORTED_MODULE_1__.sortPair)(characters[i], characters[j]));
+                pairs.push((0,_types_snapshot__WEBPACK_IMPORTED_MODULE_2__.sortPair)(characters[i], characters[j]));
             }
         }
         for (const pair of pairs) {
@@ -115960,14 +116562,14 @@ async function extractEvents(generator, context, settings, store, currentMessage
             if (!extractor.shouldRun(strategyContext))
                 continue;
             const label = `Extracting ${extractor.displayName} for ${pair[0]} & ${pair[1]}...`;
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.updateSectionLabel)(label);
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.updateSectionLabel)(label);
             setStatus?.(label);
             try {
                 const events = await extractor.run(generator, context, settings, store, currentMessage, turnEvents, pair, abortSignal);
                 turnEvents.push(...events);
             }
             catch (error) {
-                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.errorLog)(`${extractor.name} (${pair.join('/')}) failed:`, error);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.errorLog)(`${extractor.name} (${pair.join('/')}) failed:`, error);
                 errors.push({
                     extractor: `${extractor.name}:${pair.join('/')}`,
                     error: error instanceof Error
@@ -115990,108 +116592,157 @@ async function extractEvents(generator, context, settings, store, currentMessage
     // Section: Core extractors (time, location, climate, topic/tone, tension)
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('core', 'Extracting core state...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.coreEventExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('core', 'Extracting core state...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.coreEventExtractors) {
         await runExtractor(extractor);
         if (abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('core');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('core');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('core');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('core');
     // Section: Character presence (global)
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('characterPresence', 'Detecting character presence...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.globalCharacterExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('characterPresence', 'Detecting character presence...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.globalCharacterExtractors) {
         await runExtractor(extractor);
         if (abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('characterPresence');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('characterPresence');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('characterPresence');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('characterPresence');
     // Section: Per-character extractors (includes outfit changes)
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('perCharacter', 'Extracting character states...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.perCharacterExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('perCharacter', 'Extracting character states...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.perCharacterExtractors) {
         const wasAborted = await runPerCharacter(extractor);
         if (wasAborted || abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('perCharacter');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('perCharacter');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('perCharacter');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('perCharacter');
     // Section: Props extractors (runs AFTER outfit changes to integrate clothing as props)
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('props', 'Extracting props changes...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.propsEventExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('props', 'Extracting props changes...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.propsEventExtractors) {
         await runExtractor(extractor);
         if (abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('props');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('props');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('props');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('props');
     // Section: Relationship subjects (global)
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('relationshipSubjects', 'Extracting relationship subjects...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.globalRelationshipExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('relationshipSubjects', 'Extracting relationship subjects...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.globalRelationshipExtractors) {
         await runExtractor(extractor);
         if (abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('relationshipSubjects');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('relationshipSubjects');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('relationshipSubjects');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('relationshipSubjects');
     // Section: Per-pair relationship extractors
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('perPair', 'Extracting relationship details...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.perPairExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('perPair', 'Extracting relationship details...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.perPairExtractors) {
         const wasAborted = await runPerPair(extractor);
         if (wasAborted || abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('perPair');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('perPair');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('perPair');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('perPair');
     // Section: Narrative extractors
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('narrative', 'Extracting narrative...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.narrativeEventExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('narrative', 'Extracting narrative...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.narrativeEventExtractors) {
         await runExtractor(extractor);
         if (abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('narrative');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('narrative');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('narrative');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('narrative');
     // Section: Chapter extractors
     if (abortSignal?.aborted)
         return abortedResult();
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.startSection)('chapter', 'Checking chapter boundaries...');
-    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_3__.chapterEventExtractors) {
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.startSection)('chapter', 'Checking chapter boundaries...');
+    for (const extractor of _extractors_events__WEBPACK_IMPORTED_MODULE_7__.chapterEventExtractors) {
         await runExtractor(extractor);
         if (abortSignal?.aborted) {
-            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('chapter');
+            (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('chapter');
             return abortedResult();
         }
     }
-    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_4__.completeSection)('chapter');
+    (0,_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_8__.completeSection)('chapter');
     // Check if chapter ended
     chapterEnded = turnEvents.some(e => e.kind === 'chapter' && 'subkind' in e && e.subkind === 'ended');
+    // --- Post-extraction name resolution ---
+    // Build AKA lookup from current projection + new characters in turnEvents
+    const swipeContext = (0,_extractors_utils__WEBPACK_IMPORTED_MODULE_3__.buildSwipeContextFromExtraction)(context);
+    const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
+    const akaLookup = (0,_extractors_utils_resolveEventNames__WEBPACK_IMPORTED_MODULE_4__.buildAkaLookup)(projection.characters);
+    // Add AKAs from akas_add events in turnEvents (not yet applied to projection)
+    for (const event of turnEvents) {
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_1__.isCharacterAkasAddEvent)(event)) {
+            for (const aka of event.akas) {
+                akaLookup.set(aka.toLowerCase(), event.character);
+            }
+            akaLookup.set(event.character.toLowerCase(), event.character);
+        }
+    }
+    // Also include newly appeared character names
+    const allCanonicalNames = Object.keys(projection.characters);
+    for (const event of turnEvents) {
+        if ((0,_types__WEBPACK_IMPORTED_MODULE_1__.isCharacterAppearedEvent)(event) &&
+            !allCanonicalNames.includes(event.character)) {
+            allCanonicalNames.push(event.character);
+            akaLookup.set(event.character.toLowerCase(), event.character);
+        }
+    }
+    const { unresolvedNames } = (0,_extractors_utils_resolveEventNames__WEBPACK_IMPORTED_MODULE_4__.resolveNamesInEvents)(turnEvents, akaLookup, allCanonicalNames);
+    if (unresolvedNames.length > 0) {
+        const mappings = await (0,_ui_unresolvedNamePopup__WEBPACK_IMPORTED_MODULE_5__.showUnresolvedNamePopup)(unresolvedNames, allCanonicalNames);
+        (0,_extractors_utils_resolveEventNames__WEBPACK_IMPORTED_MODULE_4__.applyUserMappings)(turnEvents, mappings);
+        // Persist user-mapped names as AKAs for future resolution
+        for (const mapping of mappings) {
+            if (mapping.resolvedTo) {
+                const existingChar = projection.characters[mapping.resolvedTo];
+                const existingAkas = existingChar?.akas ?? [];
+                turnEvents.push({
+                    id: (0,_store_serialization__WEBPACK_IMPORTED_MODULE_6__.generateEventId)(),
+                    source: currentMessage,
+                    timestamp: Date.now(),
+                    kind: 'character',
+                    subkind: 'akas_add',
+                    character: mapping.resolvedTo,
+                    akas: [
+                        ...new Set([
+                            ...existingAkas,
+                            mapping.unresolvedName,
+                        ]),
+                    ],
+                });
+            }
+        }
+    }
     // Debug: Log extracted events by kind
     const eventsByKind = {};
     for (const e of turnEvents) {
         const key = 'subkind' in e ? `${e.kind}:${e.subkind}` : e.kind;
         eventsByKind[key] = (eventsByKind[key] || 0) + 1;
     }
-    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_5__.debugLog)(`extractEvents: ${turnEvents.length} events extracted for msg ${currentMessage.messageId} swipe ${currentMessage.swipeId}:`, eventsByKind);
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_9__.debugLog)(`extractEvents: ${turnEvents.length} events extracted for msg ${currentMessage.messageId} swipe ${currentMessage.swipeId}:`, eventsByKind);
     // Add events to store
     store.appendEvents(turnEvents);
     return {
@@ -117633,7 +118284,8 @@ OUTPUT:
     "species": "Human",
     "age": 47,
     "appearance": ["tall", "gray eyes", "police uniform", "authoritative bearing", "middle-aged", "stern features"],
-    "personality": ["authoritative", "serious", "direct", "professional", "no-nonsense", "determined"]
+    "personality": ["authoritative", "serious", "direct", "professional", "no-nonsense", "determined"],
+    "nicknames": ["Detective Morrison"]
   }
 }
 
@@ -117655,7 +118307,8 @@ OUTPUT:
     "species": "Human",
     "age": 22,
     "appearance": ["young", "barista uniform", "bright smile", "energetic posture"],
-    "personality": ["friendly", "cheerful", "energetic", "thoughtful", "bubbly", "accommodating"]
+    "personality": ["friendly", "cheerful", "energetic", "thoughtful", "bubbly", "accommodating"],
+    "nicknames": []
   }
 }
 
@@ -117677,7 +118330,8 @@ OUTPUT:
     "species": "Orc",
     "age": 35,
     "appearance": ["massive", "scarred", "tusks", "muscular", "imposing", "battle-worn"],
-    "personality": ["direct", "loyal", "tough", "straightforward", "combat-ready", "reliable"]
+    "personality": ["direct", "loyal", "tough", "straightforward", "combat-ready", "reliable"],
+    "nicknames": []
   }
 }
 `;
@@ -117818,6 +118472,11 @@ const appearedCharacterProfileSchema = {
                     items: { type: 'string' },
                     description: '6-10 personality tags',
                 },
+                nicknames: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Known nicknames, aliases, shortened names, or alternate names',
+                },
             },
             required: ['sex', 'species', 'age', 'appearance', 'personality'],
         },
@@ -117900,6 +118559,13 @@ Respond with a JSON object containing:
 - Include observable traits, not assumptions
 - A single line of dialogue can still suggest multiple traits
 
+### Nicknames
+- Extract any nicknames, aliases, or alternate names used in the messages
+- Include shortened versions of their name if used (e.g., "Tommy" for "Thomas")
+- Include titles used as names (e.g., "Detective" for "Detective Morrison")
+- Only include names actually used or referenced in the messages
+- Return empty array if no nicknames
+
 ${GOOD_EXAMPLES}
 
 ${BAD_EXAMPLES}
@@ -117964,6 +118630,9 @@ Remember:
                 age: profile.age,
                 appearance: profile.appearance.filter((tag) => typeof tag === 'string'),
                 personality: profile.personality.filter((tag) => typeof tag === 'string'),
+                nicknames: Array.isArray(profile.nicknames)
+                    ? profile.nicknames.filter((tag) => typeof tag === 'string')
+                    : [],
             },
         };
     },
@@ -122168,6 +122837,390 @@ Write a brief, factual description of what happened in these messages.`,
         return {
             reasoning: parsed.reasoning,
             description: parsed.description,
+        };
+    },
+};
+
+
+/***/ },
+
+/***/ "./src/v2/prompts/events/nicknameExtractionPrompt.ts"
+/*!***********************************************************!*\
+  !*** ./src/v2/prompts/events/nicknameExtractionPrompt.ts ***!
+  \***********************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   nicknameExtractionPrompt: () => (/* binding */ nicknameExtractionPrompt),
+/* harmony export */   nicknameExtractionSchema: () => (/* binding */ nicknameExtractionSchema)
+/* harmony export */ });
+/* harmony import */ var _placeholders__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../placeholders */ "./src/v2/prompts/placeholders.ts");
+/* harmony import */ var _utils_json__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../utils/json */ "./src/utils/json.ts");
+/**
+ * Nickname Extraction Prompt
+ *
+ * Extracts pet names, nicknames, shortened names, titles used as names,
+ * and aliases from recent RP messages. Runs periodically (every 8 messages)
+ * to catch in-RP names that develop over the course of the story.
+ */
+
+
+// ============================================
+// Examples
+// ============================================
+const GOOD_EXAMPLES = `
+## Good Examples
+
+### Example 1: Pet names between characters
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Elena: *She leaned against the doorframe.* "Hey, sunshine. Miss me?"
+Marcus: "Always, Lena." *He pulled her close.* "My little troublemaker."
+"""
+OUTPUT:
+{
+  "reasoning": "Elena calls Marcus 'sunshine' - this is a pet name FOR Marcus. Marcus calls Elena 'Lena' (shortened name) and 'my little troublemaker' (pet name) - both are FOR Elena.",
+  "nicknames": [
+    { "character": "Marcus", "names": ["sunshine"] },
+    { "character": "Elena", "names": ["Lena", "troublemaker"] }
+  ]
+}
+
+### Example 2: Fake name / cover identity
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, User
+
+MESSAGES:
+Elena: *She adjusted her wig and fake glasses.* "Remember, in there I'm Sarah Mitchell. Don't slip up."
+User: "Got it. And I'm...?"
+Elena: "You're my husband, David. We're the Mitchells, attending the gala as donors."
+"""
+OUTPUT:
+{
+  "reasoning": "Elena is using the cover identity 'Sarah Mitchell' - this alias is FOR Elena. The user is using the cover identity 'David' and 'David Mitchell' - these are FOR User.",
+  "nicknames": [
+    { "character": "Elena", "names": ["Sarah Mitchell", "Sarah"] },
+    { "character": "User", "names": ["David Mitchell", "David"] }
+  ]
+}
+
+### Example 3: Title used as a name
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Detective Morrison
+
+MESSAGES:
+Elena: "Detective, we need to talk about the case."
+Detective Morrison: "Call me Morrison. Or Rick, if you prefer."
+Elena: "Fine, Rick. Here's what I found..."
+"""
+OUTPUT:
+{
+  "reasoning": "Elena refers to Detective Morrison as 'Detective' (title as name) and 'Rick' (first name). Morrison himself confirms 'Rick' is his first name and says to call him 'Morrison'.",
+  "nicknames": [
+    { "character": "Detective Morrison", "names": ["Detective", "Rick", "Morrison"] }
+  ]
+}
+
+### Example 4: Stage name / performer alias
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Marcus: *He pointed at the poster on the wall.* "See that? 'The Crimson Shadow' - that was me, back in my fighting days."
+Elena: "Wait, YOU were the Crimson Shadow? I used to watch those matches!"
+"""
+OUTPUT:
+{
+  "reasoning": "Marcus reveals his old fighting alias was 'The Crimson Shadow'. This is a name FOR Marcus.",
+  "nicknames": [
+    { "character": "Marcus", "names": ["The Crimson Shadow", "Crimson Shadow"] }
+  ]
+}
+
+### Example 5: No nicknames in messages
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Elena: *She set down her bag and looked around the room.* "It's quieter than I expected."
+Marcus: "Yeah, the crowd thinned out about an hour ago." *He wiped down the counter.*
+Elena: "Good. We can talk freely then."
+Marcus: "Pull up a chair."
+"""
+OUTPUT:
+{
+  "reasoning": "Neither character uses any nicknames, pet names, or aliases. They address each other normally without using names at all. No nicknames to extract.",
+  "nicknames": []
+}
+
+### Example 6: Only canonical names used
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Elena: "Marcus, can you hand me that file?"
+Marcus: "Sure, Elena." *He slid the folder across the table.* "It's all in there."
+Elena: "Thanks, Marcus."
+"""
+OUTPUT:
+{
+  "reasoning": "Both characters only use each other's canonical names - 'Marcus' and 'Elena'. These are already tracked names, not nicknames. Nothing new to extract.",
+  "nicknames": []
+}
+
+### Example 7: Narrative descriptions, not nicknames
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Elena: *The former thief studied the security plans with practiced eyes, her fingers tracing escape routes.*
+Marcus: *The veteran detective watched her work, impressed despite himself. The woman who had once been his target was now his most valuable ally.*
+"""
+OUTPUT:
+{
+  "reasoning": "'The former thief', 'the veteran detective', 'the woman who had once been his target', and 'his most valuable ally' are all narrative prose descriptions, not names anyone uses to address or refer to the characters. No nicknames to extract.",
+  "nicknames": []
+}
+`;
+const BAD_EXAMPLES = `
+## Bad Examples
+
+### Example 1: Assigning nickname to wrong character (CRITICAL)
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Elena: "Come on, babe, we're gonna be late."
+Marcus: *He grabbed his coat.*
+"""
+WRONG:
+{
+  "nicknames": [{ "character": "Elena", "names": ["babe"] }]
+}
+WHY THIS IS WRONG: Elena SAID "babe" but she's calling MARCUS "babe". The nickname belongs to the character being referred to (Marcus), not the speaker (Elena).
+
+CORRECT:
+{
+  "nicknames": [{ "character": "Marcus", "names": ["babe"] }]
+}
+
+### Example 2: Generic descriptor, not a nickname
+INPUT:
+"""
+CHARACTERS PRESENT: Elena
+
+MESSAGES:
+Elena: *She noticed the old man behind the counter watching them.*
+"""
+WRONG:
+{
+  "nicknames": [{ "character": "Elena", "names": ["the old man"] }]
+}
+WHY THIS IS WRONG: "the old man" is a narrative description of an unnamed character, not a nickname for Elena or anyone tracked. If the old man isn't a tracked character, skip it entirely.
+
+### Example 3: One-time narrative description
+INPUT:
+"""
+CHARACTERS PRESENT: Elena
+
+MESSAGES:
+Elena: *The woman who had once saved his life stood before him, changed.*
+"""
+WRONG:
+{
+  "nicknames": [{ "character": "Elena", "names": ["the woman who saved his life"] }]
+}
+WHY THIS IS WRONG: This is narrative prose describing Elena, not a nickname anyone uses for her. Only extract names that characters actually USE to address or refer to someone.
+
+### Example 4: Extracting the canonical name
+INPUT:
+"""
+CHARACTERS PRESENT: Elena
+
+MESSAGES:
+Marcus: "Elena! Over here!"
+"""
+WRONG:
+{
+  "nicknames": [{ "character": "Elena", "names": ["Elena"] }]
+}
+WHY THIS IS WRONG: "Elena" is already the canonical tracked name. Don't extract names that match what the character is already tracked as.
+
+### Example 5: Extracting when no nicknames exist
+INPUT:
+"""
+CHARACTERS PRESENT: Elena, Marcus
+
+MESSAGES:
+Elena: *She walked to the window and looked outside.*
+Marcus: *He continued reading his book in silence.*
+"""
+WRONG:
+{
+  "nicknames": [{ "character": "Elena", "names": ["she"] }]
+}
+WHY THIS IS WRONG: Pronouns ("she", "he", "they") are not nicknames. When no nicknames exist in the messages, return an empty array. Don't invent or force nicknames that aren't there.
+`;
+// ============================================
+// Schema
+// ============================================
+const nicknameExtractionSchema = {
+    type: 'object',
+    properties: {
+        reasoning: {
+            type: 'string',
+            description: 'Analysis of nicknames found in the messages',
+        },
+        nicknames: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    character: {
+                        type: 'string',
+                        description: 'The character BEING REFERRED TO by the nickname',
+                    },
+                    names: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Nicknames used for this character',
+                    },
+                },
+                required: ['character', 'names'],
+            },
+            description: 'Nicknames found for each character',
+        },
+    },
+    required: ['reasoning', 'nicknames'],
+};
+// ============================================
+// Prompt Definition
+// ============================================
+const nicknameExtractionPrompt = {
+    name: 'nickname_extraction',
+    description: 'Extract pet names, nicknames, and aliases from recent messages',
+    placeholders: [
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.messages,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.characterName,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.userName,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.characterDescription,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.userDescription,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.worldinfo,
+        _placeholders__WEBPACK_IMPORTED_MODULE_0__.PLACEHOLDERS.charactersPresent,
+    ],
+    systemPrompt: `You are analyzing roleplay messages to extract pet names, nicknames, aliases, and alternate names that characters use for each other.
+
+## Your Task
+Identify any names used in the messages that are NOT the character's canonical (tracked) name. These include:
+- **Pet names**: "sweetheart", "babe", "sunshine", "honey"
+- **Shortened names**: "Tommy" for "Thomas", "Lena" for "Elena"
+- **Titles used as names**: "Detective" for "Detective Morrison", "Doc" for "Dr. Chen"
+- **In-RP given aliases**: cover identities, fake names, code names
+- **Stage names / performer aliases**: "The Crimson Shadow", "DJ Pulse"
+
+## CRITICAL RULES
+
+### 1. Assign to the RIGHT character
+Nicknames belong to the CHARACTER BEING REFERRED TO, not the one speaking.
+- If Elena says "Hey babe" to Marcus → "babe" belongs to MARCUS
+- If Marcus calls Elena "Lena" → "Lena" belongs to ELENA
+
+### 2. Only extract names actually USED
+Only include names that characters actually use to address or refer to someone in the messages. Do NOT extract:
+- Narrative prose descriptions ("the former thief", "his ally")
+- Generic descriptors ("the tall man", "the woman", "the stranger")
+- Pronouns ("she", "he", "they")
+- One-time narrative references ("the woman who saved his life")
+
+### 3. Do NOT extract canonical names
+If a character is tracked as "Elena", don't extract "Elena" as a nickname. Only extract names that are DIFFERENT from the canonical name.
+
+### 4. It is COMPLETELY FINE to return empty results
+If no nicknames are used in the messages, return an empty array. Many conversations don't contain nicknames. Don't force or invent nicknames that aren't there. An empty result is a correct result when no nicknames exist.
+
+### 5. Use context to distinguish
+Use worldinfo and character descriptions to understand whether something is a real nickname vs. narrative description. A "Detective" is a nickname only if someone uses it to address or refer to a character.
+
+${GOOD_EXAMPLES}
+
+${BAD_EXAMPLES}
+`,
+    userTemplate: `## Character Context
+Character: {{characterName}}
+{{characterDescription}}
+
+User: {{userName}}
+{{userDescription}}
+
+## Worldinfo
+{{worldinfo}}
+
+## Characters Present
+{{charactersPresent}}
+
+## Recent Messages
+{{messages}}
+
+## Task
+Extract any pet names, nicknames, shortened names, titles used as names, or aliases from the messages above.
+
+Remember:
+- Assign each nickname to the CHARACTER BEING REFERRED TO, not the speaker
+- Only include names actually used in the messages, not narrative descriptions
+- Do NOT include canonical character names (names already tracked)
+- Return an empty nicknames array if no nicknames are found - this is perfectly valid
+- Pronouns and generic descriptors are NOT nicknames`,
+    responseSchema: nicknameExtractionSchema,
+    defaultTemperature: 0.5,
+    parseResponse(response) {
+        let parsed;
+        try {
+            const result = (0,_utils_json__WEBPACK_IMPORTED_MODULE_1__.parseJsonResponse)(response);
+            if (!result || typeof result !== 'object' || Array.isArray(result))
+                return null;
+            parsed = result;
+        }
+        catch {
+            return null;
+        }
+        // Validate required fields
+        if (typeof parsed.reasoning !== 'string')
+            return null;
+        if (!Array.isArray(parsed.nicknames))
+            return null;
+        // Validate and filter nickname entries
+        const nicknames = [];
+        for (const entry of parsed.nicknames) {
+            if (typeof entry !== 'object' || entry === null)
+                continue;
+            const e = entry;
+            if (typeof e.character !== 'string')
+                continue;
+            if (!Array.isArray(e.names))
+                continue;
+            const names = e.names.filter((n) => typeof n === 'string' && n.trim().length > 0);
+            // Only include entries with at least one name
+            if (names.length > 0) {
+                nicknames.push({
+                    character: e.character,
+                    names,
+                });
+            }
+        }
+        return {
+            reasoning: parsed.reasoning,
+            nicknames,
         };
     },
 };
@@ -132319,7 +133372,8 @@ OUTPUT:
     "species": "Human",
     "age": 28,
     "appearance": ["auburn hair", "green eyes", "scar on left cheek", "athletic build", "sharp features", "confident posture", "fair skin"],
-    "personality": ["clever", "resourceful", "tough", "compassionate", "guarded", "determined", "street-smart"]
+    "personality": ["clever", "resourceful", "tough", "compassionate", "guarded", "determined", "street-smart"],
+    "nicknames": []
   }
 }
 
@@ -132343,7 +133397,8 @@ OUTPUT:
     "species": "Elf",
     "age": 300,
     "appearance": ["silver hair", "violet eyes", "tall", "willowy build", "elegant features", "pale skin", "ageless beauty"],
-    "personality": ["aloof", "caring", "studious", "intellectual", "patient", "protective", "reserved", "wise"]
+    "personality": ["aloof", "caring", "studious", "intellectual", "patient", "protective", "reserved", "wise"],
+    "nicknames": ["Thal"]
   }
 }
 
@@ -132367,7 +133422,8 @@ OUTPUT:
     "species": "Android",
     "age": 25,
     "appearance": ["chrome-silver hair", "glowing blue eyes", "synthetic skin", "humanoid", "youthful appearance", "precise movements", "metallic undertones"],
-    "personality": ["curious", "analytical", "naive", "empathetic", "logical", "observant", "innocent", "questioning"]
+    "personality": ["curious", "analytical", "naive", "empathetic", "logical", "observant", "innocent", "questioning"],
+    "nicknames": []
   }
 }
 
@@ -132392,7 +133448,8 @@ OUTPUT:
     "species": "Human",
     "age": 47,
     "appearance": ["middle-aged", "tired eyes", "weathered features", "average build", "disheveled hair", "unshaven"],
-    "personality": ["cynical", "gruff", "direct", "world-weary", "no-nonsense", "practical"]
+    "personality": ["cynical", "gruff", "direct", "world-weary", "no-nonsense", "practical"],
+    "nicknames": []
   }
 }
 
@@ -132416,7 +133473,8 @@ OUTPUT:
     "species": "Human",
     "age": 20,
     "appearance": ["tall", "messy brown hair", "young", "lanky", "brown eyes", "clean-shaven"],
-    "personality": ["awkward", "well-meaning", "nervous", "intelligent", "earnest", "friendly"]
+    "personality": ["awkward", "well-meaning", "nervous", "intelligent", "earnest", "friendly"],
+    "nicknames": []
   }
 }
 `;
@@ -132558,6 +133616,11 @@ const characterProfileSchema = {
                     items: { type: 'string' },
                     description: '8-10 personality tags (traits, demeanor, behavior patterns)',
                 },
+                nicknames: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Known nicknames, aliases, shortened names, or alternate names',
+                },
             },
             required: ['sex', 'species', 'age', 'appearance', 'personality'],
         },
@@ -132645,6 +133708,15 @@ Include core character traits:
 - Flaws (stubborn, reckless, insecure)
 - Behavioral patterns (cautious, impulsive)
 
+### Nicknames
+- Extract any nicknames, aliases, titles, or alternate names the character goes by
+- Include shortened versions of their name if used (e.g., "Tommy" for "Thomas")
+- Include titles used as names (e.g., "Detective" for "Detective Morrison")
+- Include the full name if different from the tracked name
+- Check the character card description for explicit nicknames
+- Only include names actually used or referenced
+- Return empty array if no nicknames
+
 ## Important Rules
 1. **Always provide 8-10 tags** for both appearance and personality
 2. **Make reasonable inferences** - don't leave things blank
@@ -132724,6 +133796,9 @@ Remember:
                 age: profile.age,
                 appearance: profile.appearance.filter((tag) => typeof tag === 'string'),
                 personality: profile.personality.filter((tag) => typeof tag === 'string'),
+                nicknames: Array.isArray(profile.nicknames)
+                    ? profile.nicknames.filter((tag) => typeof tag === 'string')
+                    : [],
             },
         };
     },
@@ -140134,6 +141209,10 @@ function applyEventToProjection(projection, event) {
         applyCharacterProfileSet(projection, event);
         return;
     }
+    if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isCharacterAkasAddEvent)(event)) {
+        applyCharacterAkasAdd(projection, event);
+        return;
+    }
     if ((0,_types_event__WEBPACK_IMPORTED_MODULE_0__.isCharacterPositionChangedEvent)(event)) {
         applyCharacterPositionChanged(projection, event);
         return;
@@ -140325,6 +141404,18 @@ function applyCharacterProfileSet(projection, event) {
         appearance: [...event.profile.appearance],
         personality: [...event.profile.personality],
     };
+}
+function applyCharacterAkasAdd(projection, event) {
+    const char = ensureCharacter(projection, event.character);
+    const existing = new Set((char.akas ?? []).map(a => a.toLowerCase()));
+    const merged = [...(char.akas ?? [])];
+    for (const aka of event.akas) {
+        if (!existing.has(aka.toLowerCase())) {
+            merged.push(aka);
+            existing.add(aka.toLowerCase());
+        }
+    }
+    char.akas = merged;
 }
 function applyCharacterPositionChanged(projection, event) {
     const char = ensureCharacter(projection, event.character);
@@ -141392,6 +142483,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   isChapterEndedEvent: () => (/* binding */ isChapterEndedEvent),
 /* harmony export */   isChapterEvent: () => (/* binding */ isChapterEvent),
 /* harmony export */   isCharacterActivityChangedEvent: () => (/* binding */ isCharacterActivityChangedEvent),
+/* harmony export */   isCharacterAkasAddEvent: () => (/* binding */ isCharacterAkasAddEvent),
 /* harmony export */   isCharacterAppearedEvent: () => (/* binding */ isCharacterAppearedEvent),
 /* harmony export */   isCharacterDepartedEvent: () => (/* binding */ isCharacterDepartedEvent),
 /* harmony export */   isCharacterEvent: () => (/* binding */ isCharacterEvent),
@@ -141471,6 +142563,9 @@ function isCharacterDepartedEvent(event) {
 }
 function isCharacterProfileSetEvent(event) {
     return event.kind === 'character' && event.subkind === 'profile_set';
+}
+function isCharacterAkasAddEvent(event) {
+    return event.kind === 'character' && event.subkind === 'akas_add';
 }
 function isCharacterPositionChangedEvent(event) {
     return (event.kind === 'character' &&
@@ -141707,6 +142802,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   isChapterEndedEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isChapterEndedEvent),
 /* harmony export */   isChapterEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isChapterEvent),
 /* harmony export */   isCharacterActivityChangedEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isCharacterActivityChangedEvent),
+/* harmony export */   isCharacterAkasAddEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isCharacterAkasAddEvent),
 /* harmony export */   isCharacterAppearedEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isCharacterAppearedEvent),
 /* harmony export */   isCharacterDepartedEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isCharacterDepartedEvent),
 /* harmony export */   isCharacterEvent: () => (/* reexport safe */ _event__WEBPACK_IMPORTED_MODULE_2__.isCharacterEvent),
@@ -141825,6 +142921,7 @@ function createEmptyCharacterState(name) {
             socks: null,
             underwear: null,
         },
+        akas: [],
     };
 }
 /**
@@ -141931,6 +143028,7 @@ function createProjectionFromSnapshot(snapshot, source) {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             },
         ])),
         relationships: Object.fromEntries(Object.entries(snapshot.relationships).map(([key, rel]) => [
@@ -142015,6 +143113,7 @@ function createSnapshotFromProjection(projection, chapterIndex) {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             },
         ])),
         relationships: Object.fromEntries(Object.entries(projection.relationships).map(([key, rel]) => [
@@ -142118,6 +143217,7 @@ function cloneSnapshot(snapshot) {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             },
         ])),
         relationships: Object.fromEntries(Object.entries(snapshot.relationships).map(([key, rel]) => [
@@ -142194,6 +143294,7 @@ function cloneProjection(projection) {
                 mood: [...char.mood],
                 physicalState: [...char.physicalState],
                 outfit: { ...char.outfit },
+                akas: [...(char.akas ?? [])],
             },
         ])),
         relationships: Object.fromEntries(Object.entries(projection.relationships).map(([key, rel]) => [
@@ -143005,7 +144106,7 @@ function CharacterEditor({ character, onUpdate, onDelete }) {
                                                     .personality, onChange: tags => updateProfile({
                                                     ...character.profile,
                                                     personality: tags,
-                                                }), placeholder: "Add trait..." })] })] }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Position" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.position, onChange: e => updateField('position', e.target.value), placeholder: "Position" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Activity" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.activity || '', onChange: e => updateField('activity', e.target.value || null), placeholder: "Activity" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Mood" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.mood, onChange: tags => updateField('mood', tags), placeholder: "Add mood..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Physical State" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.physicalState, onChange: tags => updateField('physicalState', tags), placeholder: "Add state..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-subsection", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-snapshot-subsection-header", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { children: "Outfit" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-outfit-grid", children: _types_common__WEBPACK_IMPORTED_MODULE_3__.OUTFIT_SLOTS.map(slot => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-outfit-slot", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: slot }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-outfit-row", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character
+                                                }), placeholder: "Add trait..." })] })] }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "AKAs" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.akas ?? [], onChange: tags => updateField('akas', tags), placeholder: "Add alias..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Position" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.position, onChange: e => updateField('position', e.target.value), placeholder: "Position" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Activity" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character.activity || '', onChange: e => updateField('activity', e.target.value || null), placeholder: "Activity" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Mood" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.mood, onChange: tags => updateField('mood', tags), placeholder: "Add mood..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-field", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: "Physical State" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form_TagInput__WEBPACK_IMPORTED_MODULE_4__.TagInput, { tags: character.physicalState, onChange: tags => updateField('physicalState', tags), placeholder: "Add state..." })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-snapshot-subsection", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-snapshot-subsection-header", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { children: "Outfit" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-outfit-grid", children: _types_common__WEBPACK_IMPORTED_MODULE_3__.OUTFIT_SLOTS.map(slot => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-outfit-slot", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { children: slot }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-outfit-row", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: character
                                                         .outfit[slot] || '', onChange: e => updateOutfitSlot(slot, e
                                                         .target
                                                         .value), placeholder: "None" }), character.outfit[slot] && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => updateOutfitSlot(slot, null), className: "bt-x", children: "\u00D7" }))] })] }, slot))) })] })] })] }));
@@ -144337,7 +145438,7 @@ function V2ProjectionPreview({ projection, compact = false, events, swipeContext
 }
 function CharacterStateCard({ character, compact = false }) {
     const outfitItems = getOutfitItems(character.outfit);
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-character", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-projected-char-name", children: character.name }), character.position && character.position !== 'unknown' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-projected-char-position", children: character.position }))] }), !compact && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-details", children: [character.activity && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-activity", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-person-running" }), ' ', character.activity] })), character.mood.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-mood", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-regular fa-face-smile" }), ' ', (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag-list", children: character.mood.map(m => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag bt-tag-mood", children: m }, m))) })] })), character.physicalState.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-physical", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-heart-pulse" }), ' ', (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag-list", children: character.physicalState.map(p => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag bt-tag-physical", children: p }, p))) })] })), outfitItems.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-outfit", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-shirt" }), ' ', (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-outfit-summary", children: [outfitItems.slice(0, 3).join(', '), outfitItems.length > 3 &&
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-character", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-projected-char-name", children: character.name }), character.akas && character.akas.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-projected-char-akas", title: `AKAs: ${character.akas.join(', ')}`, children: ["(", character.akas.join(', '), ")"] })), character.position && character.position !== 'unknown' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-projected-char-position", children: character.position }))] }), !compact && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-details", children: [character.activity && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-activity", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-person-running" }), ' ', character.activity] })), character.mood.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-mood", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-regular fa-face-smile" }), ' ', (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag-list", children: character.mood.map(m => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag bt-tag-mood", children: m }, m))) })] })), character.physicalState.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-physical", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-heart-pulse" }), ' ', (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag-list", children: character.physicalState.map(p => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-tag bt-tag-physical", children: p }, p))) })] })), outfitItems.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-projected-char-outfit", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-shirt" }), ' ', (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-outfit-summary", children: [outfitItems.slice(0, 3).join(', '), outfitItems.length > 3 &&
                                         ` +${outfitItems.length - 3} more`] })] }))] }))] }));
 }
 function RelationshipStateCard({ relationship, milestones }) {
@@ -145010,7 +146111,7 @@ function V2CharacterCard({ character, relationships }) {
     const charName = character.name.toLowerCase();
     const charRelationships = relationships?.filter(r => r.pair[0].toLowerCase() === charName ||
         r.pair[1].toLowerCase() === charName) ?? [];
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-character", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: character.name }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-char-profile-basic", children: [character.profile.sex, "/", character.profile.species, ",", ' ', character.profile.age] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-char-mood", children: mood })] }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-profile-tags", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-profile-appearance", title: `Appearance: ${character.profile.appearance.join(', ')}`, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-eye" }), character.profile.appearance
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-character", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: character.name }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-char-profile-basic", children: [character.profile.sex, "/", character.profile.species, ",", ' ', character.profile.age] })), character.akas && character.akas.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-char-akas", title: `AKAs: ${character.akas.join(', ')}`, children: ["(", character.akas.join(', '), ")"] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-char-mood", children: mood })] }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-profile-tags", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-profile-appearance", title: `Appearance: ${character.profile.appearance.join(', ')}`, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-eye" }), character.profile.appearance
                                 .slice(0, 3)
                                 .join(', '), character.profile.appearance.length > 3 && '…'] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-profile-personality", title: `Personality: ${character.profile.personality.join(', ')}`, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-brain" }), character.profile.personality
                                 .slice(0, 3)
@@ -145066,7 +146167,7 @@ function formatOutfit(outfit) {
     return parts.filter((v) => v !== null).join(', ');
 }
 function V2CharacterReadOnly({ character }) {
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-character-readonly", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-readonly-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: character.name }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-char-profile-basic", children: [character.profile.sex, "/", character.profile.species, ",", ' ', character.profile.age] }))] }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-profile-tags", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-profile-appearance", title: `Appearance: ${character.profile.appearance.join(', ')}`, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-eye" }), character.profile.appearance
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-character-readonly", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-readonly-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: character.name }), character.akas && character.akas.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-char-akas", title: `AKAs: ${character.akas.join(', ')}`, children: ["(", character.akas.join(', '), ")"] })), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-char-profile-basic", children: [character.profile.sex, "/", character.profile.species, ",", ' ', character.profile.age] }))] }), character.profile && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-profile-tags", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-profile-appearance", title: `Appearance: ${character.profile.appearance.join(', ')}`, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-eye" }), character.profile.appearance
                                 .slice(0, 3)
                                 .join(', '), character.profile.appearance.length > 3 && '…'] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-profile-personality", title: `Personality: ${character.profile.personality.join(', ')}`, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-brain" }), character.profile.personality
                                 .slice(0, 3)
@@ -145307,6 +146408,10 @@ function getEventSummary(event) {
                     return `${event.character}: ${event.physicalState}`;
                 case 'physical_removed':
                     return `${event.character} recovered from ${event.physicalState}`;
+                case 'profile_set':
+                    return `${event.character}'s profile set`;
+                case 'akas_add':
+                    return `${event.character} AKAs: ${event.akas.join(', ')}`;
                 default:
                     return 'Character change';
             }
@@ -147269,6 +148374,140 @@ function V2RelationshipsTab({ projection, eventStore, swipeContext, onEditRelati
                     const milestones = milestonesMap.get(key) || [];
                     return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_V2RelationshipCard__WEBPACK_IMPORTED_MODULE_3__.V2RelationshipCard, { relationship: relationship, milestones: milestones, onEdit: () => onEditRelationship(relationship.pair) }, key));
                 }) }), filteredRelationships.length === 0 && characterFilter !== 'all' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-relationships-empty", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-filter" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: ["No relationships found for ", characterFilter, "."] })] }))] }));
+}
+
+
+/***/ },
+
+/***/ "./src/v2/ui/unresolvedNamePopup.ts"
+/*!******************************************!*\
+  !*** ./src/v2/ui/unresolvedNamePopup.ts ***!
+  \******************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   clearUnresolvedNameCache: () => (/* binding */ clearUnresolvedNameCache),
+/* harmony export */   showUnresolvedNamePopup: () => (/* binding */ showUnresolvedNamePopup)
+/* harmony export */ });
+/**
+ * Unresolved Name Popup
+ *
+ * Shows a popup when extracted events reference character names that
+ * couldn't be automatically matched to known characters.
+ * Reuses the popup pattern from cardExtensions/nameResolver.ts.
+ */
+/**
+ * Cache for user-selected unresolved name mappings within a session.
+ * Key: unresolvedName (lowercased)
+ */
+const unresolvedNameCache = new Map();
+/**
+ * Clear the unresolved name cache (call on chat change).
+ */
+function clearUnresolvedNameCache() {
+    unresolvedNameCache.clear();
+}
+/**
+ * Show popups for each unresolved name, letting the user choose
+ * which character to map each one to.
+ *
+ * @param unresolvedNames - Names that couldn't be automatically resolved
+ * @param availableCharacters - Canonical character names to choose from
+ * @returns Mappings from unresolved names to their resolutions
+ */
+async function showUnresolvedNamePopup(unresolvedNames, availableCharacters) {
+    const mappings = [];
+    for (const name of unresolvedNames) {
+        // Check cache first
+        const cached = unresolvedNameCache.get(name.toLowerCase());
+        if (cached) {
+            mappings.push(cached);
+            continue;
+        }
+        // Show popup for this name
+        const mapping = await showSingleNamePopup(name, availableCharacters);
+        // Cache the result
+        unresolvedNameCache.set(name.toLowerCase(), mapping);
+        mappings.push(mapping);
+    }
+    return mappings;
+}
+/**
+ * Show a popup for a single unresolved name.
+ */
+async function showSingleNamePopup(unresolvedName, availableCharacters) {
+    return new Promise(resolve => {
+        const context = SillyTavern.getContext();
+        const container = document.createElement('div');
+        container.innerHTML = `
+			<div style="padding: 10px;">
+				<p style="margin-bottom: 15px;">
+					<strong>BlazeTracker: Unknown Character Name</strong>
+				</p>
+				<p style="margin-bottom: 15px;">
+					Extracted a reference to "<strong>${escapeHtml(unresolvedName)}</strong>"
+					but couldn't match it to a known character.
+				</p>
+				<p style="margin-bottom: 10px;">
+					Which character is this?
+				</p>
+				<select id="bt-unresolved-name-select" class="text_pole" style="width: 100%; margin-bottom: 15px;">
+					<option value="">-- Select a character --</option>
+					${availableCharacters.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}
+				</select>
+				<div style="display: flex; gap: 10px; justify-content: flex-end;">
+					<button id="bt-unresolved-name-skip" class="menu_button" style="padding: 8px 16px;">
+						Skip
+					</button>
+					<button id="bt-unresolved-name-apply" class="menu_button" style="padding: 8px 16px;" disabled>
+						Apply
+					</button>
+				</div>
+			</div>
+		`;
+        // Show popup
+        context.callGenericPopup(container, context.POPUP_TYPE.TEXT, null, {
+            wide: false,
+        });
+        const select = document.getElementById('bt-unresolved-name-select');
+        const applyBtn = document.getElementById('bt-unresolved-name-apply');
+        const skipBtn = document.getElementById('bt-unresolved-name-skip');
+        // Enable apply button when selection is made
+        select?.addEventListener('change', () => {
+            if (applyBtn) {
+                applyBtn.disabled = !select.value;
+            }
+        });
+        const closePopup = () => {
+            document.querySelector('.popup-button-ok')?.click();
+        };
+        // Handle apply
+        applyBtn?.addEventListener('click', () => {
+            const selectedName = select?.value;
+            closePopup();
+            resolve({
+                unresolvedName,
+                resolvedTo: selectedName || null,
+            });
+        });
+        // Handle skip
+        skipBtn?.addEventListener('click', () => {
+            closePopup();
+            resolve({
+                unresolvedName,
+                resolvedTo: null,
+            });
+        });
+    });
+}
+/**
+ * Escape HTML special characters.
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 

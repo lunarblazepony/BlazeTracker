@@ -12,8 +12,16 @@ import type {
 } from '../extractors/types';
 import { createExtractorState } from '../extractors/types';
 import type { Event, MessageAndSwipe } from '../types';
+import { isCharacterAppearedEvent, isCharacterAkasAddEvent } from '../types';
 import { sortPair } from '../types/snapshot';
 import { buildSwipeContextFromExtraction } from '../extractors/utils';
+import {
+	buildAkaLookup,
+	resolveNamesInEvents,
+	applyUserMappings,
+} from '../extractors/utils/resolveEventNames';
+import { showUnresolvedNamePopup } from '../ui/unresolvedNamePopup';
+import { generateEventId } from '../store/serialization';
 import {
 	coreEventExtractors,
 	propsEventExtractors,
@@ -326,6 +334,63 @@ export async function extractEvents(
 	chapterEnded = turnEvents.some(
 		e => e.kind === 'chapter' && 'subkind' in e && e.subkind === 'ended',
 	);
+
+	// --- Post-extraction name resolution ---
+	// Build AKA lookup from current projection + new characters in turnEvents
+	const swipeContext = buildSwipeContextFromExtraction(context);
+	const projection = store.projectStateAtMessage(currentMessage.messageId, swipeContext);
+	const akaLookup = buildAkaLookup(projection.characters);
+
+	// Add AKAs from akas_add events in turnEvents (not yet applied to projection)
+	for (const event of turnEvents) {
+		if (isCharacterAkasAddEvent(event)) {
+			for (const aka of event.akas) {
+				akaLookup.set(aka.toLowerCase(), event.character);
+			}
+			akaLookup.set(event.character.toLowerCase(), event.character);
+		}
+	}
+
+	// Also include newly appeared character names
+	const allCanonicalNames = Object.keys(projection.characters);
+	for (const event of turnEvents) {
+		if (
+			isCharacterAppearedEvent(event) &&
+			!allCanonicalNames.includes(event.character)
+		) {
+			allCanonicalNames.push(event.character);
+			akaLookup.set(event.character.toLowerCase(), event.character);
+		}
+	}
+
+	const { unresolvedNames } = resolveNamesInEvents(turnEvents, akaLookup, allCanonicalNames);
+
+	if (unresolvedNames.length > 0) {
+		const mappings = await showUnresolvedNamePopup(unresolvedNames, allCanonicalNames);
+		applyUserMappings(turnEvents, mappings);
+
+		// Persist user-mapped names as AKAs for future resolution
+		for (const mapping of mappings) {
+			if (mapping.resolvedTo) {
+				const existingChar = projection.characters[mapping.resolvedTo];
+				const existingAkas = existingChar?.akas ?? [];
+				turnEvents.push({
+					id: generateEventId(),
+					source: currentMessage,
+					timestamp: Date.now(),
+					kind: 'character',
+					subkind: 'akas_add',
+					character: mapping.resolvedTo,
+					akas: [
+						...new Set([
+							...existingAkas,
+							mapping.unresolvedName,
+						]),
+					],
+				});
+			}
+		}
+	}
 
 	// Debug: Log extracted events by kind
 	const eventsByKind: Record<string, number> = {};

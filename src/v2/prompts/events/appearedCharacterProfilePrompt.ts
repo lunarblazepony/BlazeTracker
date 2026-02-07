@@ -36,7 +36,8 @@ OUTPUT:
     "species": "Human",
     "age": 47,
     "appearance": ["tall", "gray eyes", "police uniform", "authoritative bearing", "middle-aged", "stern features"],
-    "personality": ["authoritative", "serious", "direct", "professional", "no-nonsense", "determined"]
+    "personality": ["authoritative", "serious", "direct", "professional", "no-nonsense", "determined"],
+    "nicknames": ["Detective Morrison"]
   }
 }
 
@@ -58,7 +59,8 @@ OUTPUT:
     "species": "Human",
     "age": 22,
     "appearance": ["young", "barista uniform", "bright smile", "energetic posture"],
-    "personality": ["friendly", "cheerful", "energetic", "thoughtful", "bubbly", "accommodating"]
+    "personality": ["friendly", "cheerful", "energetic", "thoughtful", "bubbly", "accommodating"],
+    "nicknames": []
   }
 }
 
@@ -80,7 +82,8 @@ OUTPUT:
     "species": "Orc",
     "age": 35,
     "appearance": ["massive", "scarred", "tusks", "muscular", "imposing", "battle-worn"],
-    "personality": ["direct", "loyal", "tough", "straightforward", "combat-ready", "reliable"]
+    "personality": ["direct", "loyal", "tough", "straightforward", "combat-ready", "reliable"],
+    "nicknames": []
   }
 }
 `;
@@ -224,6 +227,12 @@ export const appearedCharacterProfileSchema: JSONSchema = {
 					items: { type: 'string' },
 					description: '6-10 personality tags',
 				},
+				nicknames: {
+					type: 'array',
+					items: { type: 'string' },
+					description:
+						'Known nicknames, aliases, shortened names, or alternate names',
+				},
 			},
 			required: ['sex', 'species', 'age', 'appearance', 'personality'],
 		},
@@ -312,6 +321,13 @@ Respond with a JSON object containing:
 - Include observable traits, not assumptions
 - A single line of dialogue can still suggest multiple traits
 
+### Nicknames
+- Extract any nicknames, aliases, or alternate names used in the messages
+- Include shortened versions of their name if used (e.g., "Tommy" for "Thomas")
+- Include titles used as names (e.g., "Detective" for "Detective Morrison")
+- Only include names actually used or referenced in the messages
+- Return empty array if no nicknames
+
 ${GOOD_EXAMPLES}
 
 ${BAD_EXAMPLES}
@@ -379,6 +395,12 @@ Remember:
 				personality: profile.personality.filter(
 					(tag): tag is string => typeof tag === 'string',
 				),
+				nicknames: Array.isArray(profile.nicknames)
+					? profile.nicknames.filter(
+							(tag): tag is string =>
+								typeof tag === 'string',
+						)
+					: [],
 			},
 		};
 	},

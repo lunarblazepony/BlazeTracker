@@ -23,6 +23,7 @@ import {
 import { buildPrompt } from '../../prompts';
 import { debugWarn } from '../../../utils/debug';
 import { getWorldinfoForCharacter } from '../../utils/worldinfo';
+import { computeAkas } from '../utils/akaComputation';
 
 /**
  * Initial character profiles extractor.
@@ -73,6 +74,7 @@ export const initialCharacterProfilesExtractor: InitialExtractor<ExtractedCharac
 				mood: [...char.mood],
 				physicalState: [...char.physicalState],
 				outfit: { ...char.outfit },
+				akas: [...(char.akas ?? [])],
 			};
 		}
 
@@ -172,6 +174,26 @@ export const initialCharacterProfilesExtractor: InitialExtractor<ExtractedCharac
 				appearance: [...extracted.profile.appearance],
 				personality: [...extracted.profile.personality],
 			};
+
+			// Compute AKAs from extracted name, nicknames, and name parts
+			const fullName =
+				extracted.character !== matchingKey ? extracted.character : null;
+			const nicknames = extracted.profile.nicknames ?? [];
+			const akas = computeAkas(matchingKey, fullName, nicknames, characterNames);
+			if (akas.length > 0) {
+				// Merge with existing AKAs (case-insensitive dedup)
+				const existing = new Set(
+					(char.akas ?? []).map(a => a.toLowerCase()),
+				);
+				const merged = [...(char.akas ?? [])];
+				for (const aka of akas) {
+					if (!existing.has(aka.toLowerCase())) {
+						merged.push(aka);
+						existing.add(aka.toLowerCase());
+					}
+				}
+				char.akas = merged;
+			}
 		}
 
 		return { characters: updatedCharacters };

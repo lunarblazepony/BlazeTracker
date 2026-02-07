@@ -78,6 +78,7 @@ Each present character has:
 | mood | `string[]` | Current mood tags |
 | physicalState | `string[]` | Physical state tags |
 | outfit | `CharacterOutfit` | Current outfit by slot |
+| akas | `string[]` | Alternate names, nicknames, pet names, aliases. Used for automatic name resolution during extraction. |
 
 ### Character Profile
 

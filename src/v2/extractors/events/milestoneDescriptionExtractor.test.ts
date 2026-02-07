@@ -141,6 +141,7 @@ function createMockSnapshot(): Snapshot {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 			User: {
 				name: 'User',
@@ -159,6 +160,7 @@ function createMockSnapshot(): Snapshot {
 					socks: 'socks',
 					underwear: null,
 				},
+				akas: [],
 			},
 		},
 		relationships: {
@@ -462,6 +464,7 @@ describe('milestoneDescriptionExtractor', () => {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			};
 			snapshot.relationships['Carol|User'] = {
 				pair: ['Carol', 'User'],

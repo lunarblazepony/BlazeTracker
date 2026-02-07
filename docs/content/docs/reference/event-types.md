@@ -80,6 +80,8 @@ A 28-day weather forecast was generated. No subkind.
 
 ## Character Events
 
+Character events track presence, profiles, state changes, and nicknames. The nickname extractor runs periodically (every 8 messages) to catch in-RP pet names, shortened names, and aliases that develop during the story.
+
 ### `character:appeared`
 A character entered the scene.
 
@@ -109,6 +111,14 @@ Character profile extracted (typically on first appearance).
 | `profile.age` | `number` | Age |
 | `profile.appearance` | `string[]` | Appearance tags |
 | `profile.personality` | `string[]` | Personality tags |
+
+### `character:akas_add`
+Additively merges new aliases into a character's known names. Generated at character appearance (from profile extraction) and periodically by the nickname extractor (every 8 messages).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `character` | `string` | Character name |
+| `akas` | `string[]` | New alternate names to add |
 
 ### `character:position_changed`
 Character moved to a new position within the location.

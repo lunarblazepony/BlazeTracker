@@ -131,6 +131,7 @@ function createTestCharacter(
 			footwear: 'sneakers',
 		},
 		profile: undefined,
+		akas: [],
 		...overrides,
 	};
 }

@@ -22,6 +22,7 @@ import type {
 	CharacterAppearedEvent,
 	CharacterDepartedEvent,
 	CharacterProfileSetEvent,
+	CharacterAkasAddEvent,
 	CharacterPositionChangedEvent,
 	CharacterActivityChangedEvent,
 	CharacterMoodAddedEvent,
@@ -50,6 +51,7 @@ import {
 	isCharacterAppearedEvent,
 	isCharacterDepartedEvent,
 	isCharacterProfileSetEvent,
+	isCharacterAkasAddEvent,
 	isCharacterPositionChangedEvent,
 	isCharacterActivityChangedEvent,
 	isCharacterMoodAddedEvent,
@@ -128,6 +130,10 @@ export function applyEventToProjection(projection: Projection, event: Event): vo
 	}
 	if (isCharacterProfileSetEvent(event)) {
 		applyCharacterProfileSet(projection, event);
+		return;
+	}
+	if (isCharacterAkasAddEvent(event)) {
+		applyCharacterAkasAdd(projection, event);
 		return;
 	}
 	if (isCharacterPositionChangedEvent(event)) {
@@ -342,6 +348,19 @@ function applyCharacterProfileSet(projection: Projection, event: CharacterProfil
 		appearance: [...event.profile.appearance],
 		personality: [...event.profile.personality],
 	};
+}
+
+function applyCharacterAkasAdd(projection: Projection, event: CharacterAkasAddEvent): void {
+	const char = ensureCharacter(projection, event.character);
+	const existing = new Set((char.akas ?? []).map(a => a.toLowerCase()));
+	const merged = [...(char.akas ?? [])];
+	for (const aka of event.akas) {
+		if (!existing.has(aka.toLowerCase())) {
+			merged.push(aka);
+			existing.add(aka.toLowerCase());
+		}
+	}
+	char.akas = merged;
 }
 
 function applyCharacterPositionChanged(

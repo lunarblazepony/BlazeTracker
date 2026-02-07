@@ -271,6 +271,7 @@ function createMockSnapshot(
 					socks: null,
 					footwear: 'sneakers',
 				},
+				akas: [],
 			},
 		},
 		relationships: {},

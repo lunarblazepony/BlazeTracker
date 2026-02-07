@@ -85,6 +85,10 @@ The first extraction often gets things wrong because it has limited context. Rat
 
 Editing is precise — you change exactly what's wrong. Re-extraction re-runs the full pipeline and might change things you were happy with.
 
+### Character AKAs / Nicknames
+
+Character AKAs (alternate names) can be viewed and edited in the snapshot editor under each character's entry. The nickname extractor runs automatically every 8 messages to detect in-RP pet names, shortened names, and aliases. If it picks up something incorrect, you can remove the `character:akas_add` event from the event editor, or edit the AKAs directly in the snapshot editor.
+
 ### Propagation
 
 Because state is event-sourced, editing an event at message 5 automatically updates the projected state at messages 6, 7, 8, etc. You don't need to re-extract downstream messages after making corrections.

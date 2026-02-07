@@ -115,6 +115,7 @@ function createMockProjection(overrides: Partial<Projection> = {}): Projection {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 			Marcus: {
 				name: 'Marcus',
@@ -133,6 +134,7 @@ function createMockProjection(overrides: Partial<Projection> = {}): Projection {
 					socks: null,
 					underwear: null,
 				},
+				akas: [],
 			},
 		},
 		relationships: {

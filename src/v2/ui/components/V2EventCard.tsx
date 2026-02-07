@@ -93,6 +93,10 @@ function getEventSummary(event: Event): string {
 					return `${event.character}: ${event.physicalState}`;
 				case 'physical_removed':
 					return `${event.character} recovered from ${event.physicalState}`;
+				case 'profile_set':
+					return `${event.character}'s profile set`;
+				case 'akas_add':
+					return `${event.character} AKAs: ${event.akas.join(', ')}`;
 				default:
 					return 'Character change';
 			}

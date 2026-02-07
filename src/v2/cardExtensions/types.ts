@@ -102,6 +102,10 @@ export interface BTProfileExtension {
 	appearance?: string[];
 	/** Personality tags (e.g., ["confident", "sarcastic", "loyal"]) */
 	personality?: string[];
+	/** Known nicknames/aliases/alternate names */
+	nicknames?: string[];
+	/** How to merge nicknames: 'additive' merges with extracted, 'replace' overrides */
+	nicknamesMode?: 'additive' | 'replace';
 }
 
 // ============================================
@@ -242,6 +246,13 @@ export function isValidBTProfileExtension(value: unknown): value is BTProfileExt
 	if (v.age !== undefined && typeof v.age !== 'number') return false;
 	if (v.appearance !== undefined && !Array.isArray(v.appearance)) return false;
 	if (v.personality !== undefined && !Array.isArray(v.personality)) return false;
+	if (v.nicknames !== undefined && !Array.isArray(v.nicknames)) return false;
+	if (
+		v.nicknamesMode !== undefined &&
+		v.nicknamesMode !== 'additive' &&
+		v.nicknamesMode !== 'replace'
+	)
+		return false;
 	return true;
 }
 

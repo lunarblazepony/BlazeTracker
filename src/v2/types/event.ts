@@ -51,6 +51,7 @@ export type CharacterSubkind =
 	| 'appeared'
 	| 'departed'
 	| 'profile_set'
+	| 'akas_add'
 	| 'position_changed'
 	| 'activity_changed'
 	| 'mood_added'
@@ -220,6 +221,18 @@ export interface CharacterProfileSetEvent extends BaseEvent {
 }
 
 /**
+ * Character AKAs add event.
+ * Adds new alternate names/nicknames for a character (additive, event-sourced).
+ */
+export interface CharacterAkasAddEvent extends BaseEvent {
+	kind: 'character';
+	subkind: 'akas_add';
+	character: string;
+	/** AKAs to add (merged with existing, deduplicated) */
+	akas: string[];
+}
+
+/**
  * Character position changed event.
  */
 export interface CharacterPositionChangedEvent extends BaseEvent {
@@ -297,6 +310,7 @@ export type CharacterEvent =
 	| CharacterAppearedEvent
 	| CharacterDepartedEvent
 	| CharacterProfileSetEvent
+	| CharacterAkasAddEvent
 	| CharacterPositionChangedEvent
 	| CharacterActivityChangedEvent
 	| CharacterMoodAddedEvent
@@ -568,6 +582,10 @@ export function isCharacterDepartedEvent(event: Event): event is CharacterDepart
 
 export function isCharacterProfileSetEvent(event: Event): event is CharacterProfileSetEvent {
 	return event.kind === 'character' && (event as CharacterEvent).subkind === 'profile_set';
+}
+
+export function isCharacterAkasAddEvent(event: Event): event is CharacterAkasAddEvent {
+	return event.kind === 'character' && (event as CharacterEvent).subkind === 'akas_add';
 }
 
 export function isCharacterPositionChangedEvent(

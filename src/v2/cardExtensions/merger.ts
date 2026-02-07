@@ -267,6 +267,23 @@ async function mergeProfile(
 				: [...existingProfile.personality],
 	};
 
+	// Merge nicknames into AKAs
+	let newAkas = [...(existingChar.akas ?? [])];
+	if (profile.nicknames && profile.nicknames.length > 0) {
+		if (profile.nicknamesMode === 'replace') {
+			newAkas = [...profile.nicknames];
+		} else {
+			// Additive (default): merge without duplicates (case-insensitive)
+			const existingLower = new Set(newAkas.map(a => a.toLowerCase()));
+			for (const nick of profile.nicknames) {
+				if (!existingLower.has(nick.toLowerCase())) {
+					newAkas.push(nick);
+					existingLower.add(nick.toLowerCase());
+				}
+			}
+		}
+	}
+
 	return {
 		...snapshot,
 		characters: {
@@ -274,6 +291,7 @@ async function mergeProfile(
 			[matchingCharacterKey]: {
 				...existingChar,
 				profile: newProfile,
+				akas: newAkas,
 			},
 		},
 	};
@@ -462,6 +480,7 @@ function cloneSnapshotForMerge(snapshot: Snapshot): Snapshot {
 					mood: [...char.mood],
 					physicalState: [...char.physicalState],
 					outfit: { ...char.outfit },
+					akas: [...(char.akas ?? [])],
 				},
 			]),
 		),

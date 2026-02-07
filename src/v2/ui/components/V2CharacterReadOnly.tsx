@@ -33,6 +33,14 @@ export function V2CharacterReadOnly({ character }: V2CharacterReadOnlyProps) {
 		<div className="bt-v2-character-readonly">
 			<div className="bt-char-readonly-header">
 				<strong>{character.name}</strong>
+				{character.akas && character.akas.length > 0 && (
+					<span
+						className="bt-char-akas"
+						title={`AKAs: ${character.akas.join(', ')}`}
+					>
+						({character.akas.join(', ')})
+					</span>
+				)}
 				{character.profile && (
 					<span className="bt-char-profile-basic">
 						{character.profile.sex}/{character.profile.species},{' '}

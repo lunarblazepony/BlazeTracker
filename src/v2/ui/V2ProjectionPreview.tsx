@@ -268,6 +268,14 @@ function CharacterStateCard({ character, compact = false }: CharacterStateCardPr
 		<div className="bt-projected-character">
 			<div className="bt-projected-char-header">
 				<span className="bt-projected-char-name">{character.name}</span>
+				{character.akas && character.akas.length > 0 && (
+					<span
+						className="bt-projected-char-akas"
+						title={`AKAs: ${character.akas.join(', ')}`}
+					>
+						({character.akas.join(', ')})
+					</span>
+				)}
 				{character.position && character.position !== 'unknown' && (
 					<span className="bt-projected-char-position">
 						{character.position}

@@ -763,6 +763,16 @@ function CharacterEditor({ character, onUpdate, onDelete }: CharacterEditorProps
 					)}
 				</div>
 
+				{/* AKAs */}
+				<div className="bt-snapshot-field">
+					<label>AKAs</label>
+					<TagInput
+						tags={character.akas ?? []}
+						onChange={tags => updateField('akas', tags)}
+						placeholder="Add alias..."
+					/>
+				</div>
+
 				{/* Position & Activity */}
 				<div className="bt-snapshot-field">
 					<label>Position</label>

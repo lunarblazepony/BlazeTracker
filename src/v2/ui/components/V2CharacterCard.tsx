@@ -62,6 +62,14 @@ export function V2CharacterCard({ character, relationships }: V2CharacterCardPro
 						{character.profile.age}
 					</span>
 				)}
+				{character.akas && character.akas.length > 0 && (
+					<span
+						className="bt-char-akas"
+						title={`AKAs: ${character.akas.join(', ')}`}
+					>
+						({character.akas.join(', ')})
+					</span>
+				)}
 				<span className="bt-char-mood">{mood}</span>
 			</div>
 
