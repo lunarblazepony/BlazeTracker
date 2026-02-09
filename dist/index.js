@@ -144236,6 +144236,7 @@ const V2_EVENT_COLORS = {
     character: '#3b82f6', // blue
     relationship: '#ec4899', // pink
     scene: '#f59e0b', // amber
+    narrative: '#f97316', // orange
     chapter: '#6366f1', // indigo
     add: '#22c55e', // green
     remove: '#ef4444', // red
@@ -144272,6 +144273,8 @@ const V2_EVENT_ICONS = {
     // Scene
     topic_tone: 'fa-comment',
     tension: 'fa-bolt',
+    // Narrative
+    narrative_description: 'fa-scroll',
     // Chapter
     chapter_ended: 'fa-flag-checkered',
     chapter_described: 'fa-book',
@@ -144308,6 +144311,8 @@ function getEventColor(event) {
         return V2_EVENT_COLORS.relationship;
     if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isTensionEvent)(event) || (0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isTopicToneEvent)(event))
         return V2_EVENT_COLORS.scene;
+    if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isNarrativeDescriptionEvent)(event))
+        return V2_EVENT_COLORS.narrative;
     if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isChapterEvent)(event))
         return V2_EVENT_COLORS.chapter;
     return '#6b7280';
@@ -144330,6 +144335,7 @@ const V2EventEditor = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)(function
         const characterEvents = [];
         const relationshipEvents = [];
         const sceneEvents = [];
+        const narrativeDescriptionEvents = [];
         const chapterEvents = [];
         for (const event of events) {
             if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isTimeEvent)(event)) {
@@ -144347,6 +144353,9 @@ const V2EventEditor = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)(function
             else if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isTensionEvent)(event) || (0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isTopicToneEvent)(event)) {
                 sceneEvents.push(event);
             }
+            else if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isNarrativeDescriptionEvent)(event)) {
+                narrativeDescriptionEvents.push(event);
+            }
             else if ((0,_types_event__WEBPACK_IMPORTED_MODULE_2__.isChapterEvent)(event)) {
                 chapterEvents.push(event);
             }
@@ -144357,6 +144366,7 @@ const V2EventEditor = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)(function
             characterEvents,
             relationshipEvents,
             sceneEvents,
+            narrativeDescriptionEvents,
             chapterEvents,
         };
     }, [events]);
@@ -144401,6 +144411,11 @@ const V2EventEditor = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)(function
                         event.id
                         ? inlineEditorRef
                         : undefined, onUpdate: updates => handleUpdateEvent(event.id, updates), onDelete: () => handleDelete(event.id), projection: projection }, event.id))) })), groupedEvents.sceneEvents.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(EventGroup, { kind: "scene", label: "Scene Events", icon: "fa-bolt", count: groupedEvents.sceneEvents.length, collapsed: collapsedGroups.has('scene'), onToggle: () => toggleGroup('scene'), children: groupedEvents.sceneEvents.map((event, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(V2SceneEventCard, { event: event, index: idx, isEditing: editingEventId === event.id, onStartEdit: () => setEditingEventId(event.id), onEndEdit: () => setEditingEventId(null), editorRef: editingEventId === event.id
+                        ? inlineEditorRef
+                        : undefined, onUpdate: updates => handleUpdateEvent(event.id, updates), onDelete: () => handleDelete(event.id) }, event.id))) })), groupedEvents.narrativeDescriptionEvents.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(EventGroup, { kind: "narrative", label: "Narrative Events", icon: "fa-scroll", count: groupedEvents.narrativeDescriptionEvents
+                    .length, collapsed: collapsedGroups.has('narrative'), onToggle: () => toggleGroup('narrative'), children: groupedEvents.narrativeDescriptionEvents.map((event, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(V2NarrativeDescriptionEventCard, { event: event, index: idx, isEditing: editingEventId ===
+                        event.id, onStartEdit: () => setEditingEventId(event.id), onEndEdit: () => setEditingEventId(null), editorRef: editingEventId ===
+                        event.id
                         ? inlineEditorRef
                         : undefined, onUpdate: updates => handleUpdateEvent(event.id, updates), onDelete: () => handleDelete(event.id) }, event.id))) })), groupedEvents.chapterEvents.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(EventGroup, { kind: "chapter", label: "Chapter Events", icon: "fa-book", count: groupedEvents.chapterEvents.length, collapsed: collapsedGroups.has('chapter'), onToggle: () => toggleGroup('chapter'), children: groupedEvents.chapterEvents.map((event, idx) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(V2ChapterEventCard, { event: event, index: idx, onDelete: () => handleDelete(event.id) }, event.id))) }))] }));
 });
@@ -144768,6 +144783,26 @@ const V2TopicToneEventEditor = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)
     }), [topic, tone]);
     return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-card bt-event-card-editing", "data-kind": "scene", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-event-card-content", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-char-edit-fields", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", placeholder: "Topic", value: topic, onChange: e => setTopic(e.target.value) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", placeholder: "Tone", value: tone, onChange: e => setTone(e.target.value) })] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-actions", style: { opacity: 1 }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-action-btn", onClick: () => onSave({ topic, tone }), title: "Save", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-check" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-action-btn", onClick: onCancel, title: "Cancel", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }) })] })] }));
 });
+function V2NarrativeDescriptionEventCard({ event, index, isEditing, onStartEdit, onEndEdit, editorRef, onUpdate, onDelete, }) {
+    const color = V2_EVENT_COLORS.narrative;
+    const truncated = event.description.length > 80
+        ? event.description.slice(0, 80) + '...'
+        : event.description;
+    if (isEditing) {
+        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(V2NarrativeDescriptionEditor, { ref: editorRef, event: event, onSave: updates => {
+                onUpdate(updates);
+                onEndEdit();
+            }, onCancel: onEndEdit }));
+    }
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-card", "data-kind": "narrative", style: { '--event-type-color': color }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-card-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-state-event-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { className: "bt-event-index", children: ["#", index + 1] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-scroll", style: { color } }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-event-subkind", children: "Narrative Description" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-event-details", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "bt-event-value", children: truncated || '(empty)' }) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-actions", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-action-btn", onClick: onStartEdit, title: "Edit", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-pen" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-action-btn delete", onClick: onDelete, title: "Delete", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-trash" }) })] })] }));
+}
+const V2NarrativeDescriptionEditor = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)(function V2NarrativeDescriptionEditor({ event, onSave, onCancel }, ref) {
+    const [description, setDescription] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(event.description);
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useImperativeHandle)(ref, () => ({
+        getCurrentState: () => ({ description }),
+    }), [description]);
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-card bt-event-card-editing", "data-kind": "narrative", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-event-card-content", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bt-char-edit-fields", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { placeholder: "Narrative description", value: description, onChange: e => setDescription(e.target.value), rows: 3 }) }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-event-actions", style: { opacity: 1 }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-action-btn", onClick: () => onSave({ description }), title: "Save", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-check" }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "bt-action-btn", onClick: onCancel, title: "Cancel", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-times" }) })] })] }));
+});
 function V2ChapterEventCard({ event, index, onDelete }) {
     const isEnded = event.subkind === 'ended';
     const color = V2_EVENT_COLORS.chapter;
@@ -145134,7 +145169,11 @@ function V2AddEventMenu({ messageId, swipeId, onAdd, onClose, projection, }) {
                             kind: 'topic_tone',
                             topic: '',
                             tone: '',
-                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-comment" }), "Topic/Tone Change"] })] })] }));
+                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-comment" }), "Topic/Tone Change"] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-v2-add-event-option", onClick: () => onAdd({
+                            ...createBaseEvent(),
+                            kind: 'narrative_description',
+                            description: '',
+                        }), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("i", { className: "fa-solid fa-scroll" }), "Narrative Description"] })] })] }));
 }
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (V2EventEditor);
 

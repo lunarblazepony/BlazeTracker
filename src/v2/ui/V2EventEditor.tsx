@@ -43,6 +43,7 @@ import type {
 	TensionEvent,
 	TopicToneEvent,
 	ChapterEvent,
+	NarrativeDescriptionEvent,
 } from '../types/event';
 import {
 	isTimeEvent,
@@ -58,6 +59,7 @@ import {
 	isDirectionalRelationshipEvent,
 	isTensionEvent,
 	isTopicToneEvent,
+	isNarrativeDescriptionEvent,
 	isChapterEvent,
 } from '../types/event';
 import type { RelationshipSubjectEvent } from '../types/event';
@@ -105,7 +107,14 @@ interface V2EventEditorProps {
 	projection: Projection;
 }
 
-type V2EventGroupKind = 'time' | 'location' | 'character' | 'relationship' | 'scene' | 'chapter';
+type V2EventGroupKind =
+	| 'time'
+	| 'location'
+	| 'character'
+	| 'relationship'
+	| 'scene'
+	| 'narrative'
+	| 'chapter';
 
 /** Handle for inline editors to expose their current state */
 interface InlineEditorHandle {
@@ -122,6 +131,7 @@ const V2_EVENT_COLORS = {
 	character: '#3b82f6', // blue
 	relationship: '#ec4899', // pink
 	scene: '#f59e0b', // amber
+	narrative: '#f97316', // orange
 	chapter: '#6366f1', // indigo
 	add: '#22c55e', // green
 	remove: '#ef4444', // red
@@ -159,6 +169,8 @@ const V2_EVENT_ICONS: Record<string, string> = {
 	// Scene
 	topic_tone: 'fa-comment',
 	tension: 'fa-bolt',
+	// Narrative
+	narrative_description: 'fa-scroll',
 	// Chapter
 	chapter_ended: 'fa-flag-checkered',
 	chapter_described: 'fa-book',
@@ -199,6 +211,7 @@ function getEventColor(event: Event): string {
 	}
 	if (isRelationshipEvent(event)) return V2_EVENT_COLORS.relationship;
 	if (isTensionEvent(event) || isTopicToneEvent(event)) return V2_EVENT_COLORS.scene;
+	if (isNarrativeDescriptionEvent(event)) return V2_EVENT_COLORS.narrative;
 	if (isChapterEvent(event)) return V2_EVENT_COLORS.chapter;
 	return '#6b7280';
 }
@@ -227,6 +240,7 @@ export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>
 			const characterEvents: CharacterEvent[] = [];
 			const relationshipEvents: RelationshipEvent[] = [];
 			const sceneEvents: (TensionEvent | TopicToneEvent)[] = [];
+			const narrativeDescriptionEvents: NarrativeDescriptionEvent[] = [];
 			const chapterEvents: ChapterEvent[] = [];
 
 			for (const event of events) {
@@ -240,6 +254,8 @@ export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>
 					relationshipEvents.push(event);
 				} else if (isTensionEvent(event) || isTopicToneEvent(event)) {
 					sceneEvents.push(event);
+				} else if (isNarrativeDescriptionEvent(event)) {
+					narrativeDescriptionEvents.push(event);
 				} else if (isChapterEvent(event)) {
 					chapterEvents.push(event);
 				}
@@ -251,6 +267,7 @@ export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>
 				characterEvents,
 				relationshipEvents,
 				sceneEvents,
+				narrativeDescriptionEvents,
 				chapterEvents,
 			};
 		}, [events]);
@@ -526,6 +543,62 @@ export const V2EventEditor = forwardRef<V2EventEditorHandle, V2EventEditorProps>
 								}
 							/>
 						))}
+					</EventGroup>
+				)}
+
+				{/* Narrative Events */}
+				{groupedEvents.narrativeDescriptionEvents.length > 0 && (
+					<EventGroup
+						kind="narrative"
+						label="Narrative Events"
+						icon="fa-scroll"
+						count={
+							groupedEvents.narrativeDescriptionEvents
+								.length
+						}
+						collapsed={collapsedGroups.has('narrative')}
+						onToggle={() => toggleGroup('narrative')}
+					>
+						{groupedEvents.narrativeDescriptionEvents.map(
+							(event, idx) => (
+								<V2NarrativeDescriptionEventCard
+									key={event.id}
+									event={event}
+									index={idx}
+									isEditing={
+										editingEventId ===
+										event.id
+									}
+									onStartEdit={() =>
+										setEditingEventId(
+											event.id,
+										)
+									}
+									onEndEdit={() =>
+										setEditingEventId(
+											null,
+										)
+									}
+									editorRef={
+										editingEventId ===
+										event.id
+											? inlineEditorRef
+											: undefined
+									}
+									onUpdate={updates =>
+										handleUpdateEvent(
+											event.id,
+											updates,
+										)
+									}
+									onDelete={() =>
+										handleDelete(
+											event.id,
+										)
+									}
+								/>
+							),
+						)}
 					</EventGroup>
 				)}
 
@@ -2011,6 +2084,137 @@ const V2TopicToneEventEditor = forwardRef<
 });
 
 // =============================================
+// Narrative Description Event Card
+// =============================================
+
+interface V2NarrativeDescriptionEventCardProps {
+	event: NarrativeDescriptionEvent;
+	index: number;
+	isEditing: boolean;
+	onStartEdit: () => void;
+	onEndEdit: () => void;
+	editorRef?: React.RefObject<InlineEditorHandle | null>;
+	onUpdate: (updates: Partial<NarrativeDescriptionEvent>) => void;
+	onDelete: () => void;
+}
+
+function V2NarrativeDescriptionEventCard({
+	event,
+	index,
+	isEditing,
+	onStartEdit,
+	onEndEdit,
+	editorRef,
+	onUpdate,
+	onDelete,
+}: V2NarrativeDescriptionEventCardProps) {
+	const color = V2_EVENT_COLORS.narrative;
+	const truncated =
+		event.description.length > 80
+			? event.description.slice(0, 80) + '...'
+			: event.description;
+
+	if (isEditing) {
+		return (
+			<V2NarrativeDescriptionEditor
+				ref={editorRef}
+				event={event}
+				onSave={updates => {
+					onUpdate(updates);
+					onEndEdit();
+				}}
+				onCancel={onEndEdit}
+			/>
+		);
+	}
+
+	return (
+		<div
+			className="bt-event-card"
+			data-kind="narrative"
+			style={{ '--event-type-color': color } as React.CSSProperties}
+		>
+			<div className="bt-event-card-content">
+				<div className="bt-state-event-header">
+					<span className="bt-event-index">#{index + 1}</span>
+					<i className="fa-solid fa-scroll" style={{ color }} />
+					<span className="bt-event-subkind">
+						Narrative Description
+					</span>
+				</div>
+				<div className="bt-event-details">
+					<span className="bt-event-value">
+						{truncated || '(empty)'}
+					</span>
+				</div>
+			</div>
+			<div className="bt-event-actions">
+				<button
+					className="bt-action-btn"
+					onClick={onStartEdit}
+					title="Edit"
+				>
+					<i className="fa-solid fa-pen"></i>
+				</button>
+				<button
+					className="bt-action-btn delete"
+					onClick={onDelete}
+					title="Delete"
+				>
+					<i className="fa-solid fa-trash"></i>
+				</button>
+			</div>
+		</div>
+	);
+}
+
+const V2NarrativeDescriptionEditor = forwardRef<
+	InlineEditorHandle,
+	{
+		event: NarrativeDescriptionEvent;
+		onSave: (updates: Partial<NarrativeDescriptionEvent>) => void;
+		onCancel: () => void;
+	}
+>(function V2NarrativeDescriptionEditor({ event, onSave, onCancel }, ref) {
+	const [description, setDescription] = useState(event.description);
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			getCurrentState: () => ({ description }),
+		}),
+		[description],
+	);
+
+	return (
+		<div className="bt-event-card bt-event-card-editing" data-kind="narrative">
+			<div className="bt-event-card-content">
+				<div className="bt-char-edit-fields">
+					<textarea
+						placeholder="Narrative description"
+						value={description}
+						onChange={e => setDescription(e.target.value)}
+						rows={3}
+					/>
+				</div>
+			</div>
+			<div className="bt-event-actions" style={{ opacity: 1 }}>
+				<button
+					className="bt-action-btn"
+					onClick={() => onSave({ description })}
+					title="Save"
+				>
+					<i className="fa-solid fa-check"></i>
+				</button>
+				<button className="bt-action-btn" onClick={onCancel} title="Cancel">
+					<i className="fa-solid fa-times"></i>
+				</button>
+			</div>
+		</div>
+	);
+});
+
+// =============================================
 // Chapter Event Card (Read-Only)
 // =============================================
 
@@ -3197,6 +3401,19 @@ export function V2AddEventMenu({
 				>
 					<i className="fa-solid fa-comment"></i>
 					Topic/Tone Change
+				</div>
+				<div
+					className="bt-v2-add-event-option"
+					onClick={() =>
+						onAdd({
+							...createBaseEvent(),
+							kind: 'narrative_description',
+							description: '',
+						} as NarrativeDescriptionEvent)
+					}
+				>
+					<i className="fa-solid fa-scroll"></i>
+					Narrative Description
 				</div>
 			</div>
 		</>
