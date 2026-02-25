@@ -1117,6 +1117,88 @@ function V2SettingsPanel() {
 							}
 						/>
 
+						<hr />
+
+						{/* Scene Shakeups Section */}
+						<div className="bt-section-header">
+							<strong>Scene Shakeups</strong>
+							<small>
+								LLM-driven random event injection to
+								prevent stale conversations
+							</small>
+						</div>
+
+						<CheckboxField
+							id="bt-v2-shakeupenabled"
+							label="Enable Scene Shakeups"
+							description="Occasionally inject scene-appropriate disruptions into the generation prompt"
+							checked={settings.v2ShakeupEnabled}
+							onChange={checked =>
+								handleUpdate(
+									'v2ShakeupEnabled',
+									checked,
+								)
+							}
+						/>
+
+						{settings.v2ShakeupEnabled && (
+							<div
+								className="flex-container flexFlowColumn"
+								style={{
+									marginBottom: '1em',
+								}}
+							>
+								<label htmlFor="bt-v2-shakeupmaxmessages">
+									Max Messages Between
+									Shakeups
+								</label>
+								<small>
+									Probability reaches 100% at
+									this number of messages
+									(quadratic curve: low early,
+									guaranteed at max)
+								</small>
+								<input
+									id="bt-v2-shakeupmaxmessages"
+									type="number"
+									className="text_pole"
+									min="5"
+									max="100"
+									step="1"
+									value={
+										settings.v2ShakeupMaxMessages
+									}
+									onChange={e => {
+										const value =
+											parseInt(
+												e
+													.target
+													.value,
+												10,
+											);
+										if (
+											!isNaN(
+												value,
+											) &&
+											value >=
+												5 &&
+											value <= 100
+										) {
+											handleUpdate(
+												'v2ShakeupMaxMessages',
+												value,
+											);
+										}
+									}}
+									style={{
+										width: '120px',
+									}}
+								/>
+							</div>
+						)}
+
+						<hr />
+
 						{/* Max Recent Chapters */}
 						<div
 							className="flex-container flexFlowColumn"

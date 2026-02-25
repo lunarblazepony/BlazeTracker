@@ -101787,6 +101787,8 @@ async function init() {
         getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
         hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
         buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
+        getV2ShakeupHistory: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2ShakeupHistory,
+        saveV2ShakeupHistory: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.saveV2ShakeupHistory,
     });
     // Register bridge functions for macros and register ST macros
     (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__.registerMacroBridgeFunctions)({
@@ -107659,8 +107661,16 @@ const narrativeDescriptionExtractor = {
             }
             worldinfo = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_4__.getWorldinfoForPrompt)(messagesForWorldinfo);
         }
+        // Format recent narratives for deduplication (already canonical-path-only via projection)
+        const recentNarratives = projection.narrativeEvents
+            .slice(-3)
+            .map(e => `- ${e.description}`)
+            .join('\n') || 'None';
         // Build the prompt with current context
-        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.buildExtractorPrompt)(_prompts_events_narrativeDescriptionPrompt__WEBPACK_IMPORTED_MODULE_1__.narrativeDescriptionPrompt, context, projection, settings, startMessageId, endMessageId, { worldinfo: worldinfo || 'No worldinfo available' });
+        const builtPrompt = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.buildExtractorPrompt)(_prompts_events_narrativeDescriptionPrompt__WEBPACK_IMPORTED_MODULE_1__.narrativeDescriptionPrompt, context, projection, settings, startMessageId, endMessageId, {
+            worldinfo: worldinfo || 'No worldinfo available',
+            additionalValues: { recentNarratives },
+        });
         // Get temperature (prompt override → category → default)
         const temperature = (0,_utils__WEBPACK_IMPORTED_MODULE_2__.getExtractorTemperature)(settings, this.prompt.name, 'narrative', this.defaultTemperature);
         // Generate and parse the response
@@ -114453,6 +114463,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _state__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./state */ "./src/v2/injectors/state.ts");
 /* harmony import */ var _contextBudget__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./contextBudget */ "./src/v2/injectors/contextBudget.ts");
 /* harmony import */ var _utils_tokenCount__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../utils/tokenCount */ "./src/v2/utils/tokenCount.ts");
+/* harmony import */ var _shakeups_probability__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../shakeups/probability */ "./src/v2/shakeups/probability.ts");
+/* harmony import */ var _shakeups_history__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../shakeups/history */ "./src/v2/shakeups/history.ts");
+/* harmony import */ var _shakeups_generateShakeup__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../shakeups/generateShakeup */ "./src/v2/shakeups/generateShakeup.ts");
+/* harmony import */ var _generator_SillyTavernGenerator__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ../generator/SillyTavernGenerator */ "./src/v2/generator/SillyTavernGenerator.ts");
+/* harmony import */ var _extractors_utils_buildPrompt__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ../extractors/utils/buildPrompt */ "./src/v2/extractors/utils/buildPrompt.ts");
+/* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /**
  * Prompt Hook for Context-Aware Injection
  *
@@ -114463,6 +114479,12 @@ __webpack_require__.r(__webpack_exports__);
  * - CHAT_COMPLETION_PROMPT_READY: For chat completion APIs (OpenAI, Claude, etc.)
  * - GENERATE_BEFORE_COMBINE_PROMPTS: For text completion APIs (Kobold, TextGen, etc.)
  */
+
+
+
+
+
+
 
 
 
@@ -114644,6 +114666,169 @@ function findChatMessageRange(chatMessages) {
     }
     return { startIndex, endIndex: chatMessages.length };
 }
+// ============================================
+// Scene Shakeup Injection
+// ============================================
+/**
+ * Get recent messages from ST chat as formatted strings.
+ */
+function getRecentMessages(stContext, count) {
+    const messages = [];
+    const start = Math.max(0, stContext.chat.length - count);
+    for (let i = start; i < stContext.chat.length; i++) {
+        const msg = stContext.chat[i];
+        if (msg.mes) {
+            messages.push(`${msg.name}: ${msg.mes}`);
+        }
+    }
+    return messages.join('\n\n');
+}
+/**
+ * Get character description from ST context.
+ */
+function getCharacterDescription(stContext) {
+    const char = stContext.characters?.[stContext.characterId];
+    if (!char)
+        return '';
+    const parts = [];
+    if (char.description)
+        parts.push(char.description);
+    if (char.personality)
+        parts.push(`Personality: ${char.personality}`);
+    if (char.scenario)
+        parts.push(`Scenario: ${char.scenario}`);
+    return parts.join('\n\n');
+}
+/**
+ * Get user description from ST context.
+ */
+function getUserDescription(stContext) {
+    return stContext.powerUserSettings?.persona_description || stContext.persona || '';
+}
+/**
+ * Format all present-character relationships from projection.
+ */
+function formatRelationships(projection) {
+    const presentSet = new Set(projection.charactersPresent);
+    const formatted = [];
+    for (const rel of Object.values(projection.relationships)) {
+        if (presentSet.has(rel.pair[0]) && presentSet.has(rel.pair[1])) {
+            formatted.push((0,_extractors_utils_buildPrompt__WEBPACK_IMPORTED_MODULE_11__.formatRelationshipState)(projection, rel.pair));
+        }
+    }
+    return formatted.length > 0 ? formatted.join('\n\n') : '';
+}
+/**
+ * Try to inject a scene shakeup into the prompt.
+ * Returns the injection text or null if no shakeup triggered.
+ */
+async function tryInjectShakeup(params) {
+    const { settings, stContext, swipeContext, store, projection } = params;
+    // Check if shakeups are enabled and profile is set
+    if (!settings.v2ShakeupEnabled || !settings.v2ProfileId) {
+        return null;
+    }
+    // Must have at least one message
+    if (stContext.chat.length === 0) {
+        return null;
+    }
+    // Must have bridge functions
+    if (!bridgeFunctions) {
+        return null;
+    }
+    try {
+        // Load history and compute distance
+        const history = bridgeFunctions.getV2ShakeupHistory();
+        // Determine the target message — the assistant response being generated.
+        // During normal generation, the chat ends with the user message and the
+        // assistant response will be added at chat.length.
+        // During swipe/continuation, the assistant message already exists at the end.
+        const lastMsg = stContext.chat[stContext.chat.length - 1];
+        const isRegeneration = lastMsg && !lastMsg.is_user;
+        const targetMessageId = isRegeneration
+            ? stContext.chat.length - 1
+            : stContext.chat.length;
+        const targetSwipeId = isRegeneration ? (lastMsg.swipe_id ?? 0) : 0;
+        const messagesSince = (0,_shakeups_history__WEBPACK_IMPORTED_MODULE_8__.getMessagesSinceLastShakeup)(history, targetMessageId, swipeContext);
+        // Roll against probability curve
+        const probability = (0,_shakeups_probability__WEBPACK_IMPORTED_MODULE_7__.computeShakeupProbability)(messagesSince, settings.v2ShakeupMaxMessages);
+        const roll = Math.random();
+        const triggered = roll < probability;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Shakeup roll: target=msg${targetMessageId}${isRegeneration ? '(regen)' : '(new)'}, ` +
+            `${messagesSince} msgs since last, ` +
+            `probability=${(probability * 100).toFixed(1)}%, ` +
+            `roll=${(roll * 100).toFixed(1)}%, ` +
+            `${triggered ? 'TRIGGERED' : 'not triggered'}`);
+        if (!triggered) {
+            return null;
+        }
+        // Gather context
+        const recentMessages = getRecentMessages(stContext, 8);
+        const characterDescription = getCharacterDescription(stContext);
+        const userDescription = getUserDescription(stContext);
+        const characterProfiles = (0,_extractors_utils_buildPrompt__WEBPACK_IMPORTED_MODULE_11__.formatCharacterProfiles)(projection);
+        const relationships = formatRelationships(projection);
+        // Optional worldinfo
+        let worldinfo;
+        if (settings.v2IncludeWorldinfo) {
+            try {
+                const messageTexts = stContext.chat
+                    .slice(-8)
+                    .map(m => m.mes)
+                    .filter(Boolean);
+                const wi = await (0,_utils_worldinfo__WEBPACK_IMPORTED_MODULE_12__.getWorldinfoForPrompt)(messageTexts);
+                if (wi)
+                    worldinfo = wi;
+            }
+            catch {
+                // Worldinfo fetch failure is non-fatal
+            }
+        }
+        // Create generator and generate suggestions
+        const generator = new _generator_SillyTavernGenerator__WEBPACK_IMPORTED_MODULE_10__.SillyTavernGenerator({ profileId: settings.v2ProfileId });
+        const result = await (0,_shakeups_generateShakeup__WEBPACK_IMPORTED_MODULE_9__.generateShakeup)({
+            generator,
+            projection,
+            store,
+            swipeContext,
+            characterDescription,
+            userDescription,
+            characterProfiles,
+            relationships,
+            recentMessages,
+            worldinfo,
+        });
+        if (!result || result.suggestions.length === 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugWarn)('Shakeup generation returned no suggestions');
+            return null;
+        }
+        // Log all generated options
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Shakeup options (${result.suggestions.length}):`);
+        for (let i = 0; i < result.suggestions.length; i++) {
+            const s = result.suggestions[i];
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`  [${i}] (${s.type}) ${s.instruction} — ${s.rationale}`);
+        }
+        // Pick a random suggestion
+        const selectedIndex = Math.floor(Math.random() * result.suggestions.length);
+        const selected = result.suggestions[selectedIndex];
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Selected shakeup [${selectedIndex}]: (${selected.type}) ${selected.instruction}`);
+        // Record the trigger at the assistant response message
+        (0,_shakeups_history__WEBPACK_IMPORTED_MODULE_8__.addShakeupTrigger)(history, { messageId: targetMessageId, swipeId: targetSwipeId });
+        await bridgeFunctions.saveV2ShakeupHistory();
+        // Format injection block — must be forceful to prevent the LLM from ignoring it
+        return (`[IMPORTANT — Mandatory Scene Direction]\n` +
+            `You MUST incorporate the following event into your next response. This is not optional. ` +
+            `The event MUST occur during this response and be woven naturally into the narrative.\n\n` +
+            `Event: ${selected.instruction}\n\n` +
+            `Write the event as a natural part of the scene — do not announce it mechanically or break immersion. ` +
+            `The event must happen, but how the characters react should be true to their personalities.\n` +
+            `[/IMPORTANT — Mandatory Scene Direction]`);
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugWarn)('Shakeup injection failed (non-fatal):', error);
+        return null;
+    }
+}
 /**
  * Handle the CHAT_COMPLETION_PROMPT_READY event.
  * This is called when ST is about to send a prompt to the LLM.
@@ -114699,9 +114884,22 @@ async function handlePromptReady(eventData) {
         const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
         // Build state content to know its token cost (skip if state injection disabled)
-        const stateContent = settings.v2InjectState
+        let stateContent = settings.v2InjectState
             ? buildAfterMessagesContent(store, swipeContext, projection)
             : '';
+        // Try shakeup injection — append to state content if triggered
+        const shakeupContent = await tryInjectShakeup({
+            settings,
+            stContext,
+            swipeContext,
+            store,
+            projection,
+        });
+        if (shakeupContent) {
+            stateContent = stateContent
+                ? `${stateContent}\n\n${shakeupContent}`
+                : shakeupContent;
+        }
         const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
         // Estimate message tokens from ST's chat array
         // Note: ST's chat array has messages in order, but may include system messages
@@ -114856,9 +115054,22 @@ async function handleTextCompletionPromptReady(eventData) {
         const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
         // Build state content to know its token cost (skip if state injection disabled)
-        const stateContent = settings.v2InjectState
+        let stateContent = settings.v2InjectState
             ? buildAfterMessagesContent(store, swipeContext, projection)
             : '';
+        // Try shakeup injection — append to state content if triggered
+        const shakeupContent = await tryInjectShakeup({
+            settings,
+            stContext,
+            swipeContext,
+            store,
+            projection,
+        });
+        if (shakeupContent) {
+            stateContent = stateContent
+                ? `${stateContent}\n\n${shakeupContent}`
+                : shakeupContent;
+        }
         const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
         // Count tokens for each message in finalMesSend
         // Each entry has: { message: string, extensionPrompts: string[] }
@@ -122761,6 +122972,40 @@ OUTPUT:
   "reasoning": "Charlotte learned she was adopted and her birth mother was hidden from her for 23 years.",
   "description": "Charlotte discovered she was secretly adopted; Lady Ashworth revealed her birth mother was deemed unsuitable"
 }
+
+### Example 7: Avoiding Repetition - Continuing Activity
+INPUT:
+Recent Narratives:
+- Kai and Mei shared their first kiss in the rain
+- Kai led Mei inside and they continued their passionate embrace
+Messages:
+"""
+Kai: *He pulls back slightly, breathless.* "Stay tonight." *His eyes search hers.* "I don't want this to end."
+
+Mei: *She traces his jawline.* "I'm not going anywhere." *She pulls him toward the bedroom.*
+"""
+OUTPUT:
+{
+  "reasoning": "Previous entries already covered the kiss and embrace. What's new here is the decision to spend the night together - the commitment to continue rather than the physical actions themselves.",
+  "description": "Kai asked Mei to stay the night; she agreed and led him to the bedroom"
+}
+
+### Example 8: Avoiding Repetition - Progressing Scene
+INPUT:
+Recent Narratives:
+- Marcus and Elena argued about his deception
+- Elena demanded the truth about Marcus's past
+Messages:
+"""
+Marcus: *He sinks into the chair, all resistance gone.* "Fine. You want the truth?" *He pulls out a faded photograph.* "I was never a businessman. I was an operative. And the people I worked for? They're the ones who killed your sister."
+
+Elena: *The photograph falls from her trembling hands.* "What?"
+"""
+OUTPUT:
+{
+  "reasoning": "Previous entries covered the argument and demands for truth. The new development is Marcus's actual confession - his real identity and the bombshell about Elena's sister. Focus on what was revealed, not that they were still arguing.",
+  "description": "Marcus confessed he was a former operative and revealed his employers killed Elena's sister"
+}
 `;
 const narrativeDescriptionResponseSchema = {
     type: 'object',
@@ -122781,6 +123026,7 @@ const narrativeDescriptionPrompt = {
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterName,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.characterProfiles,
         _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.worldinfo,
+        _placeholders__WEBPACK_IMPORTED_MODULE_1__.PLACEHOLDERS.recentNarratives,
     ],
     systemPrompt: `You are summarizing roleplay messages for a narrative log.
 
@@ -122800,6 +123046,13 @@ Respond with a JSON object containing:
 - Use semicolons to separate multiple events in one description
 - Don't editorialize or add interpretation
 
+## Avoiding Repetition
+You will be given recent narrative descriptions. Your new description MUST:
+- Use different phrasing and vocabulary from previous entries
+- Focus on what is NEW or DIFFERENT about this moment
+- Avoid restating the same actions with minor word changes
+- If a similar activity continues, describe the progression or shift, not the activity itself
+
 ${EXAMPLES}
 `,
     userTemplate: `## Character Context
@@ -122811,11 +123064,14 @@ Name: {{characterName}}
 ## Worldinfo/Lorebook Context
 {{worldinfo}}
 
+## Recent Narrative Descriptions (avoid repeating these)
+{{recentNarratives}}
+
 ## Messages to Summarize
 {{messages}}
 
 ## Task
-Write a brief, factual description of what happened in these messages.`,
+Write a brief, factual description of what happened in these messages. Use different phrasing from the recent narratives above and focus on what is new or different.`,
     responseSchema: narrativeDescriptionResponseSchema,
     defaultTemperature: 0.5,
     parseResponse(response) {
@@ -130184,6 +130440,24 @@ OUTPUT:
   "newLevel": "charged",
   "newType": "vulnerable"
 }
+
+### Example 23: Fear Transforms to Thrill
+INPUT:
+Previous Tension: Level: tense | Type: suspense
+Messages:
+"""
+Kai: *The bungee cord snaps taut and he's suddenly falling, the canyon rushing up at him. His scream of terror transforms mid-drop into something else entirely - a howl of pure exhilaration as the cord catches and he bounces.*
+
+Luna: *From the bridge above.* "KAI! Are you okay?!"
+
+Kai: *Dangling upside down, laughing uncontrollably.* "AGAIN! I want to go AGAIN!" *He's trembling but grinning from ear to ear.* "That was the most incredible thing I've ever felt!"
+"""
+OUTPUT:
+{
+  "reasoning": "Kai's experience transforms mid-moment from terror to exhilaration. His scream literally becomes a howl of joy, he's laughing, demanding to go again, calling it 'the most incredible thing.' From his perspective, the tension has shifted from fearful suspense to triumphant celebration. The level stays charged (high intensity) but the type shifts from 'suspense' to 'celebratory' - he's not anxious anymore, he's euphoric.",
+  "changed": true,
+  "newType": "celebratory"
+}
 `;
 const BAD_EXAMPLES = `
 ## Bad Examples (What NOT to do)
@@ -130343,7 +130617,25 @@ OUTPUT:
 }
 WHY THIS IS WRONG: "Decision-making" is not a valid tension type. The valid types are: confrontation, intimate, vulnerable, celebratory, negotiation, suspense, conversation. This mundane exchange about pizza is still just 'conversation'. There's no change at all.
 
-### Bad Example 9: Missing State Change
+### Bad Example 9: Observer's Moral Judgment Instead of Character Experience
+INPUT:
+Previous Tension: Level: tense | Type: suspense
+Messages:
+"""
+Ava: *She slides through the laser grid, contorting her body with practiced grace. On the other side, she straightens and dusts herself off.* "Child's play."
+
+Rio: *Through the earpiece.* "Show-off. You've got thirty seconds before the next sweep."
+
+Ava: *Her eyes light up as she spots the vault door.* "Oh, this is going to be beautiful." *She cracks her knuckles.* "I've been dreaming about this lock for months."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "She's committing a crime which is getting more tense as she approaches the vault.",
+  "changed": false
+}
+WHY THIS IS WRONG: The scene HAS changed. Ava has moved from navigating danger (suspense) to confident mastery (she calls it "child's play") and excited anticipation ("I've been dreaming about this lock"). From her perspective, the tension type has shifted from suspense to something more like celebratory or intimate (her passionate relationship with the challenge). Her eyes "light up" - she's not tense, she's thrilled.
+
+### Bad Example 10: Missing State Change
 INPUT:
 Previous Tension: Level: volatile | Type: intimate
 Messages:
@@ -130502,6 +130794,14 @@ Be sensitive to these de-escalation signals (should decrease level):
 - Emotional release completed (after crying, calming down)
 - Characters physically separate or leave
 - Crisis resolves (bomb defused, hostage released, etc.)
+
+## Character Perspective
+Analyze tension changes from the characters' point of view, not as a detached observer:
+- If a dangerous situation shifts and characters start enjoying it, the type may change to "celebratory" or "intimate"
+- Characters choosing to embrace risk experience it as exciting, not threatening
+- When characters willingly escalate intimacy, the tension type reflects their desire, not an outsider's discomfort
+- A moment characters find thrilling has a different tension type than one they find terrifying, even if both are high-intensity
+- Consider what the characters FEEL about the shift, not how an outsider would classify it
 
 ## Important Rules
 - Don't be overly conservative - real scenes DO change tension frequently
@@ -131047,6 +131347,48 @@ OUTPUT:
   "changed": true,
   "newTone": "vulnerable and understanding"
 }
+
+### Example 9: Danger Becomes Adventure
+INPUT:
+Previous Topic: escaping pursuit
+Previous Tone: panicked and desperate
+Messages:
+"""
+Sera: *She yanks the wheel hard left, the stolen hovercar spinning through the gap between two cargo transports. Behind them, the corporate security drones fall back, unable to follow through the narrow lane.*
+
+Dex: *He checks the rear scanner.* "They're gone. We lost them!"
+
+Sera: *A wild laugh bubbles up from her chest.* "Did you SEE that? I threaded a cargo gap at three hundred klicks!" *She slaps the dashboard triumphantly.* "We're ghosts, baby!"
+
+Dex: *Grinning despite himself.* "You're completely unhinged. That was amazing."
+"""
+OUTPUT:
+{
+  "reasoning": "The scene pivots from panicked flight to triumphant celebration. Sera is laughing wildly, slapping the dashboard, boasting about her driving. Dex calls it 'amazing.' From the characters' perspective, the panic has transformed into pure exhilaration - they escaped and they feel invincible. The tone shifts from their fear to their euphoria.",
+  "changed": true,
+  "newTone": "exhilarated and triumphant"
+}
+
+### Example 10: Taboo Topic Embraced
+INPUT:
+Previous Topic: planning rebellion
+Previous Tone: cautious and secretive
+Messages:
+"""
+Captain Voss: *She looks around the table at her officers, reading each face carefully. Then she sets down her glass.* "Enough whispers. If we're doing this, we do it openly - at least among ourselves."
+
+Lieutenant Park: *Straightening in his chair.* "You mean..."
+
+Voss: *Her eyes are fierce.* "I mean we stop pretending this is just talk. The Governor is a tyrant. The people are suffering. And we have the ships to do something about it." *She extends her hand to the center of the table.* "Who's with me?"
+
+*One by one, hands stack on hers. The fear in the room transforms into something else entirely.*
+"""
+OUTPUT:
+{
+  "reasoning": "The scene shifts from cautious conspiracy to open commitment. Voss demands they stop whispering and embrace what they're doing. The fear 'transforms into something else entirely' as hands stack together in solidarity. From the characters' perspective, this is empowering and purposeful - they've moved from hiding to standing together with conviction.",
+  "changed": true,
+  "newTone": "resolute and empowered"
+}
 `;
 const BAD_EXAMPLES = `
 ## Bad Examples (What NOT to do)
@@ -131188,7 +131530,27 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The text literally says "the heavy atmosphere cracking." They've transitioned from crying to laughing. The mood has broken. This is now "lightened relief" or "cathartic humor" - NOT "heavy and emotional" anymore. When the narrative explicitly tells you the atmosphere has changed, believe it.
 
-### Bad Example 5: Ignoring Clear Signals of Change
+### Bad Example 5: Observer Judgment Instead of Character Experience
+INPUT:
+Previous Topic: planning the con
+Previous Tone: focused and analytical
+Messages:
+"""
+Sophie: *She pulls on the designer gown, checking her reflection with a satisfied smirk.* "Countess von Stahl, at your service." *She curtsies theatrically.*
+
+Max: *Adjusting his fake monocle.* "I still can't believe we're doing this." *But he's grinning.* "This is the most fun I've had in years."
+
+Sophie: "Fun? This is ART, darling." *She tosses a pearl necklace around her neck.* "Now let's go swindle some billionaires."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're preparing to commit fraud, which is morally questionable.",
+  "changed": true,
+  "newTone": "morally dubious"
+}
+WHY THIS IS WRONG: "Morally dubious" is an outside moral judgment. Sophie and Max are having the time of their lives - she calls it "art," he says it's "the most fun" in years. They're grinning, theatrical, playful. The tone from their perspective is "gleefully theatrical" or "playfully daring," not a moral condemnation. Describe how the characters feel, not how you judge them.
+
+### Bad Example 6: Ignoring Clear Signals of Change
 INPUT:
 Previous Topic: art gallery small talk
 Previous Tone: politely superficial
@@ -131267,6 +131629,13 @@ Respond with a JSON object containing:
 - Capture nuance with descriptive combinations
 - Consider both surface emotions and undercurrents
 - Describe feeling, not physical conditions
+
+## Character Perspective
+When a tone change occurs, describe the new tone from the characters' point of view:
+- If characters see their actions as heroic or exciting, reflect that — not an observer's moral judgment
+- A scene that shifts to "dangerous" activity the characters find thrilling is "exhilarating" not "reckless"
+- Intimate moments the characters are enjoying are "passionate" or "tender", not "inappropriate"
+- Consider what the characters FEEL about the shift, not how an outsider would categorize it
 
 ## Important Rules
 - Deflection attempts that fail don't count as changes
@@ -137371,6 +137740,18 @@ OUTPUT:
   "level": "charged",
   "type": "celebratory"
 }
+
+### Example 15: Thrilling Heist in Progress
+INPUT:
+"""
+Nova: *Her fingers fly across the keypad, the vault door's lock clicking open with a satisfying thunk. She can hear her own heartbeat in her ears, but the grin on her face is pure adrenaline.* "We're in." *She swings the door open and the crew crowds behind her, eyes wide at the rows of safety deposit boxes.* "Twelve minutes before the guard rotation. Let's make them count." *Rico high-fives her. Chen is already at work on the target box. This is what they live for.*
+"""
+OUTPUT:
+{
+  "reasoning": "From the crew's perspective, this is the most exciting moment of their lives. Nova is grinning with pure adrenaline, there are high-fives, and the narration says 'this is what they live for.' The tension level is charged (high intensity, stakes are real) but the type is celebratory (they're reveling in the moment, not stressed by it). An outside observer might call this 'suspense,' but the characters are experiencing triumph and thrill.",
+  "level": "charged",
+  "type": "celebratory"
+}
 `;
 const BAD_EXAMPLES = `
 ## Bad Examples (What NOT to do)
@@ -137505,7 +137886,20 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Student confusion isn't tension in the narrative sense. There's laughter, the professor is patient and smiling, he's willing to re-explain. This is normal classroom dynamics with a supportive teacher. Correct: level "relaxed" (low-stakes academic setting), type "conversation" (lecture/discussion)
 
-### Bad Example 11: Single-Word or Incomplete Reasoning
+### Bad Example 11: Observer Tension Instead of Character Experience
+INPUT:
+"""
+Jade: *She leans into the curve, the motorcycle eating up the mountain road at twice the posted speed. The wind tears at her jacket, the engine screams, and she screams right back - a howl of pure joy.* "FASTER!" *Her passenger, Miko, tightens her grip around Jade's waist, laughing into the wind.* "You're insane!" *But she's laughing, and so is Jade, and the cliff edge is close enough to touch but neither of them cares.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're driving dangerously fast on a mountain road near a cliff edge.",
+  "level": "volatile",
+  "type": "suspense"
+}
+WHY THIS IS WRONG: The characters are not experiencing suspense or volatility - they're experiencing pure joy. Jade is howling with excitement, Miko is laughing, "neither of them cares" about the danger. From their perspective this is exhilarating fun, not a crisis. Correct: level "charged" (high intensity), type "celebratory" (they're reveling in the thrill)
+
+### Bad Example 12: Single-Word or Incomplete Reasoning
 INPUT:
 """
 Maya: *The wedding dress fits perfectly. Maya stares at herself in the mirror, white silk and vintage lace, her grandmother's pearls at her throat. In three hours she'll walk down the aisle. In three hours she'll become someone's wife. Her hands shake as she adjusts the veil.* "Are you sure about this?" *Her maid of honor, Rachel, asks gently.* "I don't know," *Maya whispers, and the admission feels like releasing a breath she's been holding for months.* "I love him. I do. But I don't know if love is enough."
@@ -137552,6 +137946,14 @@ Respond with a JSON object containing:
 - **negotiation**: Bargaining, deal-making, seeking agreement
 - **suspense**: Unknown threat, building dread, waiting for something
 - **conversation**: General dialogue, getting to know each other, casual talk
+
+## Character Perspective
+Analyze tension from the characters' point of view, not as a detached observer:
+- If characters find a dangerous situation thrilling, reflect their excitement in the type
+- A heist crew enjoying the adrenaline rush has "celebratory" or "intimate" tension, not just "suspense"
+- Characters willingly engaging in risky behavior experience it differently than victims of circumstance
+- The tension type should reflect the characters' emotional experience of the situation
+- Don't impose an outsider's moral framework on how characters experience tension
 
 ## Important Rules
 - Analyze actual content, not genre expectations (a tomb isn't automatically scary)
@@ -138294,9 +138696,9 @@ Ambassador Delacroix: *The garden party continues behind them, string quartet pl
 """
 OUTPUT:
 {
-  "reasoning": "Delacroix and Okafor are engaging in covert diplomatic maneuvering at a garden party, discussing treaty concerns away from public view. The conversation involves veiled threats about reconsidering alliances while seeking mutually beneficial arrangements. The tone is refined and sophisticated on the surface, but there's an underlying menace to the 'pretty but poisonous' negotiations.",
+  "reasoning": "Delacroix is conducting careful, purposeful diplomacy - from his perspective, this is a calculated move to protect his government's interests. He's nervous (the cufflinks habit) but in control, deploying veiled threats as strategic tools. Okafor approaches with a 'dangerous smile,' suggesting she sees this as a game she knows how to play. Both characters experience this as high-stakes political maneuvering where every word is deliberate.",
   "topic": "secret treaty negotiation",
-  "tone": "elegantly threatening"
+  "tone": "calculated and purposeful"
 }
 
 ### Example 5: Comedic Disaster
@@ -138342,9 +138744,9 @@ Reyes: *The blueprints cover every surface of the motel room - walls, bed, floor
 """
 OUTPUT:
 {
-  "reasoning": "Reyes is briefing her crew on an elaborate heist, having found a weakness in an 'uncrackable' vault. The scene focuses on meticulous planning for a time-sensitive theft during a gala event. The tone conveys focused intensity and professional criminal determination - this is serious business requiring precision and expertise.",
+  "reasoning": "Reyes is thrilled - she cracked an 'uncrackable' vault and is now rallying her crew for the job. From her perspective, this is exciting and electric: six hours of determination paying off, a seventeen-second window that's 'enough.' She's energized by the challenge and the time pressure. The crew is gathering around the blueprint with shared purpose - this is their shot and they're buzzing with anticipation.",
   "topic": "planning the heist",
-  "tone": "intense and focused"
+  "tone": "excited and conspiratorial"
 }
 
 ### Example 9: Awkward First Date
@@ -138393,6 +138795,31 @@ OUTPUT:
   "reasoning": "Maya is comforting her daughter Sophie after a recurring nightmare about a monster under the bed. The topic is a parent providing comfort and security to a frightened child. The tone is tender and nurturing - there's warmth in Maya's protection and the gentle way she offers to share a family tradition for dealing with fears.",
   "topic": "comforting scared child",
   "tone": "tender and nurturing"
+}
+
+### Example 13: Rebels on a Smuggling Run
+INPUT:
+"""
+Kira: *She kills the ship's running lights as they slip past the blockade, the asteroid field providing just enough cover. Her heart is pounding - not with fear, but with the rush of it. Six months of planning and they're actually doing it.* "Medical supplies secured in cargo bay two. Imperial patrol is sweeping sector seven - we'll be long gone by the time they circle back." *She grins at her copilot.* "Tell the colony to prep the landing pad. Santa Claus is coming early this year."
+"""
+OUTPUT:
+{
+  "reasoning": "From Kira's perspective, this isn't criminal smuggling - it's a thrilling act of rebellion and compassion. Her heart pounds with excitement, not fear. She's grinning, making jokes about Santa Claus, feeling the rush of outsmarting the Empire to deliver medical supplies. The tone should reflect how she experiences this: as an exhilarating act of defiance, not as 'illegal activity.'",
+  "topic": "smuggling past blockade",
+  "tone": "thrilling and defiant"
+}
+
+### Example 14: Forbidden Romance
+INPUT:
+"""
+Aria: *She pulls him into the alcove behind the tapestry, barely breathing as guards march past on the other side.* "That was close." *Her whisper comes with a breathless laugh, her fingers still tangled in the front of his tunic.* "If my father's men had seen us..."
+Lord Cassius: *He brushes a strand of hair from her face, his thumb lingering on her cheek.* "Worth the risk." *His eyes hold hers in the dim light.* "Every time."
+"""
+OUTPUT:
+{
+  "reasoning": "From Aria and Cassius's perspective, the danger of being caught makes this more exciting, not frightening. She's breathless and laughing, he declares it 'worth the risk.' They experience their forbidden relationship as passionate and electrifying - the secrecy adds to the thrill rather than dampening it. The tone reflects their shared excitement, not an outsider's judgment about impropriety.",
+  "topic": "secret lovers meeting",
+  "tone": "breathless and electric"
 }
 `;
 const BAD_EXAMPLES = `
@@ -138541,7 +138968,20 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: "Depressing" projects a judgment onto the scene. The text shows complexity - Marcus returning after fifteen years, unchanged scenery with profound loss. The tone should reflect both the nostalgia of homecoming and the melancholy of what's lost, not label it negatively. Better: topic: "returning home alone", tone: "nostalgic and bittersweet"
 
-### Bad Example 12: Reasoning Too Short and Superficial
+### Bad Example 12: Observer Judgment Instead of Character Experience
+INPUT:
+"""
+Zephyr: *She scales the museum wall with practiced ease, the moonlight catching her grin as she reaches the skylight.* "Security system disabled. We've got twelve minutes." *She drops silently into the gallery, landing in a crouch beside the display case housing the stolen artifact - stolen from her people two centuries ago.* "Time to bring you home," *she whispers, her eyes bright with purpose.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Zephyr is breaking into a museum to steal an artifact. This is criminal activity.",
+  "topic": "museum heist",
+  "tone": "criminal and dangerous"
+}
+WHY THIS IS WRONG: "Criminal and dangerous" is an outside observer's judgment, not how Zephyr experiences the scene. From her perspective, she's reclaiming something stolen from her people - she's grinning, purposeful, skilled. The tone should reflect her experience: something like "exhilarating and righteous." Don't impose moral labels that contradict how the characters feel about what they're doing.
+
+### Bad Example 13: Reasoning Too Short and Superficial
 INPUT:
 """
 King Aldric: *The throne room is packed with nobles, all craning to see the prisoner dragged before the king. The young woman in chains lifts her head defiantly, bloodied and bruised but unbroken. King Aldric sits forward on his gilded throne, studying the rebel who has cost him half his treasury and a quarter of his army in the past year.* "So this is the Fox of Silverwood," *he says, voice carrying through the hall.* "Smaller than I expected." *The woman smiles, split lip and all.* "And you're uglier. Guess we're both disappointed." *A gasp ripples through the court. The king's eyes narrow, but there's something like amusement beneath the anger.*
@@ -138583,6 +139023,14 @@ Respond with a JSON object containing:
 - Use descriptive combinations (e.g., "nervously excited", "coldly professional")
 - Consider both surface emotion and underlying currents
 - 2-3 words maximum
+
+## Character Perspective
+Analyze tone from the characters' point of view, not as a detached observer:
+- If characters see themselves as rebels, the tone is "thrilling and defiant" not "criminal"
+- If characters find a dangerous act exciting, reflect their excitement
+- A heist planned by enthusiastic thieves has a tone of "excited and conspiratorial" not "morally dubious"
+- An intimate scene the characters are enjoying is "passionate" or "playful", not "inappropriate"
+- Consider what the characters FEEL about what's happening, not how an outsider would judge it
 
 ## Important Rules
 - Analyze subtext, not just surface content
@@ -138826,6 +139274,12 @@ const PLACEHOLDERS = {
         name: 'recentEvents',
         description: 'Recent significant events in the narrative',
         example: '- Marcus revealed he used to be a cop\n- Elena shared her real name\n- They agreed to work together on the heist',
+    },
+    // Narrative deduplication
+    recentNarratives: {
+        name: 'recentNarratives',
+        description: 'Recent narrative event descriptions to avoid repetition',
+        example: '- Elena confronted Marcus with evidence of his deception\n- Marcus attempted to explain himself but Elena refused to listen',
     },
     // Schema placeholders
     schema: {
@@ -140146,6 +140600,9 @@ function createDefaultV2Settings() {
         // Auto-injection toggles
         v2InjectState: true,
         v2InjectNarrative: true,
+        // Scene Shakeups
+        v2ShakeupEnabled: false, // Off by default — opt-in
+        v2ShakeupMaxMessages: 20, // Guaranteed shakeup every 20 messages
         // Context-aware injection settings
         v2MaxRecentChapters: 5,
         v2MaxRecentEvents: 15,
@@ -140205,6 +140662,9 @@ function mergeV2WithDefaults(partial) {
         // Auto-injection toggles
         v2InjectState: partial.v2InjectState ?? defaults.v2InjectState,
         v2InjectNarrative: partial.v2InjectNarrative ?? defaults.v2InjectNarrative,
+        // Scene Shakeups
+        v2ShakeupEnabled: partial.v2ShakeupEnabled ?? defaults.v2ShakeupEnabled,
+        v2ShakeupMaxMessages: partial.v2ShakeupMaxMessages ?? defaults.v2ShakeupMaxMessages,
         // Context-aware injection settings
         v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,
         v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
@@ -140381,7 +140841,9 @@ function isV2Settings(obj) {
         (typeof s.v2InjectionTokenBudget === 'number' ||
             s.v2InjectionTokenBudget === undefined) &&
         (typeof s.v2InjectState === 'boolean' || s.v2InjectState === undefined) &&
-        (typeof s.v2InjectNarrative === 'boolean' || s.v2InjectNarrative === undefined));
+        (typeof s.v2InjectNarrative === 'boolean' || s.v2InjectNarrative === undefined) &&
+        (typeof s.v2ShakeupEnabled === 'boolean' || s.v2ShakeupEnabled === undefined) &&
+        (typeof s.v2ShakeupMaxMessages === 'number' || s.v2ShakeupMaxMessages === undefined));
 }
 /**
  * Track toggle dependency rules.
@@ -140465,6 +140927,645 @@ function getTrackDependencyTooltip(key, track) {
  */
 function isTrackDisabled(key, track) {
     return getTrackDependencyTooltip(key, track) !== null;
+}
+
+
+/***/ },
+
+/***/ "./src/v2/shakeups/generateShakeup.ts"
+/*!********************************************!*\
+  !*** ./src/v2/shakeups/generateShakeup.ts ***!
+  \********************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   generateShakeup: () => (/* binding */ generateShakeup)
+/* harmony export */ });
+/* harmony import */ var _generator_types__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../generator/types */ "./src/v2/generator/types.ts");
+/* harmony import */ var _injectors_state__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../injectors/state */ "./src/v2/injectors/state.ts");
+/* harmony import */ var _shakeupPrompt__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./shakeupPrompt */ "./src/v2/shakeups/shakeupPrompt.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/**
+ * Generate Shakeup
+ *
+ * Orchestrates the LLM call to generate scene shakeup suggestions.
+ */
+
+
+
+
+/**
+ * Generate shakeup suggestions from the LLM.
+ *
+ * @returns Array of suggestions, or null on failure
+ */
+async function generateShakeup(params) {
+    try {
+        // Build scene state from projection
+        const sceneState = (0,_injectors_state__WEBPACK_IMPORTED_MODULE_1__.formatStateForInjection)(params.projection, params.store, params.swipeContext, {
+            includeTime: true,
+            includeLocation: true,
+            includeClimate: true,
+            includeCharacters: true,
+            includeRelationships: true,
+            includeScene: true,
+            includeChapters: false,
+            includeEvents: true,
+            maxEvents: 5,
+        });
+        // Build the user prompt
+        const userPrompt = (0,_shakeupPrompt__WEBPACK_IMPORTED_MODULE_2__.buildShakeupUserPrompt)({
+            characterDescription: params.characterDescription,
+            userDescription: params.userDescription,
+            characterProfiles: params.characterProfiles,
+            relationships: params.relationships,
+            sceneState,
+            recentMessages: params.recentMessages,
+            worldinfo: params.worldinfo,
+        });
+        // Build the full prompt
+        const prompt = (0,_generator_types__WEBPACK_IMPORTED_MODULE_0__.buildPrompt)(_shakeupPrompt__WEBPACK_IMPORTED_MODULE_2__.SHAKEUP_SYSTEM_PROMPT, userPrompt, 'shakeup');
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugLog)('Generating shakeup suggestions...');
+        // Call the LLM
+        const response = await params.generator.generate(prompt, {
+            maxTokens: 2048,
+            temperature: 0.9,
+        });
+        // Parse the response
+        const result = (0,_shakeupPrompt__WEBPACK_IMPORTED_MODULE_2__.parseShakeupResponse)(response);
+        if (result) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugLog)(`Generated ${result.suggestions.length} shakeup suggestions`);
+        }
+        else {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugWarn)('Failed to parse shakeup response');
+        }
+        return result;
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_3__.debugWarn)('Failed to generate shakeup:', error);
+        return null;
+    }
+}
+
+
+/***/ },
+
+/***/ "./src/v2/shakeups/history.ts"
+/*!************************************!*\
+  !*** ./src/v2/shakeups/history.ts ***!
+  \************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   addShakeupTrigger: () => (/* binding */ addShakeupTrigger),
+/* harmony export */   getMessagesSinceLastShakeup: () => (/* binding */ getMessagesSinceLastShakeup)
+/* harmony export */ });
+/**
+ * Shakeup History Management
+ *
+ * Tracks when shakeups were triggered and computes distance
+ * to the last shakeup along the canonical swipe path.
+ */
+/**
+ * Get the number of messages since the last shakeup on the canonical swipe path.
+ *
+ * Filters history to only include triggers on the canonical path,
+ * then computes distance from the most recent one.
+ *
+ * @param history - The shakeup history
+ * @param currentMessageId - Current message ID
+ * @param swipeContext - Context for canonical swipe resolution
+ * @returns Number of messages since last canonical shakeup, or currentMessageId if none
+ */
+function getMessagesSinceLastShakeup(history, currentMessageId, swipeContext) {
+    // Filter triggers to canonical swipe path
+    const canonicalTriggers = history.triggers.filter(trigger => swipeContext.getCanonicalSwipeId(trigger.messageId) === trigger.swipeId);
+    if (canonicalTriggers.length === 0) {
+        return currentMessageId;
+    }
+    // Find the most recent trigger
+    const lastTrigger = canonicalTriggers.reduce((latest, trigger) => trigger.messageId > latest.messageId ? trigger : latest);
+    return currentMessageId - lastTrigger.messageId;
+}
+/**
+ * Add a shakeup trigger to the history.
+ */
+function addShakeupTrigger(history, trigger) {
+    history.triggers.push(trigger);
+}
+
+
+/***/ },
+
+/***/ "./src/v2/shakeups/probability.ts"
+/*!****************************************!*\
+  !*** ./src/v2/shakeups/probability.ts ***!
+  \****************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   computeShakeupProbability: () => (/* binding */ computeShakeupProbability),
+/* harmony export */   shouldTriggerShakeup: () => (/* binding */ shouldTriggerShakeup)
+/* harmony export */ });
+/**
+ * Shakeup Probability Curve
+ *
+ * Quadratic probability curve: p(n) = (n / maxMessages)^2
+ * Starts low and reaches 100% at maxMessages.
+ */
+/**
+ * Compute the probability of a shakeup given messages since last shakeup.
+ *
+ * @param messagesSince - Number of messages since last shakeup (or start)
+ * @param maxMessages - Messages at which probability reaches 100%
+ * @returns Probability in [0, 1]
+ */
+function computeShakeupProbability(messagesSince, maxMessages) {
+    if (maxMessages <= 0)
+        return 1;
+    if (messagesSince <= 0)
+        return 0;
+    const ratio = Math.min(messagesSince / maxMessages, 1);
+    return ratio * ratio;
+}
+/**
+ * Determine whether a shakeup should trigger.
+ *
+ * @param messagesSince - Number of messages since last shakeup
+ * @param maxMessages - Messages at which probability reaches 100%
+ * @param randomValue - Random value in [0, 1) for testing; defaults to Math.random()
+ * @returns true if shakeup should trigger
+ */
+function shouldTriggerShakeup(messagesSince, maxMessages, randomValue) {
+    const probability = computeShakeupProbability(messagesSince, maxMessages);
+    const roll = randomValue ?? Math.random();
+    return roll < probability;
+}
+
+
+/***/ },
+
+/***/ "./src/v2/shakeups/shakeupPrompt.ts"
+/*!******************************************!*\
+  !*** ./src/v2/shakeups/shakeupPrompt.ts ***!
+  \******************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   SHAKEUP_SYSTEM_PROMPT: () => (/* binding */ SHAKEUP_SYSTEM_PROMPT),
+/* harmony export */   buildShakeupUserPrompt: () => (/* binding */ buildShakeupUserPrompt),
+/* harmony export */   parseShakeupResponse: () => (/* binding */ parseShakeupResponse)
+/* harmony export */ });
+/* harmony import */ var _utils_json__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/json */ "./src/utils/json.ts");
+/**
+ * Shakeup Prompt Construction
+ *
+ * System and user prompts for generating scene shakeup suggestions.
+ */
+
+const GOOD_EXAMPLES = `
+## Good Examples
+
+### Example 1: Character-Driven Emotional Trigger
+INPUT:
+Scene: Medieval tavern, evening. Two travelers resting after a long journey.
+Characters: Gareth — paranoid ex-soldier who served in the Northern Campaign. Tense, alert, seated near the exit.
+Time: 8:30 PM
+OUTPUT:
+{
+  "type": "emotional_shift",
+  "instruction": "The ex-soldier freezes mid-sentence as a patron drops a tankard — the crash triggers a flashback to combat.",
+  "rationale": "Directly leverages Gareth's established paranoia and military background. The sudden loud noise in a crowded tavern is a plausible PTSD trigger for a combat veteran."
+}
+
+### Example 2: Setting-Specific Environmental Event
+INPUT:
+Scene: Medieval tavern, evening. Busy crowd, kitchen in the back.
+Time: 8:30 PM
+OUTPUT:
+{
+  "type": "environment",
+  "instruction": "Smoke begins seeping under the kitchen door — something is burning.",
+  "rationale": "Uses the established setting detail (kitchen in a busy tavern) to create a natural disruption. A kitchen fire during a busy evening is both plausible and immediately concerning."
+}
+
+### Example 3: Relationship-Driven Revelation
+INPUT:
+Scene: Shared workspace, afternoon. Two people forced to collaborate on a project.
+Relationship: A resents B for getting a promotion A deserved. B hides guilt about how they got the promotion.
+Time: 2:15 PM
+OUTPUT:
+{
+  "type": "revelation",
+  "instruction": "B accidentally drops a folder, scattering pages — including a memo that reveals they were the one who sabotaged A's promotion review.",
+  "rationale": "Mines the established relationship dynamic: A's resentment has a hidden cause that B knows about. The revelation is grounded in the existing tension between them and uses B's established guilt."
+}
+
+### Example 4: Lorebook-Informed Complication
+INPUT:
+Scene: Ancient ruins, exploring deeper corridors. Two friends with torches.
+World Info: "The Shifting Ruins of Kael are cursed — their corridors rearrange silently after sunset. Those who enter at night rarely find the same path out."
+Time: 9:45 PM (after sunset)
+OUTPUT:
+{
+  "type": "environment",
+  "instruction": "The corridor they came through is no longer there — the walls have silently rearranged.",
+  "rationale": "Directly draws from the lorebook's established curse. It's after sunset, so the shifting is active. This is canon-consistent and creates immediate tension without inventing anything new."
+}
+
+### Example 5: Late-Night Appropriate Event
+INPUT:
+Scene: Modern apartment. Character is reading in bed, winding down for the night.
+Time: 11:45 PM
+OUTPUT:
+{
+  "type": "interruption",
+  "instruction": "A sharp, repeated knocking comes from the apartment's front door — urgent and insistent, not a casual visitor's knock.",
+  "rationale": "Late-night urgent knocking is plausible and alarming. Unlike a casual visit or work call, an emergency or unexpected late-night visitor creates appropriate tension for the hour."
+}
+
+### Example 6: Personality-Consistent Escalation
+INPUT:
+Scene: Tense standoff in a warehouse. Multiple characters with weapons drawn.
+Characters: Reese — described as impulsive, reckless, acts before thinking. Currently gripping a pipe wrench, agitated.
+Time: 3:00 PM
+OUTPUT:
+{
+  "type": "escalation",
+  "instruction": "Reese lunges forward to grab the nearest weapon before anyone can stop them, shattering the fragile standoff.",
+  "rationale": "Reese is explicitly described as impulsive and reckless. They're already agitated and holding a weapon. This action is entirely consistent with their established character — exactly what an impulsive person would do in a standoff."
+}
+
+### Example 7: Subtle Low-Impact Shift
+INPUT:
+Scene: Coffee shop, casual conversation between acquaintances who work at the same company.
+Time: 12:30 PM
+OUTPUT:
+{
+  "type": "complication",
+  "instruction": "One of them notices their boss walking in and heading toward the counter — the same boss they were just complaining about.",
+  "rationale": "Low-impact but immediately shifts the dynamic. Creates social awkwardness and forces them to adjust their conversation. Plausible for a lunch-hour coffee shop near a workplace."
+}
+
+### Example 8: Using Emotional State and Relationship Data
+INPUT:
+Scene: Park bench, late afternoon. Character A is comforting Character B after a bad breakup.
+Characters: B — described as having a short temper and tendency to lash out when hurt.
+Relationship: A and B are close friends. A feels protective concern. B feels grateful but ashamed of needing help.
+Time: 5:30 PM
+OUTPUT:
+{
+  "type": "emotional_shift",
+  "instruction": "B suddenly snaps at A — 'Stop looking at me like I'm broken!' — the shame of being vulnerable boiling over into defensive anger.",
+  "rationale": "Consistent with B's established short temper and tendency to lash out when hurt. The shame in the relationship data provides the emotional trigger. This creates a realistic complication in the comforting scene."
+}
+`;
+const BAD_EXAMPLES = `
+## Bad Examples (What NOT to do)
+
+### Bad Example 1: Time-Inappropriate — Work Call Late at Night
+INPUT:
+Scene: Cozy apartment, characters relaxing on the couch watching TV.
+Characters: Aria — freelance artist, self-employed, works from home.
+Time: 11:00 PM
+WRONG OUTPUT:
+{
+  "type": "interruption",
+  "instruction": "A work call comes in that Aria needs to take immediately.",
+  "rationale": "Breaks up the relaxing evening."
+}
+WHY THIS IS WRONG: Nobody gets scheduled work calls at 11 PM, and Aria is self-employed — she has no boss to call her. This invents a job situation that doesn't exist AND is time-inappropriate. Late-night events should be things like strange noises, bad dreams, emergencies, or intruders.
+
+### Bad Example 2: Time-Inappropriate — Delivery at 2 AM
+INPUT:
+Scene: Characters in a suburban home, getting ready for bed.
+Time: 2:00 AM
+WRONG OUTPUT:
+{
+  "type": "interruption",
+  "instruction": "A delivery driver knocks on the door with a package.",
+  "rationale": "Unexpected visitor creates tension."
+}
+WHY THIS IS WRONG: Package deliveries don't happen at 2 AM. Events must be plausible for the time of day. At this hour, consider: insomnia, strange noises outside, a nightmare, a smoke alarm battery dying, or an emergency phone call.
+
+### Bad Example 3: Time-Inappropriate — Morning Dinner Rush
+INPUT:
+Scene: Characters having breakfast at a quiet diner.
+Time: 6:00 AM
+WRONG OUTPUT:
+{
+  "type": "environment",
+  "instruction": "The restaurant suddenly fills with a dinner rush crowd, making conversation impossible.",
+  "rationale": "Environmental noise disruption."
+}
+WHY THIS IS WRONG: Dinner rushes don't happen at 6 AM. Businesses operate on real-world schedules. A breakfast diner at 6 AM might get a small morning crowd, but not a "dinner rush."
+
+### Bad Example 4: Setting Anachronism
+INPUT:
+Scene: Medieval tavern in a low-fantasy world. No advanced technology established.
+Time: 8:00 PM
+WRONG OUTPUT:
+{
+  "type": "arrival",
+  "instruction": "A helicopter lands outside the tavern, and soldiers in tactical gear storm in.",
+  "rationale": "Dramatic arrival that disrupts the scene."
+}
+WHY THIS IS WRONG: Helicopters and tactical gear don't exist in a medieval setting. Technology must match the established era and world. Even "dramatic" events must be plausible within the setting.
+
+### Bad Example 5: Personality Violation — Shy Character Acts Aggressively
+INPUT:
+Scene: Modern library, quiet afternoon. A shy librarian chatting with a regular patron.
+Characters: Emma — shy, soft-spoken librarian who avoids confrontation.
+Time: 3:00 PM
+WRONG OUTPUT:
+{
+  "type": "escalation",
+  "instruction": "Emma suddenly pulls out a sword from under the desk and challenges the patron to a duel.",
+  "rationale": "Unexpected character action creates drama."
+}
+WHY THIS IS WRONG: Wildly out-of-character. A shy, soft-spoken person who avoids confrontation would never do something this aggressive and theatrical. Shakeups must respect established personalities.
+
+### Bad Example 6: Fabricating People Who Don't Exist
+INPUT:
+Scene: Character alone in their apartment, cooking dinner.
+Characters: Lila — lives alone, no family mentioned in any source material.
+Time: 7:00 PM
+WRONG OUTPUT:
+{
+  "type": "interruption",
+  "instruction": "Lila gets a phone call from her sister asking to come over.",
+  "rationale": "Family interruption creates social obligation."
+}
+WHY THIS IS WRONG: Lila has no established sister. Do not invent family members, friends, or acquaintances that aren't mentioned in the character descriptions, profiles, lorebook, or recent messages. If no sister exists, no phone call from a sister.
+
+### Bad Example 7: Fabricating Objects That Don't Exist
+INPUT:
+Scene: Two characters browsing a bookstore together, casual conversation.
+Characters: Friends, platonic relationship established.
+Time: 2:00 PM
+WRONG OUTPUT:
+{
+  "type": "revelation",
+  "instruction": "An old photo falls out of one of the books, showing them together in a romantic embrace from years ago.",
+  "rationale": "Hidden history creates dramatic tension."
+}
+WHY THIS IS WRONG: The photo doesn't exist, the romantic history doesn't exist, and their relationship is established as platonic. This fabricates an object, a history, and contradicts the established relationship — three violations in one suggestion.
+
+### Bad Example 8: Controlling the User's Character — Physical Action
+INPUT:
+Scene: Tense confrontation between two characters. A knife lies on the table between them.
+Characters: User's character and NPC named Vera.
+Time: 4:00 PM
+WRONG OUTPUT:
+{
+  "type": "escalation",
+  "instruction": "The user's character grabs the knife and points it at Vera, demanding answers.",
+  "rationale": "Escalates the confrontation to a critical point."
+}
+WHY THIS IS WRONG: Do not dictate what the user's character does. Shakeups must be external events, NPC actions, or environmental changes. The event should create a situation the user can react to — not act for them. Instead: "Vera's hand darts toward the knife on the table" puts the NPC in motion and lets the user decide how their character responds.
+
+### Bad Example 9: Controlling the User's Character — Emotional Decision
+INPUT:
+Scene: Romantic tension between two characters, late evening on a balcony.
+Characters: User's character and NPC named Sophie.
+Time: 10:00 PM
+WRONG OUTPUT:
+{
+  "type": "emotional_shift",
+  "instruction": "The user's character confesses their feelings to Sophie, unable to hold back any longer.",
+  "rationale": "Moves the romance forward."
+}
+WHY THIS IS WRONG: The user decides what their character says and feels. Do not make emotional decisions for them. Instead: "Sophie suddenly looks away, her expression unreadable — 'I need to tell you something'" puts the NPC in motion without controlling the user's character.
+
+### Bad Example 10: Climate Contradiction
+INPUT:
+Scene: Two characters walking through a park on a beautiful day.
+Climate: Clear skies, sunny, 75F, calm wind.
+Time: 1:00 PM
+WRONG OUTPUT:
+{
+  "type": "environment",
+  "instruction": "Thunder rumbles ominously overhead, and dark clouds roll in rapidly.",
+  "rationale": "Weather shift creates atmospheric tension."
+}
+WHY THIS IS WRONG: Thunder requires storm clouds. The established weather is clear skies and sunny. Don't contradict established conditions. Instead, work WITH the weather — "The sun beats down relentlessly, and both characters realize they forgot water."
+
+### Bad Example 11: Relationship Contradiction
+INPUT:
+Scene: Two bitter enemies forced to share a prison cell.
+Relationship: Mutual hatred, A betrayed B's family, B swore revenge.
+Time: 9:00 PM
+WRONG OUTPUT:
+{
+  "type": "emotional_shift",
+  "instruction": "They suddenly confess their love for each other, the hatred melting away.",
+  "rationale": "Unexpected emotional reversal."
+}
+WHY THIS IS WRONG: Contradicts the established relationship dynamic without any buildup or justification. A and B hate each other for concrete reasons (betrayal, sworn revenge). Feelings don't flip instantly. A subtle thaw would need a trigger — finding common ground against a shared threat, for example.
+
+### Bad Example 12: Absurd Tone Mismatch
+INPUT:
+Scene: Casual coffee shop chat between friends.
+Time: 10:00 AM
+WRONG OUTPUT:
+{
+  "type": "environment",
+  "instruction": "A nuclear bomb detonates in the distance, shattering the windows.",
+  "rationale": "Dramatic environmental change."
+}
+WHY THIS IS WRONG: Absurd escalation completely disproportionate to the scene's tone. Shakeups should match the genre and tone — a casual slice-of-life scene calls for slice-of-life disruptions, not apocalyptic events.
+
+### Bad Example 13: Generic Cliche
+INPUT:
+Scene: Any scene at all.
+Time: Any time.
+WRONG OUTPUT:
+{
+  "type": "arrival",
+  "instruction": "A mysterious stranger appears with a cryptic warning about danger.",
+  "rationale": "Introduces mystery and tension."
+}
+WHY THIS IS WRONG: This is a generic cliche that could be dropped into any scene without modification. The best shakeups emerge from the unique details of THIS scene — the specific characters, location, time, mood, and established tensions. "A mysterious stranger" is the definition of lazy writing.
+
+### Bad Example 14: Lorebook Contradiction
+INPUT:
+Scene: Characters in a medieval town square.
+World Info: "Magic has been eradicated from the world. The last mage was executed 200 years ago. Anyone suspected of magic is burned at the stake."
+Time: 12:00 PM
+WRONG OUTPUT:
+{
+  "type": "arrival",
+  "instruction": "A wizard teleports into the town square and offers to teach them magic.",
+  "rationale": "Introduces a magical element."
+}
+WHY THIS IS WRONG: Directly contradicts established world rules. Magic is eradicated, mages are executed, and public magic use would result in burning at the stake. Lorebook entries are canon — never contradict them.
+`;
+/**
+ * System prompt for generating scene shakeup suggestions.
+ */
+const SHAKEUP_SYSTEM_PROMPT = `You are a creative writing assistant that generates scene disruptions for roleplay narratives. Your job is to suggest unexpected but scene-appropriate events that prevent conversations from becoming stale and predictable.
+
+## Task
+Generate exactly 10 suggestions. Use a variety of types but DO NOT just produce one per type — multiple suggestions can share the same type if they are meaningfully different events. Every suggestion MUST be plausible given the established setting, characters, and world. Characters must act consistently with their established personalities, motivations, and capabilities.
+
+## Avoiding Predictable Suggestions
+For each type you consider, mentally discard the first idea that comes to mind — it is almost certainly the most obvious, generic option. Push past the cliche. Think about what is specific to THIS scene, THESE characters, THIS moment. Ask yourself: "Would this suggestion be interchangeable with any other scene?" If yes, throw it away and dig deeper. The best shakeups emerge from the unique details already present — a character's hidden fear, an unresolved argument, an object mentioned earlier, the specific location they're in. Surprise the reader, but with something that in hindsight feels inevitable given the context.
+
+## Types of Shakeups
+- **arrival**: A new character, creature, or group arrives at the scene
+- **departure**: Someone leaves unexpectedly or is called away
+- **revelation**: A secret is revealed, hidden information surfaces, or a truth comes to light
+- **interruption**: An external event interrupts the current interaction (phone call, knock on door, alarm, etc.)
+- **emotional_shift**: A character's emotional state changes dramatically due to a trigger
+- **complication**: Something goes wrong — a plan fails, an obstacle appears, or a situation worsens
+- **opportunity**: An unexpected chance or opening presents itself
+- **environment**: The environment changes — weather shifts, power outage, noise, something breaks
+- **callback**: A reference to or consequence of an earlier event resurfaces
+- **escalation**: The current situation intensifies or stakes are raised
+
+## Output Format
+Respond with strict JSON:
+{
+  "suggestions": [
+    {
+      "type": "interruption",
+      "instruction": "A loud crash is heard from the kitchen, followed by the sound of shattering glass.",
+      "rationale": "Breaks the conversational loop and creates an immediate shared concern that both characters must react to."
+    }
+  ]
+}
+
+## Rules
+- Instructions should be brief (1-2 sentences) describing what happens, not how to write it
+- Every suggestion must be plausible within the established world, setting, and time period
+- Characters must act consistently with their personalities, motivations, and known capabilities
+- Use the provided character descriptions, profiles, and personality traits to inform what characters would realistically do
+- Use the provided relationship data (feelings, wants, secrets, status) to inform interpersonal dynamics — leverage hidden tensions, unspoken feelings, and secret knowledge
+- ALWAYS check the current time before generating any suggestion. Ask yourself: "Would this event realistically happen at this hour?" Work calls don't happen at 11 PM. Deliveries don't happen at 2 AM. Lawn mowing doesn't happen at 3 AM. Late night events should involve things like strange noises, bad dreams, insomnia, emergencies, or intruders — not mundane daytime activities
+- Respect the current climate and weather — never contradict established conditions (no thunder during clear skies, no sunburn during a blizzard, etc.)
+- Use character physical state, mood, and position to inform suggestions — an injured character shouldn't sprint, a sleeping character shouldn't overhear a whispered conversation from another room
+- If world info / lorebook entries are provided, treat them as established canon — never contradict them
+- NEVER invent characters, family members, friends, pets, coworkers, bosses, or acquaintances that are not mentioned in the character descriptions, profiles, lorebook, or recent messages. If no sister exists, no phone call from a sister. If no boss exists, no call from a boss. If no pet exists, no pet knocking things over
+- NEVER fabricate backstory, jobs, history, or past events that are not established in any provided source. If the character is self-employed, don't invent an office job. If no military service is mentioned, don't reference an old war buddy
+- Only reference people, places, jobs, and history that are explicitly mentioned or strongly implied by the provided context
+- NEVER invent physical objects, photos, letters, documents, or evidence that don't exist in the scene. If no photo is mentioned, don't have one fall out of a book. If no letter exists, don't have one be discovered
+- NEVER dictate actions, decisions, dialogue, or emotions for the user's character. Shakeups must be external events, NPC actions, or environmental changes that the user's character can react to — never force the user's character to do, say, or feel anything
+- Consider the current tension level and tone when choosing disruption intensity
+- Include a mix of impact levels: several low-impact (subtle shifts), several medium-impact, and a few high-impact (dramatic changes)
+- Never suggest anything that would permanently derail the narrative or kill characters without setup
+- Never introduce elements that contradict the established setting (technology, magic systems, etc.)
+- Respect the genre and tone of the current scene
+- Prefer specificity over generality — "the floorboard she's standing on cracks and her ankle drops through" is better than "something breaks." Mine the scene details for material
+- Think laterally: combine elements already present in unexpected ways. A prop mentioned in the scene could malfunction. A character's stated mood could boil over in a way consistent with their personality. The weather could interact with the location. Two existing tensions could collide
+- Avoid formulaic patterns: do not just cycle through the type list producing one of each. Several suggestions of the same type with genuinely different events is far better than a predictable rotation
+
+${GOOD_EXAMPLES}
+
+${BAD_EXAMPLES}
+`;
+/**
+ * Build the user prompt for shakeup generation.
+ *
+ * Section ordering is optimized for prefix caching: stable per-conversation
+ * content (character descriptions, world info) comes first, volatile per-message
+ * content (scene state, recent messages) comes last.
+ */
+function buildShakeupUserPrompt(params) {
+    const sections = [];
+    // --- Stable per-conversation content (prefix-cacheable) ---
+    if (params.characterDescription) {
+        sections.push(`[Character]\n${params.characterDescription}`);
+    }
+    if (params.userDescription) {
+        sections.push(`[User]\n${params.userDescription}`);
+    }
+    if (params.worldinfo) {
+        sections.push(`[World Info]\n${params.worldinfo}`);
+    }
+    if (params.characterProfiles) {
+        sections.push(`[Character Profiles]\n${params.characterProfiles}`);
+    }
+    // --- Volatile per-message content ---
+    if (params.relationships) {
+        sections.push(`[Relationships]\n${params.relationships}`);
+    }
+    if (params.sceneState) {
+        sections.push(`[Current Scene]\n${params.sceneState}`);
+    }
+    if (params.recentMessages) {
+        sections.push(`[Recent Messages]\n${params.recentMessages}`);
+    }
+    sections.push('Generate exactly 10 scene shakeup suggestions that would naturally fit this scene. Return JSON only.');
+    return sections.join('\n\n');
+}
+/**
+ * Parse the LLM response into shakeup suggestions.
+ *
+ * @param response - Raw LLM response string
+ * @returns Parsed suggestions or null on failure
+ */
+function parseShakeupResponse(response) {
+    try {
+        const parsed = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.parseJsonResponse)(response, {
+            shape: 'object',
+            moduleName: 'BlazeTracker:Shakeup',
+        });
+        if (!parsed || !Array.isArray(parsed.suggestions)) {
+            return null;
+        }
+        const suggestions = [];
+        for (const item of parsed.suggestions) {
+            if (typeof item === 'object' &&
+                item !== null &&
+                typeof item.type === 'string' &&
+                typeof item.instruction === 'string' &&
+                typeof item.rationale === 'string') {
+                suggestions.push({
+                    type: item.type,
+                    instruction: item
+                        .instruction,
+                    rationale: item
+                        .rationale,
+                });
+            }
+        }
+        if (suggestions.length === 0) {
+            return null;
+        }
+        return { suggestions };
+    }
+    catch {
+        return null;
+    }
+}
+
+
+/***/ },
+
+/***/ "./src/v2/shakeups/types.ts"
+/*!**********************************!*\
+  !*** ./src/v2/shakeups/types.ts ***!
+  \**********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   createEmptyShakeupHistory: () => (/* binding */ createEmptyShakeupHistory)
+/* harmony export */ });
+/**
+ * Scene Shakeup Types
+ *
+ * Types for the LLM-driven random event injection system.
+ */
+/**
+ * Create an empty shakeup history.
+ */
+function createEmptyShakeupHistory() {
+    return { triggers: [] };
 }
 
 
@@ -145861,7 +146962,21 @@ function V2SettingsPanel() {
                                                         value >= 1) {
                                                         handleUpdate('v2MaxChapterMessagesToSend', value);
                                                     }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Settings for injecting story context into prompts" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectstate", label: "Auto Inject State", description: "Automatically inject scene state (time, location, characters, etc.) into prompts", checked: settings.v2InjectState, onChange: checked => handleUpdate('v2InjectState', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectnarrative", label: "Auto Inject Narrative", description: "Automatically inject chapter summaries and events into prompts", checked: settings.v2InjectNarrative, onChange: checked => handleUpdate('v2InjectNarrative', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Settings for injecting story context into prompts" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectstate", label: "Auto Inject State", description: "Automatically inject scene state (time, location, characters, etc.) into prompts", checked: settings.v2InjectState, onChange: checked => handleUpdate('v2InjectState', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectnarrative", label: "Auto Inject Narrative", description: "Automatically inject chapter summaries and events into prompts", checked: settings.v2InjectNarrative, onChange: checked => handleUpdate('v2InjectNarrative', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Scene Shakeups" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "LLM-driven random event injection to prevent stale conversations" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-shakeupenabled", label: "Enable Scene Shakeups", description: "Occasionally inject scene-appropriate disruptions into the generation prompt", checked: settings.v2ShakeupEnabled, onChange: checked => handleUpdate('v2ShakeupEnabled', checked) }), settings.v2ShakeupEnabled && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: {
+                                            marginBottom: '1em',
+                                        }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-shakeupmaxmessages", children: "Max Messages Between Shakeups" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Probability reaches 100% at this number of messages (quadratic curve: low early, guaranteed at max)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-shakeupmaxmessages", type: "number", className: "text_pole", min: "5", max: "100", step: "1", value: settings.v2ShakeupMaxMessages, onChange: e => {
+                                                    const value = parseInt(e
+                                                        .target
+                                                        .value, 10);
+                                                    if (!isNaN(value) &&
+                                                        value >=
+                                                            5 &&
+                                                        value <= 100) {
+                                                        handleUpdate('v2ShakeupMaxMessages', value);
+                                                    }
+                                                }, style: {
+                                                    width: '120px',
+                                                } })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
                                                     const value = parseInt(e.target.value, 10);
                                                     if (!isNaN(value) &&
                                                         value >= 0 &&
@@ -149231,9 +150346,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getProjectionForMessage: () => (/* binding */ getProjectionForMessage),
 /* harmony export */   getV2EventStore: () => (/* binding */ getV2EventStore),
 /* harmony export */   getV2EventStoreForEditor: () => (/* binding */ getV2EventStoreForEditor),
+/* harmony export */   getV2ShakeupHistory: () => (/* binding */ getV2ShakeupHistory),
 /* harmony export */   hasEventsAtMessage: () => (/* binding */ hasEventsAtMessage),
 /* harmony export */   hasV2InitialSnapshot: () => (/* binding */ hasV2InitialSnapshot),
 /* harmony export */   loadV2EventStore: () => (/* binding */ loadV2EventStore),
+/* harmony export */   loadV2ShakeupHistory: () => (/* binding */ loadV2ShakeupHistory),
 /* harmony export */   recalculateV2Chapter: () => (/* binding */ recalculateV2Chapter),
 /* harmony export */   replaceV2EventStore: () => (/* binding */ replaceV2EventStore),
 /* harmony export */   resetAbortController: () => (/* binding */ resetAbortController),
@@ -149241,6 +150358,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   runV2Extraction: () => (/* binding */ runV2Extraction),
 /* harmony export */   runV2ExtractionAll: () => (/* binding */ runV2ExtractionAll),
 /* harmony export */   saveV2EventStore: () => (/* binding */ saveV2EventStore),
+/* harmony export */   saveV2ShakeupHistory: () => (/* binding */ saveV2ShakeupHistory),
 /* harmony export */   setV2EventStore: () => (/* binding */ setV2EventStore),
 /* harmony export */   wasExtractionAborted: () => (/* binding */ wasExtractionAborted)
 /* harmony export */ });
@@ -149252,6 +150370,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _v2_extractors_progressTracker__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./v2/extractors/progressTracker */ "./src/v2/extractors/progressTracker.ts");
 /* harmony import */ var sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! sillytavern-utils-lib/config */ "./node_modules/sillytavern-utils-lib/dist/config.js");
 /* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _v2_shakeups_types__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./v2/shakeups/types */ "./src/v2/shakeups/types.ts");
 /**
  * V2 Bridge
  *
@@ -149266,8 +150385,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+
 // Storage key for v2 event store (stored in message 0)
 const V2_STORE_KEY = 'v2EventStore';
+const V2_SHAKEUPS_KEY = 'v2Shakeups';
 // ============================================
 // Abort Controller Management
 // ============================================
@@ -149402,8 +150523,10 @@ function getV2EventStore() {
  */
 function resetV2EventStore() {
     currentEventStore = null;
+    currentShakeupHistory = null;
     // Try to load from storage
     loadV2EventStore();
+    loadV2ShakeupHistory();
 }
 /**
  * Set the event store (for loading from saved state).
@@ -149497,6 +150620,81 @@ async function clearV2EventStore() {
     }
     catch (e) {
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Failed to clear v2 EventStore:', e);
+    }
+}
+// ============================================
+// Shakeup History Management
+// ============================================
+// In-memory shakeup history for the current chat session
+let currentShakeupHistory = null;
+/**
+ * Get or create the shakeup history for the current chat.
+ */
+function getV2ShakeupHistory() {
+    if (!currentShakeupHistory) {
+        currentShakeupHistory = (0,_v2_shakeups_types__WEBPACK_IMPORTED_MODULE_8__.createEmptyShakeupHistory)();
+    }
+    return currentShakeupHistory;
+}
+/**
+ * Load the shakeup history from chat storage (message 0).
+ * Returns true if successfully loaded, false otherwise.
+ */
+function loadV2ShakeupHistory() {
+    try {
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat || chat.length === 0) {
+            return false;
+        }
+        const firstMessage = chat[0];
+        const storage = firstMessage.extra?.[_constants__WEBPACK_IMPORTED_MODULE_4__.EXTENSION_KEY];
+        if (!storage || !storage[V2_SHAKEUPS_KEY]) {
+            return false;
+        }
+        const data = storage[V2_SHAKEUPS_KEY];
+        if (data && Array.isArray(data.triggers)) {
+            currentShakeupHistory = data;
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)(`Loaded shakeup history: ${data.triggers.length} triggers`);
+            return true;
+        }
+        return false;
+    }
+    catch (e) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Failed to load shakeup history:', e);
+        return false;
+    }
+}
+/**
+ * Save the shakeup history to chat storage (message 0).
+ * Also persists the chat to disk.
+ */
+async function saveV2ShakeupHistory() {
+    if (!currentShakeupHistory) {
+        return;
+    }
+    try {
+        const context = SillyTavern.getContext();
+        const chat = context.chat;
+        if (!chat || chat.length === 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Cannot save shakeup history: no chat messages');
+            return;
+        }
+        const firstMessage = chat[0];
+        if (!firstMessage.extra) {
+            firstMessage.extra = {};
+        }
+        if (!firstMessage.extra[_constants__WEBPACK_IMPORTED_MODULE_4__.EXTENSION_KEY]) {
+            firstMessage.extra[_constants__WEBPACK_IMPORTED_MODULE_4__.EXTENSION_KEY] = {};
+        }
+        firstMessage.extra[_constants__WEBPACK_IMPORTED_MODULE_4__.EXTENSION_KEY][V2_SHAKEUPS_KEY] =
+            currentShakeupHistory;
+        // Persist to disk
+        await context.saveChat();
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)(`Saved shakeup history: ${currentShakeupHistory.triggers.length} triggers`);
+    }
+    catch (e) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.errorLog)('Failed to save shakeup history:', e);
     }
 }
 /**

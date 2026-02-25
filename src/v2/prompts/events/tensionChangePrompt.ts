@@ -455,6 +455,24 @@ OUTPUT:
   "newLevel": "charged",
   "newType": "vulnerable"
 }
+
+### Example 23: Fear Transforms to Thrill
+INPUT:
+Previous Tension: Level: tense | Type: suspense
+Messages:
+"""
+Kai: *The bungee cord snaps taut and he's suddenly falling, the canyon rushing up at him. His scream of terror transforms mid-drop into something else entirely - a howl of pure exhilaration as the cord catches and he bounces.*
+
+Luna: *From the bridge above.* "KAI! Are you okay?!"
+
+Kai: *Dangling upside down, laughing uncontrollably.* "AGAIN! I want to go AGAIN!" *He's trembling but grinning from ear to ear.* "That was the most incredible thing I've ever felt!"
+"""
+OUTPUT:
+{
+  "reasoning": "Kai's experience transforms mid-moment from terror to exhilaration. His scream literally becomes a howl of joy, he's laughing, demanding to go again, calling it 'the most incredible thing.' From his perspective, the tension has shifted from fearful suspense to triumphant celebration. The level stays charged (high intensity) but the type shifts from 'suspense' to 'celebratory' - he's not anxious anymore, he's euphoric.",
+  "changed": true,
+  "newType": "celebratory"
+}
 `;
 
 const BAD_EXAMPLES = `
@@ -615,7 +633,25 @@ OUTPUT:
 }
 WHY THIS IS WRONG: "Decision-making" is not a valid tension type. The valid types are: confrontation, intimate, vulnerable, celebratory, negotiation, suspense, conversation. This mundane exchange about pizza is still just 'conversation'. There's no change at all.
 
-### Bad Example 9: Missing State Change
+### Bad Example 9: Observer's Moral Judgment Instead of Character Experience
+INPUT:
+Previous Tension: Level: tense | Type: suspense
+Messages:
+"""
+Ava: *She slides through the laser grid, contorting her body with practiced grace. On the other side, she straightens and dusts herself off.* "Child's play."
+
+Rio: *Through the earpiece.* "Show-off. You've got thirty seconds before the next sweep."
+
+Ava: *Her eyes light up as she spots the vault door.* "Oh, this is going to be beautiful." *She cracks her knuckles.* "I've been dreaming about this lock for months."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "She's committing a crime which is getting more tense as she approaches the vault.",
+  "changed": false
+}
+WHY THIS IS WRONG: The scene HAS changed. Ava has moved from navigating danger (suspense) to confident mastery (she calls it "child's play") and excited anticipation ("I've been dreaming about this lock"). From her perspective, the tension type has shifted from suspense to something more like celebratory or intimate (her passionate relationship with the challenge). Her eyes "light up" - she's not tense, she's thrilled.
+
+### Bad Example 10: Missing State Change
 INPUT:
 Previous Tension: Level: volatile | Type: intimate
 Messages:
@@ -777,6 +813,14 @@ Be sensitive to these de-escalation signals (should decrease level):
 - Emotional release completed (after crying, calming down)
 - Characters physically separate or leave
 - Crisis resolves (bomb defused, hostage released, etc.)
+
+## Character Perspective
+Analyze tension changes from the characters' point of view, not as a detached observer:
+- If a dangerous situation shifts and characters start enjoying it, the type may change to "celebratory" or "intimate"
+- Characters choosing to embrace risk experience it as exciting, not threatening
+- When characters willingly escalate intimacy, the tension type reflects their desire, not an outsider's discomfort
+- A moment characters find thrilling has a different tension type than one they find terrifying, even if both are high-intensity
+- Consider what the characters FEEL about the shift, not how an outsider would classify it
 
 ## Important Rules
 - Don't be overly conservative - real scenes DO change tension frequently

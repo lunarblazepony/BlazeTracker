@@ -56,9 +56,9 @@ Ambassador Delacroix: *The garden party continues behind them, string quartet pl
 """
 OUTPUT:
 {
-  "reasoning": "Delacroix and Okafor are engaging in covert diplomatic maneuvering at a garden party, discussing treaty concerns away from public view. The conversation involves veiled threats about reconsidering alliances while seeking mutually beneficial arrangements. The tone is refined and sophisticated on the surface, but there's an underlying menace to the 'pretty but poisonous' negotiations.",
+  "reasoning": "Delacroix is conducting careful, purposeful diplomacy - from his perspective, this is a calculated move to protect his government's interests. He's nervous (the cufflinks habit) but in control, deploying veiled threats as strategic tools. Okafor approaches with a 'dangerous smile,' suggesting she sees this as a game she knows how to play. Both characters experience this as high-stakes political maneuvering where every word is deliberate.",
   "topic": "secret treaty negotiation",
-  "tone": "elegantly threatening"
+  "tone": "calculated and purposeful"
 }
 
 ### Example 5: Comedic Disaster
@@ -104,9 +104,9 @@ Reyes: *The blueprints cover every surface of the motel room - walls, bed, floor
 """
 OUTPUT:
 {
-  "reasoning": "Reyes is briefing her crew on an elaborate heist, having found a weakness in an 'uncrackable' vault. The scene focuses on meticulous planning for a time-sensitive theft during a gala event. The tone conveys focused intensity and professional criminal determination - this is serious business requiring precision and expertise.",
+  "reasoning": "Reyes is thrilled - she cracked an 'uncrackable' vault and is now rallying her crew for the job. From her perspective, this is exciting and electric: six hours of determination paying off, a seventeen-second window that's 'enough.' She's energized by the challenge and the time pressure. The crew is gathering around the blueprint with shared purpose - this is their shot and they're buzzing with anticipation.",
   "topic": "planning the heist",
-  "tone": "intense and focused"
+  "tone": "excited and conspiratorial"
 }
 
 ### Example 9: Awkward First Date
@@ -155,6 +155,31 @@ OUTPUT:
   "reasoning": "Maya is comforting her daughter Sophie after a recurring nightmare about a monster under the bed. The topic is a parent providing comfort and security to a frightened child. The tone is tender and nurturing - there's warmth in Maya's protection and the gentle way she offers to share a family tradition for dealing with fears.",
   "topic": "comforting scared child",
   "tone": "tender and nurturing"
+}
+
+### Example 13: Rebels on a Smuggling Run
+INPUT:
+"""
+Kira: *She kills the ship's running lights as they slip past the blockade, the asteroid field providing just enough cover. Her heart is pounding - not with fear, but with the rush of it. Six months of planning and they're actually doing it.* "Medical supplies secured in cargo bay two. Imperial patrol is sweeping sector seven - we'll be long gone by the time they circle back." *She grins at her copilot.* "Tell the colony to prep the landing pad. Santa Claus is coming early this year."
+"""
+OUTPUT:
+{
+  "reasoning": "From Kira's perspective, this isn't criminal smuggling - it's a thrilling act of rebellion and compassion. Her heart pounds with excitement, not fear. She's grinning, making jokes about Santa Claus, feeling the rush of outsmarting the Empire to deliver medical supplies. The tone should reflect how she experiences this: as an exhilarating act of defiance, not as 'illegal activity.'",
+  "topic": "smuggling past blockade",
+  "tone": "thrilling and defiant"
+}
+
+### Example 14: Forbidden Romance
+INPUT:
+"""
+Aria: *She pulls him into the alcove behind the tapestry, barely breathing as guards march past on the other side.* "That was close." *Her whisper comes with a breathless laugh, her fingers still tangled in the front of his tunic.* "If my father's men had seen us..."
+Lord Cassius: *He brushes a strand of hair from her face, his thumb lingering on her cheek.* "Worth the risk." *His eyes hold hers in the dim light.* "Every time."
+"""
+OUTPUT:
+{
+  "reasoning": "From Aria and Cassius's perspective, the danger of being caught makes this more exciting, not frightening. She's breathless and laughing, he declares it 'worth the risk.' They experience their forbidden relationship as passionate and electrifying - the secrecy adds to the thrill rather than dampening it. The tone reflects their shared excitement, not an outsider's judgment about impropriety.",
+  "topic": "secret lovers meeting",
+  "tone": "breathless and electric"
 }
 `;
 
@@ -304,7 +329,20 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: "Depressing" projects a judgment onto the scene. The text shows complexity - Marcus returning after fifteen years, unchanged scenery with profound loss. The tone should reflect both the nostalgia of homecoming and the melancholy of what's lost, not label it negatively. Better: topic: "returning home alone", tone: "nostalgic and bittersweet"
 
-### Bad Example 12: Reasoning Too Short and Superficial
+### Bad Example 12: Observer Judgment Instead of Character Experience
+INPUT:
+"""
+Zephyr: *She scales the museum wall with practiced ease, the moonlight catching her grin as she reaches the skylight.* "Security system disabled. We've got twelve minutes." *She drops silently into the gallery, landing in a crouch beside the display case housing the stolen artifact - stolen from her people two centuries ago.* "Time to bring you home," *she whispers, her eyes bright with purpose.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Zephyr is breaking into a museum to steal an artifact. This is criminal activity.",
+  "topic": "museum heist",
+  "tone": "criminal and dangerous"
+}
+WHY THIS IS WRONG: "Criminal and dangerous" is an outside observer's judgment, not how Zephyr experiences the scene. From her perspective, she's reclaiming something stolen from her people - she's grinning, purposeful, skilled. The tone should reflect her experience: something like "exhilarating and righteous." Don't impose moral labels that contradict how the characters feel about what they're doing.
+
+### Bad Example 13: Reasoning Too Short and Superficial
 INPUT:
 """
 King Aldric: *The throne room is packed with nobles, all craning to see the prisoner dragged before the king. The young woman in chains lifts her head defiantly, bloodied and bruised but unbroken. King Aldric sits forward on his gilded throne, studying the rebel who has cost him half his treasury and a quarter of his army in the past year.* "So this is the Fox of Silverwood," *he says, voice carrying through the hall.* "Smaller than I expected." *The woman smiles, split lip and all.* "And you're uglier. Guess we're both disappointed." *A gasp ripples through the court. The king's eyes narrow, but there's something like amusement beneath the anger.*
@@ -349,6 +387,14 @@ Respond with a JSON object containing:
 - Use descriptive combinations (e.g., "nervously excited", "coldly professional")
 - Consider both surface emotion and underlying currents
 - 2-3 words maximum
+
+## Character Perspective
+Analyze tone from the characters' point of view, not as a detached observer:
+- If characters see themselves as rebels, the tone is "thrilling and defiant" not "criminal"
+- If characters find a dangerous act exciting, reflect their excitement
+- A heist planned by enthusiastic thieves has a tone of "excited and conspiratorial" not "morally dubious"
+- An intimate scene the characters are enjoying is "passionate" or "playful", not "inappropriate"
+- Consider what the characters FEEL about what's happening, not how an outsider would judge it
 
 ## Important Rules
 - Analyze subtext, not just surface content

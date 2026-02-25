@@ -109,6 +109,12 @@ export interface V2Settings {
 	/** Auto-inject narrative (chapters/events) into prompts (disable for macro-only workflow) */
 	v2InjectNarrative: boolean;
 
+	// Scene Shakeups
+	/** Enable Scene Shakeups — random event injection */
+	v2ShakeupEnabled: boolean;
+	/** Max messages between shakeups (probability reaches 100% at this number, default 20) */
+	v2ShakeupMaxMessages: number;
+
 	// Context-aware injection settings
 	/** Max past chapters to include in Story So Far (default: 5) */
 	v2MaxRecentChapters: number;
@@ -152,7 +158,9 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		(typeof s.v2InjectionTokenBudget === 'number' ||
 			s.v2InjectionTokenBudget === undefined) &&
 		(typeof s.v2InjectState === 'boolean' || s.v2InjectState === undefined) &&
-		(typeof s.v2InjectNarrative === 'boolean' || s.v2InjectNarrative === undefined)
+		(typeof s.v2InjectNarrative === 'boolean' || s.v2InjectNarrative === undefined) &&
+		(typeof s.v2ShakeupEnabled === 'boolean' || s.v2ShakeupEnabled === undefined) &&
+		(typeof s.v2ShakeupMaxMessages === 'number' || s.v2ShakeupMaxMessages === undefined)
 	);
 }
 

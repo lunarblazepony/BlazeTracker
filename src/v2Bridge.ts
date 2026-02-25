@@ -30,9 +30,12 @@ import {
 } from './v2/extractors/progressTracker';
 import { st_echo } from 'sillytavern-utils-lib/config';
 import { debugLog, debugWarn, errorLog } from './utils/debug';
+import type { ShakeupHistory } from './v2/shakeups/types';
+import { createEmptyShakeupHistory } from './v2/shakeups/types';
 
 // Storage key for v2 event store (stored in message 0)
 const V2_STORE_KEY = 'v2EventStore';
+const V2_SHAKEUPS_KEY = 'v2Shakeups';
 
 // ============================================
 // Abort Controller Management
@@ -181,8 +184,10 @@ export function getV2EventStore(): V2EventStore {
  */
 export function resetV2EventStore(): void {
 	currentEventStore = null;
+	currentShakeupHistory = null;
 	// Try to load from storage
 	loadV2EventStore();
+	loadV2ShakeupHistory();
 }
 
 /**
@@ -303,6 +308,101 @@ export async function clearV2EventStore(): Promise<void> {
 		}
 	} catch (e) {
 		debugWarn('Failed to clear v2 EventStore:', e);
+	}
+}
+
+// ============================================
+// Shakeup History Management
+// ============================================
+
+// In-memory shakeup history for the current chat session
+let currentShakeupHistory: ShakeupHistory | null = null;
+
+/**
+ * Get or create the shakeup history for the current chat.
+ */
+export function getV2ShakeupHistory(): ShakeupHistory {
+	if (!currentShakeupHistory) {
+		currentShakeupHistory = createEmptyShakeupHistory();
+	}
+	return currentShakeupHistory;
+}
+
+/**
+ * Load the shakeup history from chat storage (message 0).
+ * Returns true if successfully loaded, false otherwise.
+ */
+export function loadV2ShakeupHistory(): boolean {
+	try {
+		const context = SillyTavern.getContext() as unknown as STContext;
+		const chat = context.chat;
+
+		if (!chat || chat.length === 0) {
+			return false;
+		}
+
+		const firstMessage = chat[0];
+		const storage = firstMessage.extra?.[EXTENSION_KEY] as
+			| Record<string, unknown>
+			| undefined;
+
+		if (!storage || !storage[V2_SHAKEUPS_KEY]) {
+			return false;
+		}
+
+		const data = storage[V2_SHAKEUPS_KEY] as ShakeupHistory;
+		if (data && Array.isArray(data.triggers)) {
+			currentShakeupHistory = data;
+			debugLog(`Loaded shakeup history: ${data.triggers.length} triggers`);
+			return true;
+		}
+
+		return false;
+	} catch (e) {
+		debugWarn('Failed to load shakeup history:', e);
+		return false;
+	}
+}
+
+/**
+ * Save the shakeup history to chat storage (message 0).
+ * Also persists the chat to disk.
+ */
+export async function saveV2ShakeupHistory(): Promise<void> {
+	if (!currentShakeupHistory) {
+		return;
+	}
+
+	try {
+		const context = SillyTavern.getContext() as unknown as STContext;
+		const chat = context.chat;
+
+		if (!chat || chat.length === 0) {
+			debugWarn('Cannot save shakeup history: no chat messages');
+			return;
+		}
+
+		const firstMessage = chat[0];
+
+		if (!firstMessage.extra) {
+			firstMessage.extra = {};
+		}
+
+		if (!firstMessage.extra[EXTENSION_KEY]) {
+			firstMessage.extra[EXTENSION_KEY] = {};
+		}
+
+		(firstMessage.extra[EXTENSION_KEY] as Record<string, unknown>)[V2_SHAKEUPS_KEY] =
+			currentShakeupHistory;
+
+		// Persist to disk
+		await context.saveChat();
+
+		debugLog(
+			`Saved shakeup history: ${currentShakeupHistory.triggers.length} triggers`,
+		);
+	} catch (e) {
+		errorLog('Failed to save shakeup history:', e);
 	}
 }
 

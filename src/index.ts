@@ -21,6 +21,8 @@ import {
 	wasExtractionAborted,
 	abortExtraction,
 	clearV2EventStore,
+	getV2ShakeupHistory,
+	saveV2ShakeupHistory,
 } from './v2Bridge';
 // V2 Injection
 import { injectState as v2InjectState } from './v2';
@@ -216,6 +218,8 @@ async function init() {
 		getV2EventStore,
 		hasV2InitialSnapshot,
 		buildSwipeContext,
+		getV2ShakeupHistory,
+		saveV2ShakeupHistory,
 	});
 
 	// Register bridge functions for macros and register ST macros

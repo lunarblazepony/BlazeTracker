@@ -238,6 +238,8 @@ describe('promptHook', () => {
 				getV2EventStore: vi.fn(() => null),
 				hasV2InitialSnapshot: vi.fn(() => false),
 				buildSwipeContext: vi.fn(() => ({ getCanonicalSwipeId: () => 0 })),
+				getV2ShakeupHistory: vi.fn(() => ({ triggers: [] })),
+				saveV2ShakeupHistory: vi.fn(async () => {}),
 			};
 
 			expect(() => registerBridgeFunctions(mockBridgeFunctions)).not.toThrow();
@@ -361,6 +363,8 @@ describe('prompt hook with mock store', () => {
 			getV2EventStore: () => mockStore as unknown as EventStore,
 			hasV2InitialSnapshot: () => true,
 			buildSwipeContext: () => mockSwipeContext,
+			getV2ShakeupHistory: () => ({ triggers: [] }),
+			saveV2ShakeupHistory: async () => {},
 		});
 
 		// Capture the handlers

@@ -53,6 +53,13 @@ Enable or disable extraction modules. Disabling modules reduces LLM calls per me
 | Max Recent Events | number | `15` | Maximum out-of-context events from current chapter. |
 | Token Budget | number | `0` | Token budget for injection (0 = use ST's context size). |
 
+## Scene Shakeups
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| Enable Scene Shakeups | boolean | `false` | Inject random context-appropriate events into prompts. See [Scene Shakeups guide](../../guides/scene-shakeups). |
+| Max Messages Between Shakeups | number | `20` | Messages at which trigger probability reaches 100%. Range: 5–100. |
+
 ## Advanced
 
 ### LLM Settings
