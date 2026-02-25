@@ -265,6 +265,28 @@ describe('initialTopicToneExtractor', () => {
 		});
 	});
 
+	describe('character perspective guidance', () => {
+		it('includes Character Perspective section in system prompt', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test',
+					topic: 'meeting',
+					tone: 'casual',
+				}),
+			);
+
+			await initialTopicToneExtractor.run(mockGenerator, context, settings, {});
+
+			const call = mockGenerator.getLastCall();
+			const systemMessage = call!.prompt.messages.find(m => m.role === 'system');
+			expect(systemMessage!.content).toContain('Character Perspective');
+			expect(systemMessage!.content).toContain("characters' point of view");
+		});
+	});
+
 	describe('metadata', () => {
 		it('has the correct name', () => {
 			expect(initialTopicToneExtractor.name).toBe('initialTopicTone');

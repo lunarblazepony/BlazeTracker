@@ -92,6 +92,40 @@ OUTPUT:
   "reasoning": "Charlotte learned she was adopted and her birth mother was hidden from her for 23 years.",
   "description": "Charlotte discovered she was secretly adopted; Lady Ashworth revealed her birth mother was deemed unsuitable"
 }
+
+### Example 7: Avoiding Repetition - Continuing Activity
+INPUT:
+Recent Narratives:
+- Kai and Mei shared their first kiss in the rain
+- Kai led Mei inside and they continued their passionate embrace
+Messages:
+"""
+Kai: *He pulls back slightly, breathless.* "Stay tonight." *His eyes search hers.* "I don't want this to end."
+
+Mei: *She traces his jawline.* "I'm not going anywhere." *She pulls him toward the bedroom.*
+"""
+OUTPUT:
+{
+  "reasoning": "Previous entries already covered the kiss and embrace. What's new here is the decision to spend the night together - the commitment to continue rather than the physical actions themselves.",
+  "description": "Kai asked Mei to stay the night; she agreed and led him to the bedroom"
+}
+
+### Example 8: Avoiding Repetition - Progressing Scene
+INPUT:
+Recent Narratives:
+- Marcus and Elena argued about his deception
+- Elena demanded the truth about Marcus's past
+Messages:
+"""
+Marcus: *He sinks into the chair, all resistance gone.* "Fine. You want the truth?" *He pulls out a faded photograph.* "I was never a businessman. I was an operative. And the people I worked for? They're the ones who killed your sister."
+
+Elena: *The photograph falls from her trembling hands.* "What?"
+"""
+OUTPUT:
+{
+  "reasoning": "Previous entries covered the argument and demands for truth. The new development is Marcus's actual confession - his real identity and the bombshell about Elena's sister. Focus on what was revealed, not that they were still arguing.",
+  "description": "Marcus confessed he was a former operative and revealed his employers killed Elena's sister"
+}
 `;
 
 const narrativeDescriptionResponseSchema: JSONSchema = {
@@ -115,6 +149,7 @@ export const narrativeDescriptionPrompt: PromptTemplate<ExtractedNarrativeDescri
 		PLACEHOLDERS.characterName,
 		PLACEHOLDERS.characterProfiles,
 		PLACEHOLDERS.worldinfo,
+		PLACEHOLDERS.recentNarratives,
 	],
 
 	systemPrompt: `You are summarizing roleplay messages for a narrative log.
@@ -135,6 +170,13 @@ Respond with a JSON object containing:
 - Use semicolons to separate multiple events in one description
 - Don't editorialize or add interpretation
 
+## Avoiding Repetition
+You will be given recent narrative descriptions. Your new description MUST:
+- Use different phrasing and vocabulary from previous entries
+- Focus on what is NEW or DIFFERENT about this moment
+- Avoid restating the same actions with minor word changes
+- If a similar activity continues, describe the progression or shift, not the activity itself
+
 ${EXAMPLES}
 `,
 
@@ -147,11 +189,14 @@ Name: {{characterName}}
 ## Worldinfo/Lorebook Context
 {{worldinfo}}
 
+## Recent Narrative Descriptions (avoid repeating these)
+{{recentNarratives}}
+
 ## Messages to Summarize
 {{messages}}
 
 ## Task
-Write a brief, factual description of what happened in these messages.`,
+Write a brief, factual description of what happened in these messages. Use different phrasing from the recent narratives above and focus on what is new or different.`,
 
 	responseSchema: narrativeDescriptionResponseSchema,
 

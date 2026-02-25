@@ -80,6 +80,10 @@ export function createDefaultV2Settings(): V2Settings {
 		v2InjectState: true,
 		v2InjectNarrative: true,
 
+		// Scene Shakeups
+		v2ShakeupEnabled: false, // Off by default — opt-in
+		v2ShakeupMaxMessages: 20, // Guaranteed shakeup every 20 messages
+
 		// Context-aware injection settings
 		v2MaxRecentChapters: 5,
 		v2MaxRecentEvents: 15,
@@ -151,6 +155,10 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		// Auto-injection toggles
 		v2InjectState: partial.v2InjectState ?? defaults.v2InjectState,
 		v2InjectNarrative: partial.v2InjectNarrative ?? defaults.v2InjectNarrative,
+
+		// Scene Shakeups
+		v2ShakeupEnabled: partial.v2ShakeupEnabled ?? defaults.v2ShakeupEnabled,
+		v2ShakeupMaxMessages: partial.v2ShakeupMaxMessages ?? defaults.v2ShakeupMaxMessages,
 
 		// Context-aware injection settings
 		v2MaxRecentChapters: partial.v2MaxRecentChapters ?? defaults.v2MaxRecentChapters,

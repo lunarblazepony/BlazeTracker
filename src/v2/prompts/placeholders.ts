@@ -190,6 +190,13 @@ export const PLACEHOLDERS: Record<string, Placeholder> = {
 		example: '- Marcus revealed he used to be a cop\n- Elena shared her real name\n- They agreed to work together on the heist',
 	},
 
+	// Narrative deduplication
+	recentNarratives: {
+		name: 'recentNarratives',
+		description: 'Recent narrative event descriptions to avoid repetition',
+		example: '- Elena confronted Marcus with evidence of his deception\n- Marcus attempted to explain himself but Elena refused to listen',
+	},
+
 	// Schema placeholders
 	schema: {
 		name: 'schema',

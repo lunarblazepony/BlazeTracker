@@ -102,6 +102,13 @@ export const narrativeDescriptionExtractor: EventExtractor<ExtractedNarrativeDes
 			worldinfo = await getWorldinfoForPrompt(messagesForWorldinfo);
 		}
 
+		// Format recent narratives for deduplication (already canonical-path-only via projection)
+		const recentNarratives =
+			projection.narrativeEvents
+				.slice(-3)
+				.map(e => `- ${e.description}`)
+				.join('\n') || 'None';
+
 		// Build the prompt with current context
 		const builtPrompt = buildExtractorPrompt(
 			narrativeDescriptionPrompt,
@@ -110,7 +117,10 @@ export const narrativeDescriptionExtractor: EventExtractor<ExtractedNarrativeDes
 			settings,
 			startMessageId,
 			endMessageId,
-			{ worldinfo: worldinfo || 'No worldinfo available' },
+			{
+				worldinfo: worldinfo || 'No worldinfo available',
+				additionalValues: { recentNarratives },
+			},
 		);
 
 		// Get temperature (prompt override → category → default)

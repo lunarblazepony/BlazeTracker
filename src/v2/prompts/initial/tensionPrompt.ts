@@ -180,6 +180,18 @@ OUTPUT:
   "level": "charged",
   "type": "celebratory"
 }
+
+### Example 15: Thrilling Heist in Progress
+INPUT:
+"""
+Nova: *Her fingers fly across the keypad, the vault door's lock clicking open with a satisfying thunk. She can hear her own heartbeat in her ears, but the grin on her face is pure adrenaline.* "We're in." *She swings the door open and the crew crowds behind her, eyes wide at the rows of safety deposit boxes.* "Twelve minutes before the guard rotation. Let's make them count." *Rico high-fives her. Chen is already at work on the target box. This is what they live for.*
+"""
+OUTPUT:
+{
+  "reasoning": "From the crew's perspective, this is the most exciting moment of their lives. Nova is grinning with pure adrenaline, there are high-fives, and the narration says 'this is what they live for.' The tension level is charged (high intensity, stakes are real) but the type is celebratory (they're reveling in the moment, not stressed by it). An outside observer might call this 'suspense,' but the characters are experiencing triumph and thrill.",
+  "level": "charged",
+  "type": "celebratory"
+}
 `;
 
 const BAD_EXAMPLES = `
@@ -315,7 +327,20 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Student confusion isn't tension in the narrative sense. There's laughter, the professor is patient and smiling, he's willing to re-explain. This is normal classroom dynamics with a supportive teacher. Correct: level "relaxed" (low-stakes academic setting), type "conversation" (lecture/discussion)
 
-### Bad Example 11: Single-Word or Incomplete Reasoning
+### Bad Example 11: Observer Tension Instead of Character Experience
+INPUT:
+"""
+Jade: *She leans into the curve, the motorcycle eating up the mountain road at twice the posted speed. The wind tears at her jacket, the engine screams, and she screams right back - a howl of pure joy.* "FASTER!" *Her passenger, Miko, tightens her grip around Jade's waist, laughing into the wind.* "You're insane!" *But she's laughing, and so is Jade, and the cliff edge is close enough to touch but neither of them cares.*
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're driving dangerously fast on a mountain road near a cliff edge.",
+  "level": "volatile",
+  "type": "suspense"
+}
+WHY THIS IS WRONG: The characters are not experiencing suspense or volatility - they're experiencing pure joy. Jade is howling with excitement, Miko is laughing, "neither of them cares" about the danger. From their perspective this is exhilarating fun, not a crisis. Correct: level "charged" (high intensity), type "celebratory" (they're reveling in the thrill)
+
+### Bad Example 12: Single-Word or Incomplete Reasoning
 INPUT:
 """
 Maya: *The wedding dress fits perfectly. Maya stares at herself in the mirror, white silk and vintage lace, her grandmother's pearls at her throat. In three hours she'll walk down the aisle. In three hours she'll become someone's wife. Her hands shake as she adjusts the veil.* "Are you sure about this?" *Her maid of honor, Rachel, asks gently.* "I don't know," *Maya whispers, and the admission feels like releasing a breath she's been holding for months.* "I love him. I do. But I don't know if love is enough."
@@ -365,6 +390,14 @@ Respond with a JSON object containing:
 - **negotiation**: Bargaining, deal-making, seeking agreement
 - **suspense**: Unknown threat, building dread, waiting for something
 - **conversation**: General dialogue, getting to know each other, casual talk
+
+## Character Perspective
+Analyze tension from the characters' point of view, not as a detached observer:
+- If characters find a dangerous situation thrilling, reflect their excitement in the type
+- A heist crew enjoying the adrenaline rush has "celebratory" or "intimate" tension, not just "suspense"
+- Characters willingly engaging in risky behavior experience it differently than victims of circumstance
+- The tension type should reflect the characters' emotional experience of the situation
+- Don't impose an outsider's moral framework on how characters experience tension
 
 ## Important Rules
 - Analyze actual content, not genre expectations (a tomb isn't automatically scary)

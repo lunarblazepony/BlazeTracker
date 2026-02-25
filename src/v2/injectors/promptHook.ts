@@ -13,13 +13,21 @@ import type { STContext } from '../../types/st.d';
 import type { EventStore } from '../store/EventStore';
 import type { SwipeContext } from '../store/projection';
 import { getV2Settings } from '../settings';
-import { debugLog } from '../../utils/debug';
+import type { V2Settings } from '../settings/types';
+import { debugLog, debugWarn } from '../../utils/debug';
 import { formatPrecomputedChapters } from './chapters';
 import { formatOutOfContextEvents } from './events';
 import { formatStateForInjection, type InjectOptions } from './state';
 import type { Projection } from '../types/snapshot';
 import { computeOptimalContext, estimateMessageTokens, type ContextPlan } from './contextBudget';
 import { getDefaultTokenCounter, type TokenCounter } from '../utils/tokenCount';
+import type { ShakeupHistory } from '../shakeups/types';
+import { computeShakeupProbability } from '../shakeups/probability';
+import { getMessagesSinceLastShakeup, addShakeupTrigger } from '../shakeups/history';
+import { generateShakeup } from '../shakeups/generateShakeup';
+import { SillyTavernGenerator } from '../generator/SillyTavernGenerator';
+import { formatCharacterProfiles, formatRelationshipState } from '../extractors/utils/buildPrompt';
+import { getWorldinfoForPrompt } from '../utils/worldinfo';
 
 // Track if hooks are registered
 let chatCompletionHookRegistered = false;
@@ -30,6 +38,8 @@ let bridgeFunctions: {
 	getV2EventStore: () => EventStore | null;
 	hasV2InitialSnapshot: () => boolean;
 	buildSwipeContext: (stContext: STContext) => SwipeContext;
+	getV2ShakeupHistory: () => ShakeupHistory;
+	saveV2ShakeupHistory: () => Promise<void>;
 } | null = null;
 
 /**
@@ -40,6 +50,8 @@ export function registerBridgeFunctions(functions: {
 	getV2EventStore: () => EventStore | null;
 	hasV2InitialSnapshot: () => boolean;
 	buildSwipeContext: (stContext: STContext) => SwipeContext;
+	getV2ShakeupHistory: () => ShakeupHistory;
+	saveV2ShakeupHistory: () => Promise<void>;
 }): void {
 	bridgeFunctions = functions;
 }
@@ -318,6 +330,207 @@ function findChatMessageRange(chatMessages: ChatCompletionPromptReadyData['chat'
 	return { startIndex, endIndex: chatMessages.length };
 }
 
+// ============================================
+// Scene Shakeup Injection
+// ============================================
+
+/**
+ * Get recent messages from ST chat as formatted strings.
+ */
+function getRecentMessages(stContext: STContext, count: number): string {
+	const messages: string[] = [];
+	const start = Math.max(0, stContext.chat.length - count);
+	for (let i = start; i < stContext.chat.length; i++) {
+		const msg = stContext.chat[i];
+		if (msg.mes) {
+			messages.push(`${msg.name}: ${msg.mes}`);
+		}
+	}
+	return messages.join('\n\n');
+}
+
+/**
+ * Get character description from ST context.
+ */
+function getCharacterDescription(stContext: STContext): string {
+	const char = stContext.characters?.[stContext.characterId];
+	if (!char) return '';
+	const parts: string[] = [];
+	if (char.description) parts.push(char.description);
+	if (char.personality) parts.push(`Personality: ${char.personality}`);
+	if (char.scenario) parts.push(`Scenario: ${char.scenario}`);
+	return parts.join('\n\n');
+}
+
+/**
+ * Get user description from ST context.
+ */
+function getUserDescription(stContext: STContext): string {
+	return stContext.powerUserSettings?.persona_description || stContext.persona || '';
+}
+
+/**
+ * Format all present-character relationships from projection.
+ */
+function formatRelationships(projection: Projection): string {
+	const presentSet = new Set(projection.charactersPresent);
+	const formatted: string[] = [];
+
+	for (const rel of Object.values(projection.relationships)) {
+		if (presentSet.has(rel.pair[0]) && presentSet.has(rel.pair[1])) {
+			formatted.push(formatRelationshipState(projection, rel.pair));
+		}
+	}
+
+	return formatted.length > 0 ? formatted.join('\n\n') : '';
+}
+
+/**
+ * Try to inject a scene shakeup into the prompt.
+ * Returns the injection text or null if no shakeup triggered.
+ */
+async function tryInjectShakeup(params: {
+	settings: V2Settings;
+	stContext: STContext;
+	swipeContext: SwipeContext;
+	store: EventStore;
+	projection: Projection;
+}): Promise<string | null> {
+	const { settings, stContext, swipeContext, store, projection } = params;
+
+	// Check if shakeups are enabled and profile is set
+	if (!settings.v2ShakeupEnabled || !settings.v2ProfileId) {
+		return null;
+	}
+
+	// Must have at least one message
+	if (stContext.chat.length === 0) {
+		return null;
+	}
+
+	// Must have bridge functions
+	if (!bridgeFunctions) {
+		return null;
+	}
+
+	try {
+		// Load history and compute distance
+		const history = bridgeFunctions.getV2ShakeupHistory();
+
+		// Determine the target message — the assistant response being generated.
+		// During normal generation, the chat ends with the user message and the
+		// assistant response will be added at chat.length.
+		// During swipe/continuation, the assistant message already exists at the end.
+		const lastMsg = stContext.chat[stContext.chat.length - 1];
+		const isRegeneration = lastMsg && !lastMsg.is_user;
+		const targetMessageId = isRegeneration
+			? stContext.chat.length - 1
+			: stContext.chat.length;
+		const targetSwipeId = isRegeneration ? (lastMsg.swipe_id ?? 0) : 0;
+
+		const messagesSince = getMessagesSinceLastShakeup(
+			history,
+			targetMessageId,
+			swipeContext,
+		);
+
+		// Roll against probability curve
+		const probability = computeShakeupProbability(
+			messagesSince,
+			settings.v2ShakeupMaxMessages,
+		);
+		const roll = Math.random();
+		const triggered = roll < probability;
+
+		debugLog(
+			`Shakeup roll: target=msg${targetMessageId}${isRegeneration ? '(regen)' : '(new)'}, ` +
+				`${messagesSince} msgs since last, ` +
+				`probability=${(probability * 100).toFixed(1)}%, ` +
+				`roll=${(roll * 100).toFixed(1)}%, ` +
+				`${triggered ? 'TRIGGERED' : 'not triggered'}`,
+		);
+
+		if (!triggered) {
+			return null;
+		}
+
+		// Gather context
+		const recentMessages = getRecentMessages(stContext, 8);
+		const characterDescription = getCharacterDescription(stContext);
+		const userDescription = getUserDescription(stContext);
+		const characterProfiles = formatCharacterProfiles(projection);
+		const relationships = formatRelationships(projection);
+
+		// Optional worldinfo
+		let worldinfo: string | undefined;
+		if (settings.v2IncludeWorldinfo) {
+			try {
+				const messageTexts = stContext.chat
+					.slice(-8)
+					.map(m => m.mes)
+					.filter(Boolean);
+				const wi = await getWorldinfoForPrompt(messageTexts);
+				if (wi) worldinfo = wi;
+			} catch {
+				// Worldinfo fetch failure is non-fatal
+			}
+		}
+
+		// Create generator and generate suggestions
+		const generator = new SillyTavernGenerator({ profileId: settings.v2ProfileId });
+		const result = await generateShakeup({
+			generator,
+			projection,
+			store,
+			swipeContext,
+			characterDescription,
+			userDescription,
+			characterProfiles,
+			relationships,
+			recentMessages,
+			worldinfo,
+		});
+
+		if (!result || result.suggestions.length === 0) {
+			debugWarn('Shakeup generation returned no suggestions');
+			return null;
+		}
+
+		// Log all generated options
+		debugLog(`Shakeup options (${result.suggestions.length}):`);
+		for (let i = 0; i < result.suggestions.length; i++) {
+			const s = result.suggestions[i];
+			debugLog(`  [${i}] (${s.type}) ${s.instruction} — ${s.rationale}`);
+		}
+
+		// Pick a random suggestion
+		const selectedIndex = Math.floor(Math.random() * result.suggestions.length);
+		const selected = result.suggestions[selectedIndex];
+
+		debugLog(
+			`Selected shakeup [${selectedIndex}]: (${selected.type}) ${selected.instruction}`,
+		);
+
+		// Record the trigger at the assistant response message
+		addShakeupTrigger(history, { messageId: targetMessageId, swipeId: targetSwipeId });
+		await bridgeFunctions.saveV2ShakeupHistory();
+
+		// Format injection block — must be forceful to prevent the LLM from ignoring it
+		return (
+			`[IMPORTANT — Mandatory Scene Direction]\n` +
+			`You MUST incorporate the following event into your next response. This is not optional. ` +
+			`The event MUST occur during this response and be woven naturally into the narrative.\n\n` +
+			`Event: ${selected.instruction}\n\n` +
+			`Write the event as a natural part of the scene — do not announce it mechanically or break immersion. ` +
+			`The event must happen, but how the characters react should be true to their personalities.\n` +
+			`[/IMPORTANT — Mandatory Scene Direction]`
+		);
+	} catch (error) {
+		debugWarn('Shakeup injection failed (non-fatal):', error);
+		return null;
+	}
+}
+
 /**
  * Handle the CHAT_COMPLETION_PROMPT_READY event.
  * This is called when ST is about to send a prompt to the LLM.
@@ -390,9 +603,24 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 		);
 
 		// Build state content to know its token cost (skip if state injection disabled)
-		const stateContent = settings.v2InjectState
+		let stateContent = settings.v2InjectState
 			? buildAfterMessagesContent(store, swipeContext, projection)
 			: '';
+
+		// Try shakeup injection — append to state content if triggered
+		const shakeupContent = await tryInjectShakeup({
+			settings,
+			stContext,
+			swipeContext,
+			store,
+			projection,
+		});
+		if (shakeupContent) {
+			stateContent = stateContent
+				? `${stateContent}\n\n${shakeupContent}`
+				: shakeupContent;
+		}
+
 		const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
 
 		// Estimate message tokens from ST's chat array
@@ -586,9 +814,24 @@ async function handleTextCompletionPromptReady(
 		);
 
 		// Build state content to know its token cost (skip if state injection disabled)
-		const stateContent = settings.v2InjectState
+		let stateContent = settings.v2InjectState
 			? buildAfterMessagesContent(store, swipeContext, projection)
 			: '';
+
+		// Try shakeup injection — append to state content if triggered
+		const shakeupContent = await tryInjectShakeup({
+			settings,
+			stContext,
+			swipeContext,
+			store,
+			projection,
+		});
+		if (shakeupContent) {
+			stateContent = stateContent
+				? `${stateContent}\n\n${shakeupContent}`
+				: shakeupContent;
+		}
+
 		const stateTokens = stateContent ? await tokenCounter.countTokens(stateContent) : 0;
 
 		// Count tokens for each message in finalMesSend

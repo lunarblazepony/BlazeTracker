@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { replacePlaceholders, extractPlaceholders, validatePlaceholders } from './placeholders';
+import {
+	replacePlaceholders,
+	extractPlaceholders,
+	validatePlaceholders,
+	PLACEHOLDERS,
+} from './placeholders';
+import { narrativeDescriptionPrompt } from './events/narrativeDescriptionPrompt';
 
 describe('replacePlaceholders', () => {
 	it('replaces all placeholders with values', () => {
@@ -44,5 +50,31 @@ describe('validatePlaceholders', () => {
 	it('returns undocumented placeholder names', () => {
 		const result = validatePlaceholders('{{a}} and {{unknown}}', ['a']);
 		expect(result).toContain('unknown');
+	});
+});
+
+describe('PLACEHOLDERS', () => {
+	it('includes recentNarratives placeholder', () => {
+		expect(PLACEHOLDERS.recentNarratives).toBeDefined();
+		expect(PLACEHOLDERS.recentNarratives.name).toBe('recentNarratives');
+		expect(PLACEHOLDERS.recentNarratives.description).toContain('repetition');
+	});
+});
+
+describe('narrativeDescriptionPrompt', () => {
+	it('declares recentNarratives in its placeholders', () => {
+		const placeholderNames = narrativeDescriptionPrompt.placeholders.map(p => p.name);
+		expect(placeholderNames).toContain('recentNarratives');
+	});
+
+	it('uses recentNarratives in the user template', () => {
+		expect(narrativeDescriptionPrompt.userTemplate).toContain('{{recentNarratives}}');
+	});
+
+	it('includes anti-repetition guidelines in system prompt', () => {
+		expect(narrativeDescriptionPrompt.systemPrompt).toContain('Avoiding Repetition');
+		expect(narrativeDescriptionPrompt.systemPrompt).toContain(
+			'different phrasing and vocabulary',
+		);
 	});
 });

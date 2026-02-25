@@ -421,6 +421,36 @@ describe('tensionExtractor', () => {
 		});
 	});
 
+	describe('character perspective guidance', () => {
+		it('includes Character Perspective section in system prompt', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+			const partialSnapshot = createPartialSnapshot({
+				scene: createMockScene(),
+			});
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test',
+					level: 'relaxed',
+					type: 'conversation',
+				}),
+			);
+
+			await tensionExtractor.run(
+				mockGenerator,
+				context,
+				settings,
+				partialSnapshot,
+			);
+
+			const call = mockGenerator.getLastCall();
+			const systemMessage = call!.prompt.messages.find(m => m.role === 'system');
+			expect(systemMessage!.content).toContain('Character Perspective');
+			expect(systemMessage!.content).toContain("characters' point of view");
+		});
+	});
+
 	describe('metadata', () => {
 		it('has the correct name', () => {
 			expect(tensionExtractor.name).toBe('initialTension');

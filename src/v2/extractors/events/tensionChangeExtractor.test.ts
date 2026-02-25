@@ -306,6 +306,35 @@ describe('tensionChangeExtractor', () => {
 		});
 	});
 
+	describe('character perspective guidance', () => {
+		it('includes Character Perspective section in system prompt', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+			const currentMessage: MessageAndSwipe = { messageId: 2, swipeId: 0 };
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test.',
+					changed: false,
+				}),
+			);
+
+			await tensionChangeExtractor.run(
+				mockGenerator,
+				context,
+				settings,
+				store,
+				currentMessage,
+				[],
+			);
+
+			const call = mockGenerator.getLastCall();
+			const systemMessage = call!.prompt.messages.find(m => m.role === 'system');
+			expect(systemMessage!.content).toContain('Character Perspective');
+			expect(systemMessage!.content).toContain("characters' point of view");
+		});
+	});
+
 	describe('extractor configuration', () => {
 		it('has the correct name', () => {
 			expect(tensionChangeExtractor.name).toBe('tensionChange');

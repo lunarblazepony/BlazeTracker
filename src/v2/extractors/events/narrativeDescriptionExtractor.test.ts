@@ -344,6 +344,168 @@ describe('narrativeDescriptionExtractor', () => {
 		});
 	});
 
+	describe('recent narratives deduplication', () => {
+		it('passes "None" when no previous narrative events exist', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+			const currentMessage: MessageAndSwipe = { messageId: 3, swipeId: 0 };
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test.',
+					description: 'A test narrative.',
+				}),
+			);
+
+			await narrativeDescriptionExtractor.run(
+				mockGenerator,
+				context,
+				settings,
+				store,
+				currentMessage,
+				[],
+			);
+
+			const call = mockGenerator.getLastCall();
+			const promptContent = call!.prompt.messages.map(m => m.content).join('\n');
+			expect(promptContent).toContain('None');
+		});
+
+		it('passes recent narrative descriptions to the prompt', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+			const currentMessage: MessageAndSwipe = { messageId: 3, swipeId: 0 };
+
+			// Add narrative description events to the store so they appear in the projection
+			store.appendEvents([
+				{
+					id: 'nd-1',
+					source: { messageId: 1, swipeId: 0 },
+					timestamp: Date.now(),
+					kind: 'narrative_description' as const,
+					description: 'Elena arrived and greeted Marcus warmly',
+				},
+				{
+					id: 'nd-2',
+					source: { messageId: 2, swipeId: 0 },
+					timestamp: Date.now(),
+					kind: 'narrative_description' as const,
+					description: 'They sat down and began catching up',
+				},
+			]);
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test.',
+					description: 'A test narrative.',
+				}),
+			);
+
+			await narrativeDescriptionExtractor.run(
+				mockGenerator,
+				context,
+				settings,
+				store,
+				currentMessage,
+				[],
+			);
+
+			const call = mockGenerator.getLastCall();
+			const promptContent = call!.prompt.messages.map(m => m.content).join('\n');
+			expect(promptContent).toContain(
+				'- Elena arrived and greeted Marcus warmly',
+			);
+			expect(promptContent).toContain('- They sat down and began catching up');
+		});
+
+		it('only passes the last 3 narrative descriptions', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+			const currentMessage: MessageAndSwipe = { messageId: 3, swipeId: 0 };
+
+			// Add 4 narrative description events
+			store.appendEvents([
+				{
+					id: 'nd-1',
+					source: { messageId: 0, swipeId: 0 },
+					timestamp: Date.now() - 3,
+					kind: 'narrative_description' as const,
+					description: 'First event that should be excluded',
+				},
+				{
+					id: 'nd-2',
+					source: { messageId: 1, swipeId: 0 },
+					timestamp: Date.now() - 2,
+					kind: 'narrative_description' as const,
+					description: 'Second event included',
+				},
+				{
+					id: 'nd-3',
+					source: { messageId: 2, swipeId: 0 },
+					timestamp: Date.now() - 1,
+					kind: 'narrative_description' as const,
+					description: 'Third event included',
+				},
+				{
+					id: 'nd-4',
+					source: { messageId: 3, swipeId: 0 },
+					timestamp: Date.now(),
+					kind: 'narrative_description' as const,
+					description: 'Fourth event included',
+				},
+			]);
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test.',
+					description: 'A test narrative.',
+				}),
+			);
+
+			await narrativeDescriptionExtractor.run(
+				mockGenerator,
+				context,
+				settings,
+				store,
+				currentMessage,
+				[],
+			);
+
+			const call = mockGenerator.getLastCall();
+			const promptContent = call!.prompt.messages.map(m => m.content).join('\n');
+			expect(promptContent).not.toContain('First event that should be excluded');
+			expect(promptContent).toContain('- Second event included');
+			expect(promptContent).toContain('- Third event included');
+			expect(promptContent).toContain('- Fourth event included');
+		});
+
+		it('includes anti-repetition instructions in the prompt', async () => {
+			const context = createMockContext();
+			const settings = createMockSettings();
+			const currentMessage: MessageAndSwipe = { messageId: 3, swipeId: 0 };
+
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					reasoning: 'Test.',
+					description: 'A test narrative.',
+				}),
+			);
+
+			await narrativeDescriptionExtractor.run(
+				mockGenerator,
+				context,
+				settings,
+				store,
+				currentMessage,
+				[],
+			);
+
+			const call = mockGenerator.getLastCall();
+			const promptContent = call!.prompt.messages.map(m => m.content).join('\n');
+			expect(promptContent).toContain('avoid repeating');
+		});
+	});
+
 	describe('message limiting', () => {
 		it('limits messages to maxMessagesToSend', async () => {
 			const context = createMockContext({

@@ -159,6 +159,48 @@ OUTPUT:
   "changed": true,
   "newTone": "vulnerable and understanding"
 }
+
+### Example 9: Danger Becomes Adventure
+INPUT:
+Previous Topic: escaping pursuit
+Previous Tone: panicked and desperate
+Messages:
+"""
+Sera: *She yanks the wheel hard left, the stolen hovercar spinning through the gap between two cargo transports. Behind them, the corporate security drones fall back, unable to follow through the narrow lane.*
+
+Dex: *He checks the rear scanner.* "They're gone. We lost them!"
+
+Sera: *A wild laugh bubbles up from her chest.* "Did you SEE that? I threaded a cargo gap at three hundred klicks!" *She slaps the dashboard triumphantly.* "We're ghosts, baby!"
+
+Dex: *Grinning despite himself.* "You're completely unhinged. That was amazing."
+"""
+OUTPUT:
+{
+  "reasoning": "The scene pivots from panicked flight to triumphant celebration. Sera is laughing wildly, slapping the dashboard, boasting about her driving. Dex calls it 'amazing.' From the characters' perspective, the panic has transformed into pure exhilaration - they escaped and they feel invincible. The tone shifts from their fear to their euphoria.",
+  "changed": true,
+  "newTone": "exhilarated and triumphant"
+}
+
+### Example 10: Taboo Topic Embraced
+INPUT:
+Previous Topic: planning rebellion
+Previous Tone: cautious and secretive
+Messages:
+"""
+Captain Voss: *She looks around the table at her officers, reading each face carefully. Then she sets down her glass.* "Enough whispers. If we're doing this, we do it openly - at least among ourselves."
+
+Lieutenant Park: *Straightening in his chair.* "You mean..."
+
+Voss: *Her eyes are fierce.* "I mean we stop pretending this is just talk. The Governor is a tyrant. The people are suffering. And we have the ships to do something about it." *She extends her hand to the center of the table.* "Who's with me?"
+
+*One by one, hands stack on hers. The fear in the room transforms into something else entirely.*
+"""
+OUTPUT:
+{
+  "reasoning": "The scene shifts from cautious conspiracy to open commitment. Voss demands they stop whispering and embrace what they're doing. The fear 'transforms into something else entirely' as hands stack together in solidarity. From the characters' perspective, this is empowering and purposeful - they've moved from hiding to standing together with conviction.",
+  "changed": true,
+  "newTone": "resolute and empowered"
+}
 `;
 
 const BAD_EXAMPLES = `
@@ -301,7 +343,27 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The text literally says "the heavy atmosphere cracking." They've transitioned from crying to laughing. The mood has broken. This is now "lightened relief" or "cathartic humor" - NOT "heavy and emotional" anymore. When the narrative explicitly tells you the atmosphere has changed, believe it.
 
-### Bad Example 5: Ignoring Clear Signals of Change
+### Bad Example 5: Observer Judgment Instead of Character Experience
+INPUT:
+Previous Topic: planning the con
+Previous Tone: focused and analytical
+Messages:
+"""
+Sophie: *She pulls on the designer gown, checking her reflection with a satisfied smirk.* "Countess von Stahl, at your service." *She curtsies theatrically.*
+
+Max: *Adjusting his fake monocle.* "I still can't believe we're doing this." *But he's grinning.* "This is the most fun I've had in years."
+
+Sophie: "Fun? This is ART, darling." *She tosses a pearl necklace around her neck.* "Now let's go swindle some billionaires."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "They're preparing to commit fraud, which is morally questionable.",
+  "changed": true,
+  "newTone": "morally dubious"
+}
+WHY THIS IS WRONG: "Morally dubious" is an outside moral judgment. Sophie and Max are having the time of their lives - she calls it "art," he says it's "the most fun" in years. They're grinning, theatrical, playful. The tone from their perspective is "gleefully theatrical" or "playfully daring," not a moral condemnation. Describe how the characters feel, not how you judge them.
+
+### Bad Example 6: Ignoring Clear Signals of Change
 INPUT:
 Previous Topic: art gallery small talk
 Previous Tone: politely superficial
@@ -383,6 +445,13 @@ Respond with a JSON object containing:
 - Capture nuance with descriptive combinations
 - Consider both surface emotions and undercurrents
 - Describe feeling, not physical conditions
+
+## Character Perspective
+When a tone change occurs, describe the new tone from the characters' point of view:
+- If characters see their actions as heroic or exciting, reflect that — not an observer's moral judgment
+- A scene that shifts to "dangerous" activity the characters find thrilling is "exhilarating" not "reckless"
+- Intimate moments the characters are enjoying are "passionate" or "tender", not "inappropriate"
+- Consider what the characters FEEL about the shift, not how an outsider would categorize it
 
 ## Important Rules
 - Deflection attempts that fail don't count as changes
