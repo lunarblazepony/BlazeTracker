@@ -13,26 +13,32 @@ describe('SHAKEUP_SYSTEM_PROMPT', () => {
 
 	it('mentions the expected shakeup types', () => {
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('arrival');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('departure');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('revelation');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('risk');
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('interruption');
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('escalation');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('emotional_shift');
 	});
 
-	it('includes good and bad examples in JSON format', () => {
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Good Examples');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Bad Examples');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('OUTPUT:');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('WRONG OUTPUT:');
+	it('includes good and bad example sections', () => {
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('GOOD SUGGESTIONS');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('BAD SUGGESTIONS');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('WRONG:');
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('WHY THIS IS WRONG:');
 	});
 
-	it('good examples use INPUT/OUTPUT JSON format', () => {
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('INPUT:');
-		// Good examples should show JSON with type, instruction, rationale
+	it('good examples use JSON format with type/instruction/rationale', () => {
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('"type": "emotional_shift"');
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('"instruction":');
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain('"rationale":');
+	});
+
+	it('includes three example scenes with Current Scene blocks', () => {
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Scene 1:');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Scene 2:');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Scene 3:');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('[Current Scene]');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('[/Current Scene]');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('wearing:');
 	});
 
 	it('emphasises plausibility and character accuracy', () => {
@@ -47,20 +53,24 @@ describe('SHAKEUP_SYSTEM_PROMPT', () => {
 	});
 
 	it('includes bad examples for time violations', () => {
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Time-Inappropriate');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('11:00 PM');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('2:00 AM');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('11:30 PM');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('plausible for the time of day');
 	});
 
 	it('includes bad examples for fabrication violations', () => {
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Fabricating People');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Fabricating Objects');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('fabricates a person');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Do not invent');
 	});
 
 	it('includes bad examples for user character autonomy', () => {
 		expect(SHAKEUP_SYSTEM_PROMPT).toContain("user's character");
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Physical Action');
-		expect(SHAKEUP_SYSTEM_PROMPT).toContain('Emotional Decision');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain("Dictates the user's character");
+	});
+
+	it('includes bad examples for outfit/physical state violations', () => {
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('[Current Scene] block');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('She has no jacket on');
+		expect(SHAKEUP_SYSTEM_PROMPT).toContain('left arm in a sling');
 	});
 });
 
@@ -69,6 +79,7 @@ describe('buildShakeupUserPrompt', () => {
 		const result = buildShakeupUserPrompt({
 			characterDescription: 'A brave knight',
 			userDescription: 'A wandering mage',
+			userName: 'Gandalf',
 			characterProfiles: 'Knight (Male, Human, 30)',
 			relationships: 'Knight & Mage: allies\n  Knight → Mage: feels respect',
 			sceneState: 'Topic: journey\nTension: tense',
@@ -77,7 +88,7 @@ describe('buildShakeupUserPrompt', () => {
 		});
 
 		expect(result).toContain('[Character]\nA brave knight');
-		expect(result).toContain('[User]\nA wandering mage');
+		expect(result).toContain('[User Character: Gandalf]\nA wandering mage');
 		expect(result).toContain('[Character Profiles]\nKnight (Male, Human, 30)');
 		expect(result).toContain('[Relationships]\nKnight & Mage: allies');
 		expect(result).toContain('[Current Scene]\nTopic: journey');
@@ -90,6 +101,7 @@ describe('buildShakeupUserPrompt', () => {
 		const result = buildShakeupUserPrompt({
 			characterDescription: '',
 			userDescription: '',
+			userName: 'TestUser',
 			characterProfiles: 'Knight (Male, Human, 30)',
 			relationships: '',
 			sceneState: 'Topic: journey',
@@ -97,7 +109,7 @@ describe('buildShakeupUserPrompt', () => {
 		});
 
 		expect(result).not.toContain('[Character]\n');
-		expect(result).not.toContain('[User]\n');
+		expect(result).not.toContain('[User Character:');
 		expect(result).not.toContain('[World Info]');
 		expect(result).not.toContain('[Relationships]');
 		expect(result).toContain('[Character Profiles]');
@@ -108,6 +120,7 @@ describe('buildShakeupUserPrompt', () => {
 		const result = buildShakeupUserPrompt({
 			characterDescription: 'Test',
 			userDescription: 'Test',
+			userName: 'TestUser',
 			characterProfiles: 'Test',
 			relationships: '',
 			sceneState: 'Test',
@@ -121,6 +134,7 @@ describe('buildShakeupUserPrompt', () => {
 		const result = buildShakeupUserPrompt({
 			characterDescription: 'CHAR_DESC',
 			userDescription: 'USER_DESC',
+			userName: 'TestUser',
 			characterProfiles: 'CHAR_PROFILES',
 			relationships: 'RELATIONSHIPS',
 			sceneState: 'SCENE_STATE',
@@ -129,7 +143,7 @@ describe('buildShakeupUserPrompt', () => {
 		});
 
 		const charIdx = result.indexOf('[Character]');
-		const userIdx = result.indexOf('[User]');
+		const userIdx = result.indexOf('[User Character:');
 		const worldIdx = result.indexOf('[World Info]');
 		const profilesIdx = result.indexOf('[Character Profiles]');
 		const relIdx = result.indexOf('[Relationships]');

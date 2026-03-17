@@ -21,6 +21,7 @@ import { setDebugEnabled, errorLog } from '../../utils/debug';
 import { SelectField, CheckboxField } from '../../ui/components/form';
 import { mountAllV2ProjectionDisplays } from './mountV2Display';
 import { getAllV2Prompts, type PromptTemplate } from '../prompts';
+import { getTrainingPairCount, downloadTrainingData, clearTrainingPairs } from '../training';
 
 // ============================================
 // Types
@@ -528,6 +529,60 @@ function PromptListItem({
 				</div>
 			</div>
 			<small className="bt-prompt-description">{definition.description}</small>
+		</div>
+	);
+}
+
+// ============================================
+// Training Data Controls
+// ============================================
+
+function TrainingDataControls() {
+	const [pairCount, setPairCount] = useState(getTrainingPairCount());
+
+	// Refresh count periodically while visible
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setPairCount(getTrainingPairCount());
+		}, 2000);
+		return () => clearInterval(interval);
+	}, []);
+
+	return (
+		<div
+			className="flex-container flexFlowColumn"
+			style={{ marginBottom: '1em', gap: '0.5em' }}
+		>
+			<small>
+				{pairCount} pair{pairCount !== 1 ? 's' : ''} captured this session
+			</small>
+			<div className="flex-container" style={{ gap: '0.5em' }}>
+				<button
+					className="menu_button"
+					disabled={pairCount === 0}
+					onClick={() => {
+						downloadTrainingData();
+					}}
+				>
+					Download JSONL
+				</button>
+				<button
+					className="menu_button"
+					disabled={pairCount === 0}
+					onClick={() => {
+						if (
+							confirm(
+								`Clear ${pairCount} captured training pair${pairCount !== 1 ? 's' : ''}?`,
+							)
+						) {
+							clearTrainingPairs();
+							setPairCount(0);
+						}
+					}}
+				>
+					Clear
+				</button>
+			</div>
 		</div>
 	);
 }
@@ -1195,6 +1250,34 @@ function V2SettingsPanel() {
 									}}
 								/>
 							</div>
+						)}
+
+						<hr />
+
+						{/* Training Data Capture Section */}
+						<div className="bt-section-header">
+							<strong>Training Data Capture</strong>
+							<small>
+								Capture LLM input/output pairs for
+								fine-tuning training data
+							</small>
+						</div>
+
+						<CheckboxField
+							id="bt-v2-trainingcapture"
+							label="Enable Training Capture"
+							description="Record all LLM calls as training pairs (stored in memory, download as JSONL)"
+							checked={settings.v2TrainingCapture}
+							onChange={checked =>
+								handleUpdate(
+									'v2TrainingCapture',
+									checked,
+								)
+							}
+						/>
+
+						{settings.v2TrainingCapture && (
+							<TrainingDataControls />
 						)}
 
 						<hr />

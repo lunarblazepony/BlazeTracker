@@ -1,10 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createMockGenerator, type MockGenerator } from '../generator';
 import { generateShakeup, type GenerateShakeupParams } from './generateShakeup';
 import { EventStore } from '../store/EventStore';
 import type { SwipeContext } from '../store/projection';
 import type { Projection } from '../types/snapshot';
 import moment from 'moment';
+
+// Mock training module
+const mockAnnotateLastCapture = vi.fn();
+let trainingEnabled = false;
+vi.mock('../training', () => ({
+	isTrainingCaptureEnabled: () => trainingEnabled,
+	annotateLastCapture: (annotation: unknown) => mockAnnotateLastCapture(annotation),
+}));
 
 function makeSwipeContext(): SwipeContext {
 	return {
@@ -50,6 +58,7 @@ function makeParams(generator: MockGenerator): GenerateShakeupParams {
 		swipeContext: makeSwipeContext(),
 		characterDescription: 'A noble knight',
 		userDescription: 'A mysterious traveler',
+		userName: 'Traveler',
 		characterProfiles: 'Knight (Male, Human, 35)',
 		relationships:
 			'Knight & Traveler: wary allies\n  Knight → Traveler: feels distrust',
@@ -62,6 +71,8 @@ describe('generateShakeup', () => {
 
 	beforeEach(() => {
 		mockGenerator = createMockGenerator();
+		vi.clearAllMocks();
+		trainingEnabled = false;
 	});
 
 	it('returns suggestions from valid LLM response', async () => {
@@ -257,5 +268,101 @@ describe('generateShakeup', () => {
 		const userContent =
 			call!.prompt.messages.find(m => m.role === 'user')?.content ?? '';
 		expect(userContent).toContain('A noble knight');
+	});
+
+	it('includes userName in the user character section header', async () => {
+		mockGenerator.setDefaultResponse(
+			JSON.stringify({
+				suggestions: [
+					{
+						type: 'arrival',
+						instruction: 'Test.',
+						rationale: 'Test.',
+					},
+				],
+			}),
+		);
+
+		await generateShakeup(makeParams(mockGenerator));
+
+		const call = mockGenerator.getLastCall();
+		const userContent =
+			call!.prompt.messages.find(m => m.role === 'user')?.content ?? '';
+		expect(userContent).toContain('[User Character: Traveler]');
+	});
+
+	// ============================================
+	// Training Capture Annotation Tests
+	// ============================================
+
+	describe('training capture annotations', () => {
+		beforeEach(() => {
+			trainingEnabled = true;
+		});
+
+		it('annotates with success on valid parse', async () => {
+			const validResponse = JSON.stringify({
+				suggestions: [
+					{
+						type: 'interruption',
+						instruction: 'A messenger arrives.',
+						rationale: 'Breaks monotony.',
+					},
+				],
+			});
+			mockGenerator.setDefaultResponse(validResponse);
+
+			await generateShakeup(makeParams(mockGenerator));
+
+			expect(mockAnnotateLastCapture).toHaveBeenCalledWith({
+				parsedResult: expect.objectContaining({
+					suggestions: expect.arrayContaining([
+						expect.objectContaining({ type: 'interruption' }),
+					]),
+				}),
+				parseSuccess: true,
+			});
+		});
+
+		it('annotates with failure on invalid response', async () => {
+			mockGenerator.setDefaultResponse('Not valid JSON at all');
+
+			await generateShakeup(makeParams(mockGenerator));
+
+			expect(mockAnnotateLastCapture).toHaveBeenCalledWith({
+				parseSuccess: false,
+				parseError: 'Failed to parse shakeup response',
+			});
+		});
+
+		it('does not annotate when training capture is disabled', async () => {
+			trainingEnabled = false;
+			mockGenerator.setDefaultResponse(
+				JSON.stringify({
+					suggestions: [
+						{
+							type: 'arrival',
+							instruction: 'Test.',
+							rationale: 'Test.',
+						},
+					],
+				}),
+			);
+
+			await generateShakeup(makeParams(mockGenerator));
+
+			expect(mockAnnotateLastCapture).not.toHaveBeenCalled();
+		});
+
+		it('does not annotate when generator throws', async () => {
+			mockGenerator.setDefaultResponse(() => {
+				throw new Error('LLM unavailable');
+			});
+
+			await generateShakeup(makeParams(mockGenerator));
+
+			// The catch block in generateShakeup returns null without annotating
+			expect(mockAnnotateLastCapture).not.toHaveBeenCalled();
+		});
 	});
 });

@@ -20,6 +20,7 @@ import {
 import { getPersonaDefaults } from '../../ui/cardDefaultsModal';
 import { mergePersonaDefaultsIntoSnapshot } from '../cardExtensions/personaMerger';
 import { debugLog, debugWarn } from '../../utils/debug';
+import { withTrainingCapture } from '../training';
 
 /**
  * Extract state for the current turn.
@@ -39,8 +40,10 @@ export async function extractTurn(
 	generator?: Generator,
 	abortSignal?: AbortSignal,
 ): Promise<ExtractionResult> {
-	// Build generator if not provided
-	const gen = generator ?? new SillyTavernGenerator({ profileId: settings.profileId ?? '' });
+	// Build generator if not provided, wrap with training capture if enabled
+	const rawGen =
+		generator ?? new SillyTavernGenerator({ profileId: settings.profileId ?? '' });
+	const gen = withTrainingCapture(rawGen);
 
 	// Get current message/swipe
 	const messageId = context.chat.length - 1;

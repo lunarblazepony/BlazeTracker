@@ -87,6 +87,19 @@ OUTPUT:
   "newPosition": "Obsidian platform in the entrance chamber"
 }
 
+### Example 6: No Change - Character Mentions Moving But Doesn't
+INPUT:
+"""
+Current location: Manhattan - The Gilded Fox restaurant - Corner table by the window
+
+Nadia: *She sets down her fork and glances toward the door, then back at Marcus.* "We should probably head to the bar down the street after this — they have live jazz on Thursdays." *She picks up her wine glass and takes a slow sip, settling deeper into her chair. The waiter approaches with the dessert menu, and Nadia waves him over with a smile.* "Actually, let me see that. I'm not ready to leave yet."
+"""
+OUTPUT:
+{
+  "reasoning": "Nadia mentions going to a bar down the street, but this is a suggestion about future plans — she hasn't actually moved. She's still at the restaurant, settling into her chair and ordering dessert. The bar is a discussed destination, not a current location. No movement has occurred.",
+  "changed": false
+}
+
 ### Example 7: Outdoor Position Change - Same General Area
 INPUT:
 """
@@ -264,7 +277,23 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Mira is discussing future travel plans. They're still at LAX - the boarding announcement confirms they haven't even boarded the plane yet.
 
-### Bad Example 6: Ignoring Significant Location Change
+### Bad Example 6: Treating Announced Intent to Move as Actual Movement
+INPUT:
+"""
+Current location: Seattle - Capitol Hill apartment - Living room couch
+
+Alex: *He stretches and yawns, tossing the TV remote onto the cushion beside him.* "I really need to go to the gym. I've been saying that for three days." *He pulls out his phone and starts scrolling through social media instead, legs draped over the armrest. The apartment is quiet except for the hum of the refrigerator and the distant sound of traffic outside. After a few minutes, he sighs and looks at the ceiling.* "Maybe tomorrow."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Alex says he needs to go to the gym, so the location has changed to the gym.",
+  "changed": true,
+  "newPlace": "Gym",
+  "newPosition": "Entrance area"
+}
+WHY THIS IS WRONG: Alex MENTIONS needing to go to the gym but never actually goes. He stays on the couch, scrolling his phone and deciding to go "tomorrow." Talking about moving, expressing intent to move, or suggesting a destination is NOT the same as actually moving. Only report a location change when the narrative describes characters physically traveling to a new place.
+
+### Bad Example 7: Ignoring Significant Location Change
 INPUT:
 """
 Current location: San Francisco - Financial District - Office building lobby
@@ -278,7 +307,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: This is a significant location change - from the Financial District in SF to Sausalito, from an office building to a waterfront restaurant. The area, place, and position have all changed.
 
-### Bad Example 7: Wrong Hierarchy of Location Components
+### Bad Example 8: Wrong Hierarchy of Location Components
 INPUT:
 """
 Current location: London - Soho - The Crown pub - Seat at the bar
@@ -295,7 +324,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The hierarchy is completely wrong. Area should still be Soho (neighborhood), Place should still be The Crown pub (building), and only Position should change (to bathroom at the back). Also, the area/place shouldn't swap levels.
 
-### Bad Example 8: Treating Brief Movement as Full Location Change
+### Bad Example 9: Treating Brief Movement as Full Location Change
 INPUT:
 """
 Current location: Paris - Louvre Museum - In front of the Mona Lisa
@@ -310,7 +339,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Stepping back a few paces in front of the same painting is not a meaningful position change for narrative tracking purposes. She's still in front of the Mona Lisa in the Louvre. Only report changes that affect the narrative setting.
 
-### Bad Example 9: Not Including All Changed Components
+### Bad Example 10: Not Including All Changed Components
 INPUT:
 """
 Current location: New York - Brooklyn Heights - Apartment living room
@@ -325,7 +354,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The area also changed (from Brooklyn Heights to Chinatown in Manhattan), and the position should be specified (inside the tea shop). When multiple components change, report all of them.
 
-### Bad Example 10: Reporting Location from Dream/Vision
+### Bad Example 11: Reporting Location from Dream/Vision
 INPUT:
 """
 Current location: Seattle - Capitol Hill - Bedroom of small apartment
@@ -342,7 +371,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The ship is a dream, not the actual location. She wakes up in her apartment bedroom in Seattle - the same place where she started.
 
-### Bad Example 11: Changing Location Based on What Character Can See
+### Bad Example 12: Changing Location Based on What Character Can See
 INPUT:
 """
 Current location: Miami - South Beach - Hotel balcony on the 15th floor
@@ -359,7 +388,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Mira is looking at the port from her hotel balcony - she hasn't moved there. What a character sees doesn't mean they've traveled to that location.
 
-### Bad Example 12: Not Recognizing Implicit Same-Building Movement
+### Bad Example 13: Not Recognizing Implicit Same-Building Movement
 INPUT:
 """
 Current location: Chicago - Willis Tower - 103rd floor Skydeck
@@ -431,6 +460,7 @@ IMPORTANT: Position describes WHERE in the scene the camera is focused, like a r
 4. Future planned destinations not yet reached
 5. Locations seen from a distance but not traveled to
 6. Dream/vision sequences
+7. Characters announcing, suggesting, or expressing intent to move ("let's go to the kitchen", "I should head home", "we need to get to the station") without the narrative describing actual movement happening
 
 ## Important Rules
 - Only include changed fields (don't repeat unchanged location components)
@@ -483,7 +513,7 @@ Remember:
 - locationType = only include if indoor/outdoor status changed ("outdoor", "modern", "heated", "unheated", "underground", "tent", "vehicle")
 - Only include fields that actually changed
 - INVENT specific details when text is vague (e.g., "West corridor, 2nd floor" not "Different corridor")
-- Ignore memories, dreams, and dialogue about other places`,
+- Ignore memories, dreams, dialogue about other places, and announced intent to move ("let's go to...", "I should head to...") — only actual narrated movement counts`,
 
 	responseSchema: locationChangeSchema,
 

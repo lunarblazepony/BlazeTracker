@@ -7,6 +7,7 @@ import { buildPrompt } from '../../generator';
 import type { PromptTemplate, BuiltPrompt } from '../../prompts';
 import { debugLog, debugWarn, errorLog } from '../../../utils/debug';
 import { getV2Settings } from '../../settings';
+import { isTrainingCaptureEnabled, annotateLastCapture } from '../../training';
 
 /**
  * Options for parsing with retry.
@@ -112,6 +113,13 @@ export async function generateAndParse<T>(
 					debugLog(`${prompt.name} reasoning:`, reasoning);
 				}
 
+				if (isTrainingCaptureEnabled()) {
+					annotateLastCapture({
+						parsedResult: parsed,
+						parseSuccess: true,
+					});
+				}
+
 				return {
 					success: true,
 					data: parsed,
@@ -121,6 +129,12 @@ export async function generateAndParse<T>(
 			}
 
 			lastError = 'parseResponse returned null';
+			if (isTrainingCaptureEnabled()) {
+				annotateLastCapture({
+					parseSuccess: false,
+					parseError: 'parseResponse returned null',
+				});
+			}
 		} catch (error) {
 			// Check if this was an abort
 			if (abortSignal?.aborted) {
@@ -130,6 +144,12 @@ export async function generateAndParse<T>(
 				};
 			}
 			lastError = error instanceof Error ? error.message : String(error);
+			if (isTrainingCaptureEnabled()) {
+				annotateLastCapture({
+					parseSuccess: false,
+					parseError: lastError,
+				});
+			}
 		}
 
 		// Check if aborted between retries

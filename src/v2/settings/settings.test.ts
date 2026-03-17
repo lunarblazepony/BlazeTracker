@@ -61,6 +61,11 @@ describe('V2 Settings', () => {
 			const settings = createDefaultV2Settings();
 			expect(settings.v2InjectNarrative).toBe(true);
 		});
+
+		it('v2TrainingCapture defaults to false', () => {
+			const settings = createDefaultV2Settings();
+			expect(settings.v2TrainingCapture).toBe(false);
+		});
 	});
 
 	describe('mergeV2WithDefaults', () => {
@@ -157,6 +162,16 @@ describe('V2 Settings', () => {
 		it('uses default v2InjectNarrative when not provided', () => {
 			const merged = mergeV2WithDefaults({ v2ProfileId: 'test' });
 			expect(merged.v2InjectNarrative).toBe(true);
+		});
+
+		it('preserves v2TrainingCapture when provided', () => {
+			const merged = mergeV2WithDefaults({ v2TrainingCapture: true });
+			expect(merged.v2TrainingCapture).toBe(true);
+		});
+
+		it('uses default v2TrainingCapture when not provided', () => {
+			const merged = mergeV2WithDefaults({ v2ProfileId: 'test' });
+			expect(merged.v2TrainingCapture).toBe(false);
 		});
 	});
 
@@ -268,6 +283,28 @@ describe('V2 Settings', () => {
 				unknown
 			>;
 			settings.v2InjectNarrative = 'not a boolean';
+			expect(isV2Settings(settings)).toBe(false);
+		});
+
+		it('returns true when v2TrainingCapture is missing (allows upgrade)', () => {
+			const settings = createDefaultV2Settings();
+			const partial = { ...settings } as Record<string, unknown>;
+			delete partial.v2TrainingCapture;
+			expect(isV2Settings(partial)).toBe(true);
+		});
+
+		it('returns true when v2TrainingCapture is a boolean', () => {
+			const settings = createDefaultV2Settings();
+			settings.v2TrainingCapture = true;
+			expect(isV2Settings(settings)).toBe(true);
+		});
+
+		it('returns false when v2TrainingCapture is wrong type', () => {
+			const settings = createDefaultV2Settings() as unknown as Record<
+				string,
+				unknown
+			>;
+			settings.v2TrainingCapture = 'not a boolean';
 			expect(isV2Settings(settings)).toBe(false);
 		});
 	});

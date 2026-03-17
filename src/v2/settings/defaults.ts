@@ -88,6 +88,9 @@ export function createDefaultV2Settings(): V2Settings {
 		v2MaxRecentChapters: 5,
 		v2MaxRecentEvents: 15,
 		v2InjectionTokenBudget: 0, // 0 = use ST's context size
+
+		// Training Data Capture
+		v2TrainingCapture: false, // Off by default — opt-in
 	};
 }
 
@@ -165,5 +168,8 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
 		v2InjectionTokenBudget:
 			partial.v2InjectionTokenBudget ?? defaults.v2InjectionTokenBudget,
+
+		// Training Data Capture
+		v2TrainingCapture: partial.v2TrainingCapture ?? defaults.v2TrainingCapture,
 	};
 }

@@ -28,6 +28,7 @@ import { generateShakeup } from '../shakeups/generateShakeup';
 import { SillyTavernGenerator } from '../generator/SillyTavernGenerator';
 import { formatCharacterProfiles, formatRelationshipState } from '../extractors/utils/buildPrompt';
 import { getWorldinfoForPrompt } from '../utils/worldinfo';
+import { withTrainingCapture } from '../training';
 
 // Track if hooks are registered
 let chatCompletionHookRegistered = false;
@@ -476,8 +477,10 @@ async function tryInjectShakeup(params: {
 			}
 		}
 
-		// Create generator and generate suggestions
-		const generator = new SillyTavernGenerator({ profileId: settings.v2ProfileId });
+		// Create generator and generate suggestions (wrap with training capture)
+		const generator = withTrainingCapture(
+			new SillyTavernGenerator({ profileId: settings.v2ProfileId }),
+		);
 		const result = await generateShakeup({
 			generator,
 			projection,
@@ -485,6 +488,7 @@ async function tryInjectShakeup(params: {
 			swipeContext,
 			characterDescription,
 			userDescription,
+			userName: stContext.name1,
 			characterProfiles,
 			relationships,
 			recentMessages,

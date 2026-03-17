@@ -278,7 +278,22 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The warehouse on Pike Street is being discussed in dialogue - it's not the current location. The actual scene takes place in an interrogation room where Detective Chen is interviewing a witness. The current location is the interrogation room, not the warehouse they're talking about.
 
-### Bad Example 7: Too Vague When Details Exist
+### Bad Example 7: Using Mentioned Movement Instead of Actual Scene Location
+INPUT:
+"""
+Luna: *She drops her bag on the kitchen counter and fills a glass of water from the tap.* "I just came from the gym — absolutely brutal session today. Coach had us doing sprints until I thought I'd pass out." *She leans against the counter, still catching her breath, sweat-dampened hair pushed back from her face. The kitchen smells faintly of the coffee someone brewed earlier. Through the open window, she can hear the neighbor's dog barking.* "I need to shower and then head to Sarah's place for dinner."
+"""
+WRONG OUTPUT:
+{
+  "reasoning": "Luna mentions coming from the gym and going to Sarah's place for dinner.",
+  "area": "Fitness district",
+  "place": "Local gym",
+  "position": "Sprint track area",
+  "locationType": "modern"
+}
+WHY THIS IS WRONG: Luna MENTIONS the gym and Sarah's place in dialogue, but the narrative clearly places her in a kitchen — she drops her bag on the counter, fills a glass of water, leans against the counter. The gym is where she WAS, Sarah's place is where she's GOING. Neither is where she IS. Always extract the location from what the narrative describes happening NOW, not from places mentioned in conversation.
+
+### Bad Example 8: Too Vague When Details Exist
 INPUT:
 """
 Luna: *The rooftop garden is an oasis twenty stories above the city chaos. Luna kneels beside the tomato plants, checking for signs of blight, while the setting sun paints the surrounding skyscrapers in shades of amber and rose. The penthouse apartment below belongs to Mrs. Chen, who lets Luna tend this garden in exchange for fresh vegetables and occasional company. Raised beds line the rooftop perimeter, filled with everything from herbs to heirloom squash. A small greenhouse in the corner shelters the more delicate specimens from the harsh city elements. Luna pushes a strand of hair from her face, leaving a smudge of dirt on her cheek, and moves on to inspect the pepper plants.*
@@ -292,7 +307,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The text provides rich details that are completely ignored. The rooftop garden is "twenty stories above" on top of "Mrs. Chen's penthouse apartment." Luna is specifically "kneeling beside the tomato plants." The output should capture these specifics rather than being generic.
 
-### Bad Example 8: Confusing Current Position During Movement
+### Bad Example 9: Confusing Current Position During Movement
 INPUT:
 """
 Alex: *Alex runs through the museum, his footsteps echoing off the marble floors. Past the dinosaur exhibit, through the Hall of Ancient Egypt, skidding around the corner by the gift shop - he doesn't have time to appreciate any of it. Security guards shout behind him, their voices bouncing off the vaulted ceilings. He bursts through the emergency exit into a back alley, the alarm screaming in his wake. Finally safe in the shadows between dumpsters, he catches his breath, clutching the stolen artifact to his chest.*
@@ -306,7 +321,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The scene describes Alex running THROUGH the museum (past tense movement) and ending up in a back alley. His FINAL position is "in the shadows between dumpsters" in the back alley outside the museum, not inside the Egyptian hall which he already passed.
 
-### Bad Example 9: Inventing Area When None Specified
+### Bad Example 10: Inventing Area When None Specified
 INPUT:
 """
 Mira: *The cabin is small but cozy, tucked away somewhere deep in the forest. Mira stokes the fire, adding another log from the dwindling pile by the hearth. Snow falls silently outside the frost-covered windows, piling up on the sill. The nearest town is hours away - that's the point - and the silence is both peaceful and oppressive in equal measure. She wraps the blanket tighter around her shoulders and returns to the worn armchair by the fire, picking up her book where she left off.*
@@ -320,7 +335,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The text says the cabin is "deep in the forest" but never specifies it's in Colorado or the Rocky Mountains. That's an invention. Similarly, nothing indicates it's specifically a "hunting cabin." The area should simply be "Remote forest" or "Forested wilderness" based on what we actually know.
 
-### Bad Example 10: Missing the "Position" Entirely
+### Bad Example 11: Missing the "Position" Entirely
 INPUT:
 """
 Dr. Reyes: *The laboratory hums with the sound of machines doing work no human could. Dr. Reyes stands at the central workstation, manipulating holographic displays with precise gestures. Data streams past faster than the eye can follow, but she reads it like poetry. The experiment in Containment Chamber 3 is reaching critical phase - another hour and they'll know if three years of work has paid off or if they're back to square one. Her assistants move around the periphery, monitoring secondary systems, none of them daring to interrupt her concentration.*
@@ -334,7 +349,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: Position cannot be empty when the text clearly states Dr. Reyes "stands at the central workstation." The position should capture where within the place the character is located.
 
-### Bad Example 11: Using Destination Instead of Current Location
+### Bad Example 12: Using Destination Instead of Current Location
 INPUT:
 """
 Commander Vex: *The shuttle shudders as it enters the atmosphere of Kepler-442b. Through the viewport, Vex watches the alien landscape slowly resolve - blue-green vegetation, rust-colored mountains, and what might be structures near the designated landing zone. "Five minutes to touchdown," her pilot reports. The colonization equipment in the cargo hold shifts against its restraints as turbulence buffets the small craft. This will be humanity's first permanent settlement outside the solar system, assuming they survive the landing. Vex grips her armrests and tries not to think about the dozen ways this could go wrong.*
@@ -348,7 +363,7 @@ WRONG OUTPUT:
 }
 WHY THIS IS WRONG: The shuttle hasn't landed yet - they're still "five minutes to touchdown" and experiencing turbulence in the atmosphere. The current location is the shuttle itself, still in the atmosphere of the planet, not on the ground at the landing zone.
 
-### Bad Example 12: Guessing Geographic Location Without Context
+### Bad Example 13: Guessing Geographic Location Without Context
 INPUT:
 """
 James: *The bar is crowded and loud, just the way James likes it. Anonymous. He nurses his whiskey at a corner stool, watching the sports game on the TV above the bottles without really seeing it. The bartender knows not to bother him with small talk - a generous tip on his first drink bought that silence. Someone at a nearby table laughs too loudly, and James shifts his weight, angling his body away from the noise. The door opens, letting in a blast of cold air and a woman in a red coat who scans the room with the practiced eye of someone looking for a specific face.*
@@ -421,6 +436,7 @@ IMPORTANT: Position describes WHERE in the scene the camera is focused, like a r
 - For fantasy/sci-fi, describe locations as they exist within the narrative world
 - Position should never be empty if the character's specific location is described
 - The location being DISCUSSED in dialogue may differ from where the scene takes place
+- Characters MENTIONING movement ("I just came from the office", "let's go to the park", "I need to head home") does not determine location — only the narrative description of where the scene IS does
 - Be creative with place names - "Downtown bar" should become "The Iron Horse Saloon" or similar
 - **CRITICAL: Position is a SCENE location (room, corner, area), NOT a character's body position. Write "Corner booth" not "Sitting in corner booth". Write "By the fireplace" not "Seated by the fireplace". Write "Kitchen" not "Standing in the kitchen".**
 
