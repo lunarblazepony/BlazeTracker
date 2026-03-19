@@ -43,6 +43,8 @@ import {
 import { initCardDefaultsButton } from './ui/cardDefaultsButton';
 import { openCardDefaultsModal } from './ui/cardDefaultsModal';
 import { initPersonaDefaultsButtons } from './ui/personaDefaultsButton';
+// Save without re-extract button
+import { initSaveNoExtractButton, shouldSkipExtraction } from './ui/saveNoExtractButton';
 // V2 Prompt Hook
 import {
 	registerPromptHook,
@@ -213,6 +215,9 @@ async function init() {
 	// Initialize persona defaults buttons in persona management UI
 	initPersonaDefaultsButtons();
 
+	// Initialize save-without-extract button for message editing
+	initSaveNoExtractButton();
+
 	// Register bridge functions for the prompt hook (avoids circular dependency)
 	registerBridgeFunctions({
 		getV2EventStore,
@@ -280,6 +285,18 @@ async function init() {
 
 	// Re-extract on message edit
 	context.eventSource.on(context.event_types.MESSAGE_EDITED, (async (messageId: number) => {
+		// Check if user saved without re-extract
+		if (shouldSkipExtraction()) {
+			log(
+				'Skipping extraction for edited message (save without re-extract):',
+				messageId,
+			);
+			if (hasV2InitialSnapshot()) {
+				mountV2ProjectionDisplay(messageId);
+			}
+			return;
+		}
+
 		const stContext = SillyTavern.getContext() as unknown as STContext;
 		const lastIndex = stContext.chat.length - 1;
 

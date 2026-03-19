@@ -91,6 +91,11 @@ export function createDefaultV2Settings(): V2Settings {
 
 		// Training Data Capture
 		v2TrainingCapture: false, // Off by default — opt-in
+
+		// Better RP
+		v2BetterRpEnabled: false, // Off by default — opt-in
+		v2BetterRpMaxTokensPerStep: 2048,
+		v2BetterRpProfileId: '', // Empty = use main profile
 	};
 }
 
@@ -171,5 +176,11 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 
 		// Training Data Capture
 		v2TrainingCapture: partial.v2TrainingCapture ?? defaults.v2TrainingCapture,
+
+		// Better RP
+		v2BetterRpEnabled: partial.v2BetterRpEnabled ?? defaults.v2BetterRpEnabled,
+		v2BetterRpMaxTokensPerStep:
+			partial.v2BetterRpMaxTokensPerStep ?? defaults.v2BetterRpMaxTokensPerStep,
+		v2BetterRpProfileId: partial.v2BetterRpProfileId ?? defaults.v2BetterRpProfileId,
 	};
 }

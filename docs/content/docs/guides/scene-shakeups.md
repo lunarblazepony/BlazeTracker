@@ -31,16 +31,14 @@ The LLM can suggest events from these categories:
 
 | Type | Description |
 |------|-------------|
-| **arrival** | A new character, creature, or group arrives |
-| **departure** | Someone leaves unexpectedly or is called away |
-| **revelation** | A secret is revealed or hidden information surfaces |
-| **interruption** | An external event interrupts the current interaction |
-| **emotional_shift** | A character's emotional state changes dramatically |
-| **complication** | Something goes wrong — a plan fails or situation worsens |
+| **arrival** | A new character, creature, or group arrives (avoided in private settings) |
+| **interruption** | An external event interrupts the current interaction (phone call, knock, alarm) |
+| **emotional_shift** | A character's emotional state changes dramatically due to a trigger |
+| **complication** | Something goes wrong — a plan fails, an obstacle appears, or a situation worsens |
 | **opportunity** | An unexpected chance or opening presents itself |
-| **environment** | The environment changes — weather, power, noise |
-| **callback** | A consequence of an earlier event resurfaces |
+| **environment** | The environment changes — weather shifts, power outage, noise, something breaks |
 | **escalation** | The current situation intensifies or stakes are raised |
+| **risk** | A character in the scene decides to try something risky |
 
 ## What Context Is Provided
 
@@ -61,12 +59,15 @@ The shakeup prompt includes extensive guardrails to prevent problematic suggesti
 
 - **Time-appropriate**: No work calls at midnight, no deliveries at 2 AM
 - **Setting-consistent**: No helicopters in medieval settings, no magic where it's forbidden
-- **Character-accurate**: Shy characters don't suddenly become aggressive; personalities are respected
-- **No fabrication**: Never invents family members, pets, objects, or history that don't exist
-- **No user character control**: Never dictates what the user's character does, says, or feels
-- **Climate-aware**: No thunder during clear skies, no casual strolls in blizzards
-- **Relationship-consistent**: No sudden love confessions between enemies
-- **Tone-appropriate**: No nuclear bombs in coffee shop scenes
+- **Character-accurate**: Characters must act consistently with their personalities, motivations, and known capabilities
+- **No fabrication**: Never invents characters, family members, pets, objects, backstory, or history that aren't established in provided context
+- **No user character control**: Never dictates actions, decisions, dialogue, or emotions for the user's character — only external events, NPC actions, or environmental changes
+- **Climate-aware**: Never contradicts established weather conditions
+- **Relationship-aware**: Uses relationship data (feelings, wants, secrets, status) to inform interpersonal dynamics
+- **Physical state-aware**: Respects character positions, injuries, and physical conditions
+- **World info-consistent**: Treats lorebook entries as established canon
+
+The prompt also includes three fully worked example scenes with 10 good and 10 bad suggestions each, teaching the LLM to mine scene-specific details rather than generating generic suggestions.
 
 ## Settings
 

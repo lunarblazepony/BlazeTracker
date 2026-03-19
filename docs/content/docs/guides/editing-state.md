@@ -68,6 +68,17 @@ Click **Edit** on any relationship in the Narrative State modal to open the rela
 - A status change happened too early — delete the status change event and add one at the correct message
 - A milestone was missed — add a relationship subject event at the message where it occurred
 
+## Save Without Re-Extract
+
+When editing a message in SillyTavern, BlazeTracker normally re-extracts state from the edited message. If you've already corrected the events manually and don't want re-extraction to overwrite your edits, use the **Save without re-extracting** button.
+
+This orange floppy disk icon ({{< icon "fa-solid fa-floppy-disk" >}}) appears next to the standard save button whenever you're editing a message. Clicking it saves the message edit but skips BlazeTracker's extraction, preserving your manually curated events.
+
+This is useful when:
+- You've already edited events to match the narrative and don't want them overwritten
+- You're making a minor typo fix that doesn't affect scene state
+- You're editing a message where the extraction results were already correct
+
 ## Tips
 
 ### Correcting Initial State

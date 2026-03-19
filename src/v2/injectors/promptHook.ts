@@ -29,6 +29,7 @@ import { SillyTavernGenerator } from '../generator/SillyTavernGenerator';
 import { formatCharacterProfiles, formatRelationshipState } from '../extractors/utils/buildPrompt';
 import { getWorldinfoForPrompt } from '../utils/worldinfo';
 import { withTrainingCapture } from '../training';
+import { runBetterRpPipeline, formatBeatPlanInjection } from '../betterRp';
 
 // Track if hooks are registered
 let chatCompletionHookRegistered = false;
@@ -337,12 +338,22 @@ function findChatMessageRange(chatMessages: ChatCompletionPromptReadyData['chat'
 
 /**
  * Get recent messages from ST chat as formatted strings.
+ * Excludes the last message if it's an assistant message (swipe/regen),
+ * since that message is about to be replaced.
  */
 function getRecentMessages(stContext: STContext, count: number): string {
+	const chat = stContext.chat;
+	if (chat.length === 0) return '';
+
+	// During swipe/regen, the last message is the assistant response being replaced.
+	// Exclude it so we don't reference content that's about to change.
+	const lastMsg = chat[chat.length - 1];
+	const endIndex = lastMsg && !lastMsg.is_user ? chat.length - 1 : chat.length;
+
 	const messages: string[] = [];
-	const start = Math.max(0, stContext.chat.length - count);
-	for (let i = start; i < stContext.chat.length; i++) {
-		const msg = stContext.chat[i];
+	const start = Math.max(0, endIndex - count);
+	for (let i = start; i < endIndex; i++) {
+		const msg = chat[i];
 		if (msg.mes) {
 			messages.push(`${msg.name}: ${msg.mes}`);
 		}
@@ -535,11 +546,138 @@ async function tryInjectShakeup(params: {
 	}
 }
 
+// ============================================
+// Better RP Pipeline Injection
+// ============================================
+
+/**
+ * Try to run the Better RP pipeline and return injection text.
+ * Returns null if disabled, failed, or no beat plan produced.
+ */
+async function tryInjectBetterRp(params: {
+	settings: V2Settings;
+	stContext: STContext;
+	swipeContext: SwipeContext;
+	store: EventStore;
+	projection: Projection;
+	shakeupInstruction?: string | null;
+}): Promise<string | null> {
+	const { settings, stContext, swipeContext, store, projection, shakeupInstruction } = params;
+
+	// Use dedicated Better RP profile if set, otherwise fall back to main
+	const profileId = settings.v2BetterRpProfileId || settings.v2ProfileId;
+	if (!settings.v2BetterRpEnabled) {
+		debugLog('Better RP: Disabled in settings');
+		return null;
+	}
+	if (!profileId) {
+		debugLog('Better RP: No profile ID configured');
+		return null;
+	}
+
+	if (!bridgeFunctions) {
+		debugLog('Better RP: Bridge functions not registered');
+		return null;
+	}
+
+	debugLog('Better RP: Starting pipeline');
+
+	// Create an AbortController so the stop button can cancel the pipeline
+	const abortController = new AbortController();
+	const context = SillyTavern.getContext() as unknown as STContext;
+	const eventTypes = context.event_types as unknown as Record<string, string>;
+	const eventSource = context.eventSource as unknown as {
+		on: (event: string, fn: (...args: unknown[]) => void) => void;
+		off?: (event: string, fn: (...args: unknown[]) => void) => void;
+		removeListener?: (event: string, fn: (...args: unknown[]) => void) => void;
+	};
+
+	const onStop = (() => {
+		debugLog('Better RP: Generation stopped, aborting pipeline');
+		abortController.abort();
+	}) as (...args: unknown[]) => void;
+
+	// Listen for stop button
+	if (eventTypes.GENERATION_STOPPED) {
+		eventSource.on(eventTypes.GENERATION_STOPPED, onStop);
+	}
+
+	try {
+		// Show toast notifications for progress
+		const st_echo = (
+			SillyTavern.getContext() as unknown as {
+				toastr?: { info?: (msg: string) => void };
+			}
+		).toastr?.info;
+
+		const generator = withTrainingCapture(new SillyTavernGenerator({ profileId }));
+
+		const result = await runBetterRpPipeline({
+			generator,
+			store,
+			stContext,
+			swipeContext,
+			projection,
+			settings,
+			shakeupInstruction,
+			abortSignal: abortController.signal,
+			setStatus: (status: string) => {
+				debugLog(`Better RP: ${status}`);
+				st_echo?.(`Better RP: ${status}`);
+			},
+		});
+
+		if (result.errors.length > 0) {
+			debugWarn(
+				`Better RP: ${result.errors.length} error(s):`,
+				result.errors.map(e => `${e.step}: ${e.error.message}`),
+			);
+		}
+
+		// Format injection — returns null if step 4 failed
+		const userName = stContext.name1;
+		const npcNames = projection.charactersPresent.filter(
+			name => name.toLowerCase() !== userName.toLowerCase(),
+		);
+
+		const injection = formatBeatPlanInjection(result, npcNames, userName);
+
+		if (!injection) {
+			debugWarn('Better RP: Pipeline completed but no beat plan produced');
+			st_echo?.('Better RP: Pipeline failed, proceeding normally');
+			return null;
+		}
+
+		debugLog('Better RP: Beat plan injection ready');
+		return injection;
+	} catch (error) {
+		debugWarn('Better RP: Pipeline failed (non-fatal):', error);
+		return null;
+	} finally {
+		// Always clean up the stop listener
+		if (eventTypes.GENERATION_STOPPED) {
+			try {
+				if (typeof eventSource.off === 'function') {
+					eventSource.off(eventTypes.GENERATION_STOPPED, onStop);
+				} else if (typeof eventSource.removeListener === 'function') {
+					eventSource.removeListener(
+						eventTypes.GENERATION_STOPPED,
+						onStop,
+					);
+				}
+			} catch {
+				// Cleanup failure is non-fatal
+			}
+		}
+	}
+}
+
 /**
  * Handle the CHAT_COMPLETION_PROMPT_READY event.
  * This is called when ST is about to send a prompt to the LLM.
  */
 async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Promise<void> {
+	debugLog('Chat completion prompt hook fired', eventData.dryRun ? '(dry run)' : '(live)');
 	// Skip dry runs (token counting passes)
 	if (eventData.dryRun) {
 		debugLog('Skipping dry run in prompt hook');
@@ -562,9 +700,9 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 	const { store, swipeContext, stContext } = storeAndContext;
 	const settings = getV2Settings();
 
-	// If both injection types are disabled, nothing to do
-	if (!settings.v2InjectState && !settings.v2InjectNarrative) {
-		debugLog('Both state and narrative injection disabled');
+	// If all injection types are disabled, nothing to do
+	if (!settings.v2InjectState && !settings.v2InjectNarrative && !settings.v2BetterRpEnabled) {
+		debugLog('All injection disabled (state, narrative, and Better RP)');
 		return;
 	}
 
@@ -572,19 +710,27 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 		// Get the chat messages
 		const chatMessages = eventData.chat;
 
-		// Get projection for the last message
+		// Get projection for state injection.
+		// Try projecting at the last message in chat. If that fails (e.g. no
+		// snapshot there yet), fall back to the message before it.
+		// This handles normal sends, swipes, group chats, and first messages.
 		const lastMessageId = stContext.chat.length - 1;
-		const projectionMessageId = lastMessageId - 1;
-		if (projectionMessageId < 0) {
-			debugLog('No messages to project from');
-			return;
+
+		let projection: Projection | null = null;
+		for (let tryId = lastMessageId; tryId >= Math.max(0, lastMessageId - 1); tryId--) {
+			try {
+				projection = store.projectStateAtMessage(tryId, swipeContext);
+				debugLog(`[chat] Projected state at message ${tryId}`);
+				break;
+			} catch {
+				// Try the next candidate
+			}
 		}
 
-		let projection: Projection;
-		try {
-			projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
-		} catch (e) {
-			debugLog('Failed to project state:', e);
+		if (!projection) {
+			debugLog(
+				`[chat] Failed to project state at messages ${lastMessageId} or ${lastMessageId - 1}`,
+			);
 			return;
 		}
 
@@ -611,7 +757,7 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 			? buildAfterMessagesContent(store, swipeContext, projection)
 			: '';
 
-		// Try shakeup injection — append to state content if triggered
+		// Try shakeup injection — generates the raw shakeup instruction
 		const shakeupContent = await tryInjectShakeup({
 			settings,
 			stContext,
@@ -619,7 +765,26 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 			store,
 			projection,
 		});
-		if (shakeupContent) {
+
+		// Try Better RP pipeline — if enabled, runs 4-step thinking pipeline
+		// The shakeup instruction (if any) is passed to all 4 steps.
+		// If Better RP produces a beat plan, it replaces the raw shakeup block.
+		const betterRpContent = await tryInjectBetterRp({
+			settings,
+			stContext,
+			swipeContext,
+			store,
+			projection,
+			shakeupInstruction: shakeupContent,
+		});
+
+		if (betterRpContent) {
+			// Better RP beat plan replaces the raw shakeup content
+			stateContent = stateContent
+				? `${stateContent}\n\n${betterRpContent}`
+				: betterRpContent;
+		} else if (shakeupContent) {
+			// Fallback: inject raw shakeup content (Better RP disabled or failed)
 			stateContent = stateContent
 				? `${stateContent}\n\n${shakeupContent}`
 				: shakeupContent;
@@ -750,6 +915,7 @@ async function handlePromptReady(eventData: ChatCompletionPromptReadyData): Prom
 async function handleTextCompletionPromptReady(
 	eventData: GenerateBeforeCombinePromptsData,
 ): Promise<void> {
+	debugLog('Text completion prompt hook fired', eventData.dryRun ? '(dry run)' : '(live)');
 	// Skip dry runs (token counting passes)
 	if (eventData.dryRun) {
 		debugLog('Skipping dry run in text completion prompt hook');
@@ -772,9 +938,9 @@ async function handleTextCompletionPromptReady(
 	const { store, swipeContext, stContext } = storeAndContext;
 	const settings = getV2Settings();
 
-	// If both injection types are disabled, nothing to do
-	if (!settings.v2InjectState && !settings.v2InjectNarrative) {
-		debugLog('Both state and narrative injection disabled');
+	// If both injection types are disabled and Better RP is also disabled, nothing to do
+	if (!settings.v2InjectState && !settings.v2InjectNarrative && !settings.v2BetterRpEnabled) {
+		debugLog('All injection disabled (state, narrative, and Better RP)');
 		return;
 	}
 
@@ -785,20 +951,27 @@ async function handleTextCompletionPromptReady(
 			return;
 		}
 
-		// Get projection for the last message
+		// Get projection for state injection.
+		// Try projecting at the last message in chat. If that fails (e.g. no
+		// snapshot there yet), fall back to the message before it.
+		// This handles normal sends, swipes, group chats, and first messages.
 		const lastMessageId = stContext.chat.length - 1;
-		const projectionMessageId = lastMessageId - 1;
-		if (projectionMessageId < 0) {
-			debugLog('No messages to project from');
-			return;
+
+		let projection: Projection | null = null;
+		for (let tryId = lastMessageId; tryId >= Math.max(0, lastMessageId - 1); tryId--) {
+			try {
+				projection = store.projectStateAtMessage(tryId, swipeContext);
+				debugLog(`Projected state at message ${tryId}`);
+				break;
+			} catch {
+				// Try the next candidate
+			}
 		}
 
-		let projection: Projection;
-		try {
-			projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
-		} catch (e) {
-			debugLog('Failed to project state:', e);
-			return;
+		if (!projection) {
+			debugLog(
+				`Failed to project state at messages ${lastMessageId} or ${lastMessageId - 1} (initialSnapshot=${store.initialSnapshotMessageId})`,
+			);
 		}
 
 		const tokenCounter = getDefaultTokenCounter();
@@ -818,19 +991,39 @@ async function handleTextCompletionPromptReady(
 		);
 
 		// Build state content to know its token cost (skip if state injection disabled)
-		let stateContent = settings.v2InjectState
-			? buildAfterMessagesContent(store, swipeContext, projection)
-			: '';
+		let stateContent =
+			settings.v2InjectState && projection
+				? buildAfterMessagesContent(store, swipeContext, projection)
+				: '';
 
-		// Try shakeup injection — append to state content if triggered
-		const shakeupContent = await tryInjectShakeup({
-			settings,
-			stContext,
-			swipeContext,
-			store,
-			projection,
-		});
-		if (shakeupContent) {
+		// Try shakeup injection — generates the raw shakeup instruction
+		const shakeupContent = projection
+			? await tryInjectShakeup({
+					settings,
+					stContext,
+					swipeContext,
+					store,
+					projection,
+				})
+			: null;
+
+		// Try Better RP pipeline — if enabled, runs 4-step thinking pipeline
+		const betterRpContent = projection
+			? await tryInjectBetterRp({
+					settings,
+					stContext,
+					swipeContext,
+					store,
+					projection,
+					shakeupInstruction: shakeupContent,
+				})
+			: null;
+
+		if (betterRpContent) {
+			stateContent = stateContent
+				? `${stateContent}\n\n${betterRpContent}`
+				: betterRpContent;
+		} else if (shakeupContent) {
 			stateContent = stateContent
 				? `${stateContent}\n\n${shakeupContent}`
 				: shakeupContent;

@@ -101630,8 +101630,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./ui/cardDefaultsButton */ "./src/ui/cardDefaultsButton.ts");
 /* harmony import */ var _ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./ui/cardDefaultsModal */ "./src/ui/cardDefaultsModal.tsx");
 /* harmony import */ var _ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./ui/personaDefaultsButton */ "./src/ui/personaDefaultsButton.ts");
-/* harmony import */ var _v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./v2/injectors/promptHook */ "./src/v2/injectors/promptHook.ts");
-/* harmony import */ var _v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./v2/injectors/macros */ "./src/v2/injectors/macros.ts");
+/* harmony import */ var _ui_saveNoExtractButton__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./ui/saveNoExtractButton */ "./src/ui/saveNoExtractButton.ts");
+/* harmony import */ var _v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./v2/injectors/promptHook */ "./src/v2/injectors/promptHook.ts");
+/* harmony import */ var _v2_injectors_macros__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./v2/injectors/macros */ "./src/v2/injectors/macros.ts");
 
 
 
@@ -101652,6 +101653,8 @@ __webpack_require__.r(__webpack_exports__);
 // Card Defaults UI
 
 
+
+// Save without re-extract button
 
 // V2 Prompt Hook
 
@@ -101733,7 +101736,7 @@ function setManualExtractionInProgress(value) {
 function updateV2Injection(forMessageId) {
     // Skip if prompt hooks are handling injection
     // The prompt hooks inject at the right positions with budget awareness
-    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.isPromptHookRegistered)()) {
+    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_15__.isPromptHookRegistered)()) {
         return;
     }
     const stContext = SillyTavern.getContext();
@@ -101782,8 +101785,10 @@ async function init() {
     (0,_ui_cardDefaultsButton__WEBPACK_IMPORTED_MODULE_11__.initCardDefaultsButton)(_ui_cardDefaultsModal__WEBPACK_IMPORTED_MODULE_12__.openCardDefaultsModal);
     // Initialize persona defaults buttons in persona management UI
     (0,_ui_personaDefaultsButton__WEBPACK_IMPORTED_MODULE_13__.initPersonaDefaultsButtons)();
+    // Initialize save-without-extract button for message editing
+    (0,_ui_saveNoExtractButton__WEBPACK_IMPORTED_MODULE_14__.initSaveNoExtractButton)();
     // Register bridge functions for the prompt hook (avoids circular dependency)
-    (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.registerBridgeFunctions)({
+    (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_15__.registerBridgeFunctions)({
         getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
         hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
         buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
@@ -101791,16 +101796,16 @@ async function init() {
         saveV2ShakeupHistory: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.saveV2ShakeupHistory,
     });
     // Register bridge functions for macros and register ST macros
-    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__.registerMacroBridgeFunctions)({
+    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_16__.registerMacroBridgeFunctions)({
         getV2EventStore: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.getV2EventStore,
         hasV2InitialSnapshot: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot,
         buildSwipeContext: _v2Bridge__WEBPACK_IMPORTED_MODULE_6__.buildSwipeContext,
     });
-    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_15__.registerMacros)();
+    (0,_v2_injectors_macros__WEBPACK_IMPORTED_MODULE_16__.registerMacros)();
     // Register the context-aware prompt hook if available
     // This hooks into CHAT_COMPLETION_PROMPT_READY to inject chapters, events, and state
-    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.isPromptHookAvailable)()) {
-        (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_14__.registerPromptHook)();
+    if ((0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_15__.isPromptHookAvailable)()) {
+        (0,_v2_injectors_promptHook__WEBPACK_IMPORTED_MODULE_15__.registerPromptHook)();
         log('Context-aware prompt hook registered');
     }
     else {
@@ -101840,6 +101845,14 @@ async function init() {
     }));
     // Re-extract on message edit
     context.eventSource.on(context.event_types.MESSAGE_EDITED, (async (messageId) => {
+        // Check if user saved without re-extract
+        if ((0,_ui_saveNoExtractButton__WEBPACK_IMPORTED_MODULE_14__.shouldSkipExtraction)()) {
+            log('Skipping extraction for edited message (save without re-extract):', messageId);
+            if ((0,_v2Bridge__WEBPACK_IMPORTED_MODULE_6__.hasV2InitialSnapshot)()) {
+                (0,_v2_ui__WEBPACK_IMPORTED_MODULE_10__.mountV2ProjectionDisplay)(messageId);
+            }
+            return;
+        }
         const stContext = SillyTavern.getContext();
         const lastIndex = stContext.chat.length - 1;
         // Only re-extract if editing one of the last 2 messages
@@ -103271,6 +103284,135 @@ function cleanupPersonaDefaultsButtons() {
 
 /***/ },
 
+/***/ "./src/ui/saveNoExtractButton.ts"
+/*!***************************************!*\
+  !*** ./src/ui/saveNoExtractButton.ts ***!
+  \***************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   cleanupSaveNoExtractButton: () => (/* binding */ cleanupSaveNoExtractButton),
+/* harmony export */   initSaveNoExtractButton: () => (/* binding */ initSaveNoExtractButton),
+/* harmony export */   setSkipNextExtraction: () => (/* binding */ setSkipNextExtraction),
+/* harmony export */   shouldSkipExtraction: () => (/* binding */ shouldSkipExtraction)
+/* harmony export */ });
+/**
+ * Save Without Re-Extract Button Injection
+ *
+ * Injects a button into SillyTavern's message edit buttons that saves
+ * the edit without triggering BlazeTracker re-extraction.
+ */
+// Module-level skip flag (consume-once pattern)
+let skipNextExtraction = false;
+/**
+ * Check if the next extraction should be skipped.
+ * Consumes the flag: returns true once, then resets to false.
+ */
+function shouldSkipExtraction() {
+    const value = skipNextExtraction;
+    skipNextExtraction = false;
+    return value;
+}
+/**
+ * Set the skip flag. Used internally by the button click handler.
+ * Exported for testing.
+ */
+function setSkipNextExtraction(value) {
+    skipNextExtraction = value;
+}
+// Button class for identification
+const BUTTON_CLASS = 'bt-save-no-extract';
+// MutationObserver for watching edit buttons
+let domObserver = null;
+// Event delegation handler reference
+let delegationHandler = null;
+/**
+ * Inject the save-no-extract button into a `.mes_edit_buttons` container.
+ * Returns true if button was injected or already exists.
+ */
+function injectButton(container) {
+    // Already injected
+    if (container.querySelector(`.${BUTTON_CLASS}`)) {
+        return true;
+    }
+    const editDone = container.querySelector('.mes_edit_done');
+    if (!editDone) {
+        return false;
+    }
+    const button = document.createElement('div');
+    button.className = `${BUTTON_CLASS} menu_button fa-solid fa-floppy-disk`;
+    button.title = 'Save without re-extracting';
+    button.style.cssText = 'color: #f80;';
+    editDone.after(button);
+    return true;
+}
+/**
+ * Scan all visible `.mes_edit_buttons` containers and inject buttons.
+ */
+function injectAllButtons() {
+    const containers = document.querySelectorAll('.mes_edit_buttons');
+    containers.forEach(container => injectButton(container));
+}
+/**
+ * Initialize the save-no-extract button system.
+ * Sets up MutationObserver and event delegation.
+ */
+function initSaveNoExtractButton() {
+    cleanupSaveNoExtractButton();
+    // Initial injection
+    injectAllButtons();
+    // Watch for new edit button containers appearing
+    const chat = document.getElementById('chat');
+    if (chat) {
+        domObserver = new MutationObserver(() => {
+            injectAllButtons();
+        });
+        domObserver.observe(chat, {
+            childList: true,
+            subtree: true,
+        });
+        // Event delegation for button clicks
+        delegationHandler = (e) => {
+            const target = e.target;
+            if (!target.classList.contains(BUTTON_CLASS))
+                return;
+            // Set skip flag
+            skipNextExtraction = true;
+            // Trigger the standard save by clicking .mes_edit_done
+            const container = target.closest('.mes_edit_buttons');
+            if (container) {
+                const editDone = container.querySelector('.mes_edit_done');
+                if (editDone) {
+                    editDone.click();
+                }
+            }
+        };
+        chat.addEventListener('click', delegationHandler);
+    }
+}
+/**
+ * Clean up the save-no-extract button system.
+ */
+function cleanupSaveNoExtractButton() {
+    if (domObserver) {
+        domObserver.disconnect();
+        domObserver = null;
+    }
+    if (delegationHandler) {
+        const chat = document.getElementById('chat');
+        if (chat) {
+            chat.removeEventListener('click', delegationHandler);
+        }
+        delegationHandler = null;
+    }
+    // Remove all injected buttons
+    document.querySelectorAll(`.${BUTTON_CLASS}`).forEach(el => el.remove());
+}
+
+
+/***/ },
+
 /***/ "./src/ui/settings.css"
 /*!*****************************!*\
   !*** ./src/ui/settings.css ***!
@@ -103973,6 +104115,1456 @@ function formatTemperature(fahrenheit, unit) {
         return `${fahrenheitToCelsius(fahrenheit)}°C`;
     }
     return `${fahrenheit}°F`;
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/context.ts"
+/*!************************************!*\
+  !*** ./src/v2/betterRp/context.ts ***!
+  \************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildSharedContext: () => (/* binding */ buildSharedContext)
+/* harmony export */ });
+/* harmony import */ var _extractors_utils_buildPrompt__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../extractors/utils/buildPrompt */ "./src/v2/extractors/utils/buildPrompt.ts");
+/* harmony import */ var _injectors_state__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../injectors/state */ "./src/v2/injectors/state.ts");
+/* harmony import */ var _injectors_contextBudget__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../injectors/contextBudget */ "./src/v2/injectors/contextBudget.ts");
+/* harmony import */ var _injectors_chapters__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../injectors/chapters */ "./src/v2/injectors/chapters.ts");
+/* harmony import */ var _injectors_events__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../injectors/events */ "./src/v2/injectors/events.ts");
+/* harmony import */ var _utils_tokenCount__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../utils/tokenCount */ "./src/v2/utils/tokenCount.ts");
+/**
+ * Better RP Shared Context Builder
+ *
+ * Assembles the shared context block used by all 4 pipeline steps.
+ * Ordered with stable content first for prefix caching benefits.
+ */
+
+
+
+
+
+
+/**
+ * Build the shared context block used by all 4 pipeline steps.
+ * Sections are ordered with stable content first for prefix caching.
+ */
+async function buildSharedContext(params) {
+    const { stContext, projection, store, swipeContext, worldinfo, shakeupInstruction, injectionTokenBudget, maxRecentChapters, maxRecentEvents, } = params;
+    const sections = [];
+    // 1. Character Description (STABLE — from char card)
+    const charDescription = getCharacterDescription(stContext);
+    if (charDescription) {
+        sections.push(`[Character Description]\n${charDescription}\n[/Character Description]`);
+    }
+    // 2. User Character (STABLE — from persona)
+    const userDescription = getUserDescription(stContext);
+    if (userDescription) {
+        sections.push(`[User Character]\n${userDescription}\n[/User Character]`);
+    }
+    // 3. World Info (STABLE-ish — if enabled)
+    if (worldinfo) {
+        sections.push(`[World Info]\n${worldinfo}\n[/World Info]`);
+    }
+    // 4. Character Profiles (STABLE-ish — includes species, sex, age, appearance, personality)
+    const profiles = (0,_extractors_utils_buildPrompt__WEBPACK_IMPORTED_MODULE_0__.formatCharacterProfiles)(projection);
+    if (profiles && profiles !== 'No character profiles available') {
+        sections.push(`[Character Profiles]\n${profiles}\n[/Character Profiles]`);
+    }
+    // 5. Relationships (VOLATILE)
+    const relationships = formatRelationshipsForContext(projection);
+    if (relationships) {
+        sections.push(`[Relationships]\n${relationships}\n[/Relationships]`);
+    }
+    // 6. Current Scene (VOLATILE — time, location, climate, characters, scene)
+    const sceneState = (0,_injectors_state__WEBPACK_IMPORTED_MODULE_1__.formatStateForInjection)(projection, store, swipeContext, {
+        includeTime: true,
+        includeLocation: true,
+        includeClimate: true,
+        includeCharacters: true,
+        includeRelationships: false, // Already included above
+        includeScene: true,
+        includeChapters: false,
+        includeEvents: false,
+    });
+    if (sceneState) {
+        sections.push(`[Current Scene]\n${sceneState}\n[/Current Scene]`);
+    }
+    // 7. Narrative Context (VOLATILE — chapters + out-of-context events, HALF budget)
+    const narrativeContext = await buildNarrativeContext(store, swipeContext, injectionTokenBudget, maxRecentChapters, maxRecentEvents, stContext);
+    if (narrativeContext) {
+        sections.push(`[Narrative Context]\n${narrativeContext}\n[/Narrative Context]`);
+    }
+    // 8. Mandatory Scene Event (VOLATILE — only if shakeup triggered)
+    if (shakeupInstruction) {
+        sections.push(`[Mandatory Scene Event]\n${shakeupInstruction}\n[/Mandatory Scene Event]`);
+    }
+    // 9. Recent Messages (VOLATILE)
+    const recentMessages = getRecentMessages(stContext, 5);
+    if (recentMessages) {
+        sections.push(`[Recent Messages]\n${recentMessages}\n[/Recent Messages]`);
+    }
+    return sections.join('\n\n');
+}
+/**
+ * Get character description from ST context.
+ */
+function getCharacterDescription(stContext) {
+    const char = stContext.characters?.[stContext.characterId];
+    if (!char)
+        return '';
+    const parts = [];
+    if (char.description)
+        parts.push(char.description);
+    if (char.personality)
+        parts.push(`Personality: ${char.personality}`);
+    if (char.scenario)
+        parts.push(`Scenario: ${char.scenario}`);
+    return parts.join('\n\n');
+}
+/**
+ * Get user description from ST context.
+ */
+function getUserDescription(stContext) {
+    return stContext.powerUserSettings?.persona_description || stContext.persona || '';
+}
+/**
+ * Get recent messages as formatted strings.
+ * Excludes the last message if it's an assistant message (swipe/regen scenario),
+ * since that message is about to be replaced and shouldn't inform the beat plan.
+ */
+function getRecentMessages(stContext, count) {
+    const chat = stContext.chat;
+    if (chat.length === 0)
+        return '';
+    // During swipe/regen, the last message is the assistant response being replaced.
+    // Exclude it so the pipeline plans based on what the user said, not the old response.
+    const lastMsg = chat[chat.length - 1];
+    const endIndex = lastMsg && !lastMsg.is_user ? chat.length - 1 : chat.length;
+    const messages = [];
+    const start = Math.max(0, endIndex - count);
+    for (let i = start; i < endIndex; i++) {
+        const msg = chat[i];
+        if (msg.mes) {
+            messages.push(`${msg.name}: ${msg.mes}`);
+        }
+    }
+    return messages.join('\n\n');
+}
+/**
+ * Format relationships for present characters.
+ */
+function formatRelationshipsForContext(projection) {
+    const presentSet = new Set(projection.charactersPresent);
+    const formatted = [];
+    for (const rel of Object.values(projection.relationships)) {
+        if (presentSet.has(rel.pair[0]) && presentSet.has(rel.pair[1])) {
+            const lines = [`${rel.pair[0]} & ${rel.pair[1]}: ${rel.status}`];
+            if (rel.aToB.feelings.length > 0)
+                lines.push(`  ${rel.pair[0]} → ${rel.pair[1]}: feels ${rel.aToB.feelings.join(', ')}`);
+            if (rel.aToB.wants.length > 0)
+                lines.push(`  ${rel.pair[0]} wants: ${rel.aToB.wants.join(', ')}`);
+            if (rel.aToB.secrets.length > 0)
+                lines.push(`  ${rel.pair[0]} hides: ${rel.aToB.secrets.join(', ')}`);
+            if (rel.bToA.feelings.length > 0)
+                lines.push(`  ${rel.pair[1]} → ${rel.pair[0]}: feels ${rel.bToA.feelings.join(', ')}`);
+            if (rel.bToA.wants.length > 0)
+                lines.push(`  ${rel.pair[1]} wants: ${rel.bToA.wants.join(', ')}`);
+            if (rel.bToA.secrets.length > 0)
+                lines.push(`  ${rel.pair[1]} hides: ${rel.bToA.secrets.join(', ')}`);
+            formatted.push(lines.join('\n'));
+        }
+    }
+    return formatted.length > 0 ? formatted.join('\n\n') : '';
+}
+/**
+ * Build narrative context with HALF the token budget.
+ */
+async function buildNarrativeContext(store, swipeContext, injectionTokenBudget, maxRecentChapters, maxRecentEvents, stContext) {
+    const tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_5__.getDefaultTokenCounter)();
+    const halfBudget = Math.floor((injectionTokenBudget || 4000) / 2);
+    try {
+        const plan = await (0,_injectors_contextBudget__WEBPACK_IMPORTED_MODULE_2__.computeOptimalContext)({
+            budget: halfBudget,
+            stateTokens: 0,
+            messageTokens: new Map(),
+            store,
+            swipeContext,
+            maxPastChapters: maxRecentChapters,
+            maxEvents: maxRecentEvents,
+            totalMessages: stContext.chat.length,
+            tokenCounter,
+        });
+        const parts = [];
+        if (plan.pastChapters.length > 0) {
+            const chapters = (0,_injectors_chapters__WEBPACK_IMPORTED_MODULE_3__.formatPrecomputedChapters)(plan.pastChapters);
+            if (chapters)
+                parts.push(chapters);
+        }
+        if (plan.currentChapterEvents.length > 0) {
+            const events = (0,_injectors_events__WEBPACK_IMPORTED_MODULE_4__.formatOutOfContextEvents)(plan.currentChapterEvents, plan.currentChapterEvents.length);
+            if (events)
+                parts.push(events);
+        }
+        return parts.join('\n\n');
+    }
+    catch {
+        return '';
+    }
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/index.ts"
+/*!**********************************!*\
+  !*** ./src/v2/betterRp/index.ts ***!
+  \**********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildSharedContext: () => (/* reexport safe */ _context__WEBPACK_IMPORTED_MODULE_2__.buildSharedContext),
+/* harmony export */   formatBeatPlanInjection: () => (/* reexport safe */ _inject__WEBPACK_IMPORTED_MODULE_1__.formatBeatPlanInjection),
+/* harmony export */   runBetterRpPipeline: () => (/* reexport safe */ _pipeline__WEBPACK_IMPORTED_MODULE_0__.runBetterRpPipeline)
+/* harmony export */ });
+/* harmony import */ var _pipeline__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./pipeline */ "./src/v2/betterRp/pipeline.ts");
+/* harmony import */ var _inject__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./inject */ "./src/v2/betterRp/inject.ts");
+/* harmony import */ var _context__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./context */ "./src/v2/betterRp/context.ts");
+/**
+ * Better RP Pipeline
+ *
+ * Pre-flight thinking pipeline for better roleplay responses.
+ */
+
+
+
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/inject.ts"
+/*!***********************************!*\
+  !*** ./src/v2/betterRp/inject.ts ***!
+  \***********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   formatBeatPlanInjection: () => (/* binding */ formatBeatPlanInjection)
+/* harmony export */ });
+/**
+ * Better RP Injection Formatter
+ *
+ * Formats the response direction as a mandatory directive for injection into the prompt.
+ */
+/**
+ * Format the response direction as a mandatory injection directive.
+ * Returns null if planning failed (partial analysis isn't useful as a directive).
+ */
+function formatBeatPlanInjection(result, npcNames, userName) {
+    if (!result.beatPlanning || result.beatPlanning.directions.length === 0) {
+        return null;
+    }
+    return formatDirective(result.beatPlanning, npcNames, userName);
+}
+/**
+ * Format the response direction into the injection block.
+ */
+function formatDirective(plan, npcNames, userName) {
+    const lines = [
+        '[MANDATORY RESPONSE DIRECTION — YOU MUST FOLLOW THIS EXACTLY]',
+        '',
+        'YOU MUST WRITE YOUR RESPONSE FOLLOWING THE DIRECTION BELOW.',
+        'This is not a suggestion or a guideline. This is the mandatory structure of your reply.',
+        'These directions were planned to maintain scene continuity and character consistency.',
+        'If you deviate from this direction, the scene will be inconsistent and broken.',
+        '',
+        'HOW TO USE THIS DIRECTION:',
+        '- Read each numbered direction below. They are in order.',
+        '- Write your response as flowing prose that follows these directions in sequence.',
+        '- Each direction tells you what the NPC does, a sensory detail to include, and the emotional intent.',
+        '- Weave them together naturally. Do not label or announce directions.',
+        '- Do not add scenes, actions, or dialogue not covered by the directions.',
+        '- Do not skip any direction. Do not reorder them.',
+        '',
+        'CHARACTER RULES:',
+        `- You are writing ONLY for: ${npcNames.join(', ')}`,
+        `- ${userName} does NOT act, speak, think, feel, or decide in your response`,
+        `- ${npcNames.join(', ')} CAN interact with ${userName} (speak to, touch, look at)`,
+        `- ${userName} NEVER responds, reacts, or has internal states described`,
+        `- Include the sensory details provided — they are grounded in the character's physical description`,
+        `- Never write ${userName}'s reaction to sensory details — describe what exists, not how ${userName} experiences it`,
+        '',
+        '--- BEGIN DIRECTIONS ---',
+        '',
+    ];
+    for (let i = 0; i < plan.directions.length; i++) {
+        const dir = plan.directions[i];
+        lines.push(`Direction ${i + 1}:`);
+        lines.push(`  What happens: ${dir.narration}`);
+        if (dir.dialogue &&
+            dir.dialogue !== 'No dialogue.' &&
+            dir.dialogue !== 'No dialogue') {
+            lines.push(`  Dialogue: ${dir.dialogue}`);
+        }
+        if (dir.sensory) {
+            lines.push(`  Sensory detail to include: ${dir.sensory}`);
+        }
+        if (dir.intent) {
+            lines.push(`  Emotional undercurrent: ${dir.intent}`);
+        }
+        lines.push('');
+    }
+    lines.push('--- END DIRECTIONS ---');
+    lines.push('');
+    lines.push('Write your response now. Follow the directions above exactly, in order, as natural prose.');
+    lines.push(`Do not write ${userName}'s actions, dialogue, thoughts, or feelings.`);
+    lines.push('[/MANDATORY RESPONSE DIRECTION]');
+    return lines.join('\n');
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/pipeline.ts"
+/*!*************************************!*\
+  !*** ./src/v2/betterRp/pipeline.ts ***!
+  \*************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   runBetterRpPipeline: () => (/* binding */ runBetterRpPipeline)
+/* harmony export */ });
+/* harmony import */ var _generator_Generator__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../generator/Generator */ "./src/v2/generator/Generator.ts");
+/* harmony import */ var _generator_types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../generator/types */ "./src/v2/generator/types.ts");
+/* harmony import */ var _context__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./context */ "./src/v2/betterRp/context.ts");
+/* harmony import */ var _prompts_continuityAudit__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./prompts/continuityAudit */ "./src/v2/betterRp/prompts/continuityAudit.ts");
+/* harmony import */ var _prompts_characterKnowledge__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./prompts/characterKnowledge */ "./src/v2/betterRp/prompts/characterKnowledge.ts");
+/* harmony import */ var _prompts_tensionSteering__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./prompts/tensionSteering */ "./src/v2/betterRp/prompts/tensionSteering.ts");
+/* harmony import */ var _prompts_beatPlanning__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./prompts/beatPlanning */ "./src/v2/betterRp/prompts/beatPlanning.ts");
+/* harmony import */ var _utils_debug__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../utils/debug */ "./src/utils/debug.ts");
+/* harmony import */ var _training__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../training */ "./src/v2/training/index.ts");
+/**
+ * Better RP Pipeline Orchestrator
+ *
+ * Runs the 4-step pre-flight thinking pipeline sequentially,
+ * collecting errors and supporting abort. Each step retries
+ * with lower temperature on parse failure.
+ */
+
+
+
+
+
+
+
+
+
+/** Default number of retries per step */
+const MAX_RETRIES = 2;
+/** Temperature used on retry attempts (low for deterministic output) */
+const RETRY_TEMPERATURE = 0.1;
+/** Assistant prefill to force JSON output */
+const JSON_PREFILL = '{\n';
+/**
+ * Apply prompt prefix/suffix to a user prompt.
+ */
+function applyPrefixSuffix(userPrompt, prefix, suffix) {
+    const parts = [];
+    if (prefix)
+        parts.push(prefix);
+    parts.push(userPrompt);
+    if (suffix)
+        parts.push(suffix);
+    return parts.join('\n');
+}
+/**
+ * Get NPC names (characters present minus the user character).
+ */
+function getNpcNames(projection, userName) {
+    return projection.charactersPresent.filter(name => name.toLowerCase() !== userName.toLowerCase());
+}
+/**
+ * Generate a response with retry logic.
+ * On parse failure, retries with lower temperature.
+ * Uses assistant prefill to force JSON output.
+ */
+async function generateWithRetry(params) {
+    const { generator, systemPrompt, userPrompt, promptName, parser, temperature, maxTokens, abortSignal, } = params;
+    let lastResponse;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (abortSignal?.aborted)
+            return null;
+        const currentTemp = attempt === 0 ? temperature : RETRY_TEMPERATURE;
+        try {
+            const prompt = (0,_generator_types__WEBPACK_IMPORTED_MODULE_1__.buildPromptWithPrefill)(systemPrompt, userPrompt, JSON_PREFILL, promptName);
+            const response = await generator.generate(prompt, {
+                maxTokens,
+                temperature: currentTemp,
+                abortSignal,
+            });
+            lastResponse = response;
+            // Prepend the prefill back since the LLM continues from it
+            const fullResponse = JSON_PREFILL + response;
+            const parsed = parser(fullResponse);
+            if (parsed !== null) {
+                if ((0,_training__WEBPACK_IMPORTED_MODULE_8__.isTrainingCaptureEnabled)()) {
+                    (0,_training__WEBPACK_IMPORTED_MODULE_8__.annotateLastCapture)({
+                        parsedResult: parsed,
+                        parseSuccess: true,
+                    });
+                }
+                return parsed;
+            }
+            // Parse failed — annotate and retry
+            if ((0,_training__WEBPACK_IMPORTED_MODULE_8__.isTrainingCaptureEnabled)()) {
+                (0,_training__WEBPACK_IMPORTED_MODULE_8__.annotateLastCapture)({
+                    parseSuccess: false,
+                    parseError: 'parseResponse returned null',
+                });
+            }
+            if (attempt < MAX_RETRIES) {
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)(`${promptName} parse failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying with temperature ${RETRY_TEMPERATURE}`);
+            }
+        }
+        catch (error) {
+            // Re-throw abort errors so the pipeline can stop
+            if ((0,_generator_Generator__WEBPACK_IMPORTED_MODULE_0__.isAbortError)(error))
+                throw error;
+            if (abortSignal?.aborted)
+                throw error;
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            if ((0,_training__WEBPACK_IMPORTED_MODULE_8__.isTrainingCaptureEnabled)()) {
+                (0,_training__WEBPACK_IMPORTED_MODULE_8__.annotateLastCapture)({
+                    parseSuccess: false,
+                    parseError: errorMsg,
+                });
+            }
+            if (attempt < MAX_RETRIES) {
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)(`${promptName} error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, error);
+            }
+            else {
+                throw error;
+            }
+        }
+    }
+    // All attempts exhausted
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.errorLog)(`${promptName} failed after ${MAX_RETRIES + 1} attempts`);
+    if (lastResponse) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.errorLog)(`Last response (truncated):`, lastResponse.substring(0, 500));
+    }
+    return null;
+}
+/**
+ * Run the 4-step Better RP pre-flight thinking pipeline.
+ */
+async function runBetterRpPipeline(params) {
+    const { generator, store, stContext, swipeContext, projection, settings, shakeupInstruction, setStatus, abortSignal, } = params;
+    const result = {
+        continuityAudit: null,
+        characterKnowledge: null,
+        tensionSteering: null,
+        beatPlanning: null,
+        errors: [],
+    };
+    const userName = stContext.name1;
+    const npcNames = getNpcNames(projection, userName);
+    if (npcNames.length === 0) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: No NPC characters present, skipping pipeline');
+        return result;
+    }
+    const maxTokens = settings.v2BetterRpMaxTokensPerStep;
+    const promptPrefix = settings.v2PromptPrefix || '';
+    const promptSuffix = settings.v2PromptSuffix || '';
+    // Build shared context once (prefix-cacheable)
+    let sharedContext;
+    try {
+        // Fetch worldinfo if enabled
+        let worldinfo;
+        if (settings.v2IncludeWorldinfo) {
+            try {
+                const { getWorldinfoForPrompt } = await Promise.resolve(/*! import() */).then(__webpack_require__.bind(__webpack_require__, /*! ../utils/worldinfo */ "./src/v2/utils/worldinfo.ts"));
+                const messageTexts = stContext.chat
+                    .slice(-8)
+                    .map(m => m.mes)
+                    .filter(Boolean);
+                const wi = await getWorldinfoForPrompt(messageTexts);
+                if (wi)
+                    worldinfo = wi;
+            }
+            catch {
+                // Worldinfo fetch failure is non-fatal
+            }
+        }
+        sharedContext = await (0,_context__WEBPACK_IMPORTED_MODULE_2__.buildSharedContext)({
+            stContext,
+            projection,
+            store,
+            swipeContext,
+            includeWorldinfo: settings.v2IncludeWorldinfo,
+            worldinfo,
+            shakeupInstruction,
+            injectionTokenBudget: settings.v2InjectionTokenBudget,
+            maxRecentChapters: settings.v2MaxRecentChapters,
+            maxRecentEvents: settings.v2MaxRecentEvents,
+        });
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Failed to build shared context:', error);
+        result.errors.push({
+            step: 'context',
+            error: error instanceof Error ? error : new Error(String(error)),
+        });
+        return result;
+    }
+    // Step 1: Continuity Audit
+    if (abortSignal?.aborted)
+        return result;
+    setStatus?.('Auditing continuity... (1/4)');
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 1 — Continuity Audit');
+    try {
+        result.continuityAudit = await generateWithRetry({
+            generator,
+            systemPrompt: (0,_prompts_continuityAudit__WEBPACK_IMPORTED_MODULE_3__.buildContinuityAuditSystemPrompt)(npcNames, userName),
+            userPrompt: applyPrefixSuffix((0,_prompts_continuityAudit__WEBPACK_IMPORTED_MODULE_3__.buildContinuityAuditUserPrompt)(sharedContext), promptPrefix, promptSuffix),
+            promptName: 'betterRp-continuityAudit',
+            parser: _prompts_continuityAudit__WEBPACK_IMPORTED_MODULE_3__.parseContinuityAuditResponse,
+            temperature: 0.4,
+            maxTokens,
+            abortSignal,
+        });
+        if (result.continuityAudit) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 1 complete', result.continuityAudit);
+        }
+        else {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 1 failed after retries');
+            result.errors.push({
+                step: 'continuityAudit',
+                error: new Error('Failed to parse response after retries'),
+            });
+        }
+    }
+    catch (error) {
+        if ((0,_generator_Generator__WEBPACK_IMPORTED_MODULE_0__.isAbortError)(error))
+            return result;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 1 error:', error);
+        result.errors.push({
+            step: 'continuityAudit',
+            error: error instanceof Error ? error : new Error(String(error)),
+        });
+    }
+    // Step 2: Character Knowledge & Intentions
+    if (abortSignal?.aborted)
+        return result;
+    setStatus?.('Analyzing characters... (2/4)');
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 2 — Character Knowledge');
+    try {
+        result.characterKnowledge = await generateWithRetry({
+            generator,
+            systemPrompt: (0,_prompts_characterKnowledge__WEBPACK_IMPORTED_MODULE_4__.buildCharacterKnowledgeSystemPrompt)(npcNames, userName),
+            userPrompt: applyPrefixSuffix((0,_prompts_characterKnowledge__WEBPACK_IMPORTED_MODULE_4__.buildCharacterKnowledgeUserPrompt)(sharedContext, result.continuityAudit), promptPrefix, promptSuffix),
+            promptName: 'betterRp-characterKnowledge',
+            parser: _prompts_characterKnowledge__WEBPACK_IMPORTED_MODULE_4__.parseCharacterKnowledgeResponse,
+            temperature: 0.5,
+            maxTokens,
+            abortSignal,
+        });
+        if (result.characterKnowledge) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 2 complete', result.characterKnowledge);
+        }
+        else {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 2 failed after retries');
+            result.errors.push({
+                step: 'characterKnowledge',
+                error: new Error('Failed to parse response after retries'),
+            });
+        }
+    }
+    catch (error) {
+        if ((0,_generator_Generator__WEBPACK_IMPORTED_MODULE_0__.isAbortError)(error))
+            return result;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 2 error:', error);
+        result.errors.push({
+            step: 'characterKnowledge',
+            error: error instanceof Error ? error : new Error(String(error)),
+        });
+    }
+    // Step 3: Tension Steering
+    if (abortSignal?.aborted)
+        return result;
+    setStatus?.('Planning direction... (3/4)');
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 3 — Tension Steering');
+    try {
+        result.tensionSteering = await generateWithRetry({
+            generator,
+            systemPrompt: (0,_prompts_tensionSteering__WEBPACK_IMPORTED_MODULE_5__.buildTensionSteeringSystemPrompt)(npcNames, userName),
+            userPrompt: applyPrefixSuffix((0,_prompts_tensionSteering__WEBPACK_IMPORTED_MODULE_5__.buildTensionSteeringUserPrompt)(sharedContext, result.continuityAudit, result.characterKnowledge), promptPrefix, promptSuffix),
+            promptName: 'betterRp-tensionSteering',
+            parser: _prompts_tensionSteering__WEBPACK_IMPORTED_MODULE_5__.parseTensionSteeringResponse,
+            temperature: 0.6,
+            maxTokens,
+            abortSignal,
+        });
+        if (result.tensionSteering) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 3 complete', result.tensionSteering);
+        }
+        else {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 3 failed after retries');
+            result.errors.push({
+                step: 'tensionSteering',
+                error: new Error('Failed to parse response after retries'),
+            });
+        }
+    }
+    catch (error) {
+        if ((0,_generator_Generator__WEBPACK_IMPORTED_MODULE_0__.isAbortError)(error))
+            return result;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 3 error:', error);
+        result.errors.push({
+            step: 'tensionSteering',
+            error: error instanceof Error ? error : new Error(String(error)),
+        });
+    }
+    // Step 4: Beat Planning
+    if (abortSignal?.aborted)
+        return result;
+    setStatus?.('Plotting beats... (4/4)');
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 4 — Beat Planning');
+    try {
+        result.beatPlanning = await generateWithRetry({
+            generator,
+            systemPrompt: (0,_prompts_beatPlanning__WEBPACK_IMPORTED_MODULE_6__.buildBeatPlanningSystemPrompt)(npcNames, userName),
+            userPrompt: applyPrefixSuffix((0,_prompts_beatPlanning__WEBPACK_IMPORTED_MODULE_6__.buildBeatPlanningUserPrompt)(sharedContext, result.continuityAudit, result.characterKnowledge, result.tensionSteering), promptPrefix, promptSuffix),
+            promptName: 'betterRp-beatPlanning',
+            parser: _prompts_beatPlanning__WEBPACK_IMPORTED_MODULE_6__.parseBeatPlanningResponse,
+            temperature: 0.7,
+            maxTokens,
+            abortSignal,
+        });
+        if (result.beatPlanning) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Better RP: Step 4 complete', result.beatPlanning);
+        }
+        else {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 4 failed after retries');
+            result.errors.push({
+                step: 'beatPlanning',
+                error: new Error('Failed to parse response after retries'),
+            });
+        }
+    }
+    catch (error) {
+        if ((0,_generator_Generator__WEBPACK_IMPORTED_MODULE_0__.isAbortError)(error))
+            return result;
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugWarn)('Better RP: Step 4 error:', error);
+        result.errors.push({
+            step: 'beatPlanning',
+            error: error instanceof Error ? error : new Error(String(error)),
+        });
+    }
+    return result;
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/prompts/beatPlanning.ts"
+/*!*************************************************!*\
+  !*** ./src/v2/betterRp/prompts/beatPlanning.ts ***!
+  \*************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildBeatPlanningSystemPrompt: () => (/* binding */ buildBeatPlanningSystemPrompt),
+/* harmony export */   buildBeatPlanningUserPrompt: () => (/* binding */ buildBeatPlanningUserPrompt),
+/* harmony export */   parseBeatPlanningResponse: () => (/* binding */ parseBeatPlanningResponse)
+/* harmony export */ });
+/* harmony import */ var _utils_json__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../utils/json */ "./src/utils/json.ts");
+/**
+ * Step 4: Response Direction
+ *
+ * Plans the NPC's next response as 2-4 ordered directions.
+ * Each direction is a prose moment: what the NPC does/says,
+ * a sensory detail from their character description, and the
+ * intent behind it.
+ */
+
+/**
+ * Build the system prompt for response direction planning.
+ */
+function buildBeatPlanningSystemPrompt(npcNames, userName) {
+    return `You are planning what ${npcNames.join(', ')} will do in their next response.
+
+This is ONE response turn — a single block of prose written from the NPC's perspective. NOT a back-and-forth. NOT a full scene. Just what the NPC does right now, then the response STOPS and waits for ${userName} to act.
+
+## Rules
+
+${userName} does NOT appear as the subject of any verb. NPCs CAN act toward ${userName} (touch, speak to, look at) but ${userName} never acts, speaks, thinks, feels, decides, or reacts.
+
+WHO is the subject? If ${userName} → FORBIDDEN. If an NPC → ALLOWED.
+
+ALLOWED: "Kira reaches for ${userName}'s hand" — Kira is the subject
+FORBIDDEN: "${userName} squeezes back" — ${userName} is the subject
+FORBIDDEN: "${userName} feels warmth" — ${userName} is the subject
+FORBIDDEN: "impossible for ${userName} to miss" — decides ${userName}'s perception
+
+## Body Mechanics — Respect Physical Form
+
+Every action must be physically possible for the character's body. Read the character profile — species, body type, and anatomy dictate what movements are available.
+
+Quadrupeds (horses, wolves, cats, deer, etc.) CANNOT:
+- Wave, gesture, or point (no hands/fingers in that form)
+- Shrug, cross arms, or put hands on hips
+- Pick things up with hooves or paws (use mouth, teeth, lips, or telekinesis if applicable)
+
+Quadrupeds CAN:
+- Nudge with nose or muzzle, nip, lick, headbutt
+- Pin ears (if they have ears that move), raise hackles (if they have fur/hair), wag or tuck tail (if they have one)
+- Paw at something (scrape, not grip)
+- Shift weight, lower body, rear up (briefly)
+- A pegasus picks up a letter with their teeth, not their hoof
+- A wolf comforts by pressing their flank against someone, not by hugging
+- A hairless character's skin might prickle with goosebumps instead of bristling fur — check the character description
+
+Bipedal anthros (wolf-people, cat-people, etc.) can use hands BUT still have species features:
+- Ears that pin, rotate, or perk (if their species has mobile ears)
+- Tails that swish, tuck, wrap, or lash (if they have a tail)
+- Fur/feathers/scales that bristle, puff, or flatten (if they have them — not all characters do; hairless or smooth-skinned characters exist)
+- Muzzles, not flat faces (if their species has a muzzle — affects how they kiss, speak, emote)
+- Digitigrade legs affect stance and movement (if their species has them)
+
+ALWAYS check the character profile before assuming physical features. Not every animal-like character has fur. Not every winged character can fly. Use what the description says, not what you assume from the species name.
+
+Elders move slowly. Children are small. Large characters take up space and cast shadows. Small characters look up. Match EVERY action to the character's physical reality.
+
+## Sensory Details
+
+Each direction MUST include one sensory detail grounded in the NPC's character description. Read the character profiles provided — use their actual physical traits (fur, scales, feathers, scars, eye color, body type, species features).
+
+Rules:
+- ONE sense per direction. Do not repeat the same sense across directions.
+- Check recent messages — if scent was used recently, pick a different sense.
+- The detail MUST match the character description. If the character has fur, describe fur texture — never "smooth skin". If they have a tail, reference it. If they're large, describe the physical reality of their size.
+- Describe the sensory detail as something that EXISTS. Do not describe ${userName} perceiving or reacting to it.
+
+GOOD: Character description says "wolf anthro with thick silver fur" →
+"The coarse silver fur along Kira's forearm bristles as she reaches out"
+WHY: Directly from the character card. Fur, not skin. Silver, not brown.
+
+BAD: Same character description →
+"Kira's smooth warm hand rests on ${userName}'s arm"
+WHY: The character has fur, not smooth skin. This contradicts the character card.
+
+BAD: "The scent of her perfume fills the room" (used in last 2 messages already)
+WHY: Repetitive. Pick a different sense.
+
+## Unresolved Items — You MUST Respond To These
+
+The Previous Analysis has a continuity audit listing unresolvedActions and openThreads. Your FIRST direction must directly address the most urgent unresolved item. If a question was asked, the NPC's dialogue in direction 1 must answer or deliberately deflect it. If a confession is hanging, direction 1 must show the NPC reacting to it. If a gesture was made, direction 1 must acknowledge it.
+
+Do NOT plan directions that ignore what just happened. The whole point of the continuity audit is to prevent dropped threads. If the audit says "Kira asked 'Do you even care?'" — then the NPC's first dialogue MUST address that question. Not later. Not indirectly. Direction 1.
+
+Remaining unresolved items should be woven into subsequent directions.
+
+## Output
+
+Return 2-4 directions. Each direction has exactly 4 fields:
+
+- narration: What the NPC physically does — specific actions, body language, movement. NOT dialogue (that goes in the dialogue field).
+- dialogue: What the NPC says and how — tone, content direction, register. Not exact words, but specific enough to guide the prose. If the NPC doesn't speak in this moment, write "No dialogue."
+- sensory: ONE sensory detail grounded in the character's physical description. Different sense than other directions and recent messages.
+- intent: What the NPC is thinking or feeling that should come through as subtext — not stated directly in the prose, but conveyed through how they act and speak.
+
+Each direction must be DISTINCT. Do not repeat the same action, dialogue, or sensory detail across directions. If two directions describe the same moment, merge them into one.
+
+## Good Example
+
+Scene: Kira (wolf anthro, silver fur, amber eyes) just confessed something painful. Late night kitchen.
+Continuity audit unresolvedActions: ["${userName} asked 'Why didn't you tell me sooner?'"]
+
+{
+  "directions": [
+    {
+      "narration": "Kira sets the wine glass down on the counter with deliberate control. Her ears pin back flat against her skull.",
+      "dialogue": "Answers ${userName}'s question directly — why she didn't tell them sooner. Quiet, stripped of sarcasm. Names the specific fear that kept her silent, not a vague excuse.",
+      "sensory": "The clink of glass on granite is sharp in the silent kitchen.",
+      "intent": "She's testing whether honesty will be punished. Answering the question means admitting the fear was about them specifically."
+    },
+    {
+      "narration": "Her gaze drops to her own hands, now empty. She doesn't move. The fur along her forearms lies flat — the tension has left her body, replaced by something more vulnerable.",
+      "dialogue": "No dialogue. The silence after her admission is the point.",
+      "sensory": "The coarse silver fur catches the warm lamplight, each strand visible where her sleeves are pushed back.",
+      "intent": "She removed her own shield and is waiting to see what happens — her trauma pattern expects the worst."
+    }
+  ]
+}
+
+WHY THIS IS GOOD:
+- Direction 1 directly addresses the unresolved question from the continuity audit ("Why didn't you tell me sooner?")
+- Dialogue field gives clear direction (answer the question, name the specific fear) without prescribing exact words
+- Narration and dialogue are separate — physical actions vs. speech direction
+- Sensory details come from character description (silver fur, not skin; ears pinning = wolf body language)
+- Direction 2 is a distinct moment with a different sense (sight vs. sound)
+- Intent gives subtext without dictating ${userName}'s response
+
+## Bad Example
+
+{
+  "directions": [
+    {
+      "narration": "Kira looks at ${userName} with vulnerability. ${userName} feels their heart ache.",
+      "dialogue": "Kira says something emotional.",
+      "sensory": "The room feels heavy with emotion.",
+      "intent": "${userName} wants to comfort her but doesn't know how."
+    },
+    {
+      "narration": "Kira looks at ${userName} with pain in her eyes. She seems vulnerable.",
+      "dialogue": "Kira whispers something about her feelings.",
+      "sensory": "Her perfume fills the room.",
+      "intent": "Kira hopes ${userName} will understand."
+    }
+  ]
+}
+
+WHY THIS IS WRONG:
+- The continuity audit's unresolved question is completely ignored — neither direction addresses it
+- Direction 1 narration makes ${userName} the subject ("${userName} feels"). Intent is ${userName}'s internal state.
+- Dialogue is vague in both — "says something emotional" and "whispers something about her feelings" give no useful direction
+- Direction 2 is nearly identical to Direction 1 — both describe Kira looking vulnerable. These should be one direction.
+- Sensory details are vague ("room feels heavy") or not from the character description ("Her perfume" — is perfume in the character card?).
+
+CRITICAL: Your entire response must be a single valid JSON object. Do not include any text, explanation, markdown formatting, or code fences before or after the JSON. Start your response with { and end with }.
+
+{
+  "directions": [
+    {
+      "narration": "string — physical actions, body language, movement",
+      "dialogue": "string — what they say and how (tone, content, register) or 'No dialogue.'",
+      "sensory": "string — one sensory detail from the character description",
+      "intent": "string — what the NPC is thinking/feeling (subtext)"
+    }
+  ]
+}
+
+Return 2-4 directions. Each must have all 4 fields as non-empty strings. Direction 1 MUST address the most urgent unresolved item from the continuity audit. No duplicates.`;
+}
+/**
+ * Build the user prompt for response direction planning.
+ */
+function buildBeatPlanningUserPrompt(sharedContext, continuityAudit, characterKnowledge, tensionSteering) {
+    let prompt = sharedContext;
+    const previousAnalysis = {};
+    if (continuityAudit)
+        previousAnalysis.continuityAudit = continuityAudit;
+    if (characterKnowledge)
+        previousAnalysis.characterKnowledge = characterKnowledge;
+    if (tensionSteering)
+        previousAnalysis.tensionSteering = tensionSteering;
+    if (Object.keys(previousAnalysis).length > 0) {
+        prompt += `\n\n[Previous Analysis]\n${JSON.stringify(previousAnalysis, null, 2)}`;
+    }
+    prompt +=
+        "\n\nPlan 2-4 directions for the NPC's next response. Direction 1 MUST directly address the most urgent unresolved item from the continuity audit. Each direction must be a distinct moment with narration, dialogue, one sensory detail from the character description, and intent. No duplicates.";
+    return prompt;
+}
+/**
+ * Parse response direction result.
+ * Accepts both "directions" (new) and "beats" (legacy) field names.
+ */
+function parseBeatPlanningResponse(response) {
+    try {
+        const parsed = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.parseJsonResponse)(response, {
+            shape: 'object',
+            moduleName: 'beatPlanning',
+        });
+        if (!parsed || !(0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.isObject)(parsed))
+            return null;
+        // Accept both "directions" and "beats" field names
+        const items = Array.isArray(parsed.directions)
+            ? parsed.directions
+            : Array.isArray(parsed.beats)
+                ? parsed.beats
+                : null;
+        if (!items)
+            return null;
+        const directions = [];
+        for (const item of items) {
+            if (!(0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.isObject)(item))
+                continue;
+            const obj = item;
+            // Accept both new field names (narration/sensory/intent) and
+            // old field names (action/dialogueDirection/subtext) for robustness
+            const narration = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.narration) || (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.action) || null;
+            if (!narration)
+                continue;
+            directions.push({
+                narration,
+                dialogue: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.dialogue) ||
+                    (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.dialogueDirection) ||
+                    '',
+                sensory: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.sensory) ||
+                    (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.continuityNotes) ||
+                    '',
+                intent: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.intent) ||
+                    (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.subtext) ||
+                    '',
+            });
+        }
+        if (directions.length === 0)
+            return null;
+        return { directions };
+    }
+    catch {
+        return null;
+    }
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/prompts/characterKnowledge.ts"
+/*!*******************************************************!*\
+  !*** ./src/v2/betterRp/prompts/characterKnowledge.ts ***!
+  \*******************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildCharacterKnowledgeSystemPrompt: () => (/* binding */ buildCharacterKnowledgeSystemPrompt),
+/* harmony export */   buildCharacterKnowledgeUserPrompt: () => (/* binding */ buildCharacterKnowledgeUserPrompt),
+/* harmony export */   parseCharacterKnowledgeResponse: () => (/* binding */ parseCharacterKnowledgeResponse)
+/* harmony export */ });
+/* harmony import */ var _utils_json__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../utils/json */ "./src/utils/json.ts");
+/**
+ * Step 2: Character Knowledge & Intentions
+ *
+ * Analyzes each NPC's knowledge, assumptions, wants, and candidate actions
+ * filtered through their limited perspective and physical capabilities.
+ */
+
+/**
+ * Build the system prompt for character knowledge analysis.
+ */
+function buildCharacterKnowledgeSystemPrompt(npcNames, userName) {
+    return `You are a character psychologist analyzing each NPC's knowledge, assumptions, and intentions.
+
+You are analyzing: ${npcNames.join(', ')}
+You do NOT control ${userName} — do NOT decide their actions, dialogue, or emotions.
+
+You may describe sensory details the world presents to ${userName} (scents, textures, sounds, temperature, visual impressions) but NEVER their reactions, thoughts, dialogue, or emotions.
+
+Respect each character's physical form. Check species (quadrupeds cannot wave, bipeds cannot gallop), age (a child speaks differently than an elder), size and strength differences, and physical features (tails, wings, ears) that affect how they interact with the world.
+
+Key rules:
+- Filter narrator knowledge through each character's LIMITED perspective. Characters only know what they've observed or been told.
+- Use the character's profile (species, age, personality) to inform their assumptions and behavior patterns.
+- Derive 'wantsRightNow' from relationship wants + personality + current emotional state.
+- Candidate actions must be physically possible for the character's body type and current state.
+- Each character should have 2-3 distinct candidate actions reflecting different aspects of their personality.
+
+## Good Examples
+
+Example 1:
+{
+  "characters": [{
+    "character": "Kira",
+    "knows": ["User came when she asked", "User seems willing to listen"],
+    "doesntKnow": ["How the user actually feels about her walls", "That the user overheard her phone call earlier"],
+    "assumes": ["If she shows vulnerability, it'll be used against her (past trauma pattern)"],
+    "wantsRightNow": "To be understood without having to fully expose herself",
+    "candidateActions": [
+      "Deflect with sarcasm to regain control of the conversation",
+      "Take a small risk and share one specific detail about what happened",
+      "Physically retreat further — turn away, refill the wine glass as a barrier"
+    ]
+  }]
+}
+WHY THIS IS GOOD: Knowledge is filtered through what Kira actually observed. Assumptions flow from her personality and trauma. Wants derive from the relationship dynamic. All candidate actions are physically possible and reflect different facets of her character.
+
+Example 2:
+{
+  "characters": [{
+    "character": "Fenris",
+    "knows": ["The merchant has a stolen pendant", "Lyra is nervous (he can smell her anxiety — canine senses)"],
+    "doesntKnow": ["That Lyra recognized the pendant", "The merchant has guards outside"],
+    "assumes": ["The merchant is just another trader (hasn't noticed the pendant's significance)"],
+    "wantsRightNow": "To finish the deal quickly so Lyra stops being anxious",
+    "candidateActions": [
+      "Nudge Lyra's hand with his nose to comfort her (species-appropriate reassurance)",
+      "Move between Lyra and the merchant — protective positioning without words",
+      "Let out a low rumble to signal the merchant to hurry up (intimidation through presence)"
+    ]
+  }]
+}
+WHY THIS IS GOOD: Uses species-specific senses (canine smell detecting anxiety). Actions are appropriate for a quadruped (nose nudge, not hand-holding). Knowledge asymmetry is correctly identified — Fenris doesn't know what Lyra knows.
+
+Example 3:
+{
+  "characters": [{
+    "character": "Old Maven",
+    "knows": ["The artifact is dangerous — she's seen its effects before", "The young adventurers don't understand the risks"],
+    "doesntKnow": ["That one of them already activated it an hour ago"],
+    "assumes": ["They'll listen to an elder's warning (generational expectation)", "There's still time to contain it"],
+    "wantsRightNow": "To warn them without revealing how she knows about the artifact (it would expose her past)",
+    "candidateActions": [
+      "Tell a 'folk tale' that happens to describe the artifact's dangers — indirect warning fitting her age and wisdom",
+      "Physically position herself between the adventurers and the artifact — frail but determined",
+      "Ask pointed questions to assess how much they already know — gathering intelligence before committing"
+    ]
+  }]
+}
+WHY THIS IS GOOD: Age informs speech patterns (folk tales) and physical limitations (frail but determined). Secrets create tension between what she wants and what she can say. Each action reflects a different strategy consistent with her character.
+
+## Bad Examples
+
+Bad Example 1:
+{
+  "characters": [{
+    "character": "Kira",
+    "knows": ["Everything that happened in the scene"],
+    "doesntKnow": [],
+    "assumes": [],
+    "wantsRightNow": "To advance the plot",
+    "candidateActions": ["React to what happens next", "Say something dramatic", "Do something interesting"]
+  }]
+}
+WHY THIS IS WRONG: Characters don't know "everything." Empty arrays mean no analysis was done. "Advance the plot" is a meta-goal, not a character want. Actions are vague and not character-specific.
+
+Bad Example 2:
+{
+  "characters": [{
+    "character": "Fenris",
+    "knows": ["Lyra recognized the pendant", "The merchant has guards outside"],
+    "doesntKnow": [],
+    "assumes": [],
+    "wantsRightNow": "To protect Lyra",
+    "candidateActions": ["Cross his arms and glare at the merchant", "Grab Lyra's hand and pull her away", "Tell the merchant he knows about the stolen goods"]
+  }]
+}
+WHY THIS IS WRONG: Gives Fenris knowledge he doesn't have (Lyra's recognition, the guards). A canine character cannot cross arms or grab hands. Candidate actions ignore species constraints entirely.
+
+Bad Example 3:
+{
+  "characters": [{
+    "character": "Old Maven",
+    "knows": ["The artifact was activated an hour ago"],
+    "doesntKnow": [],
+    "assumes": [],
+    "wantsRightNow": "To help ${userName} decide what to do",
+    "candidateActions": ["Sprint to the artifact and deactivate it", "Explain everything about her past", "Make ${userName} feel brave"]
+  }]
+}
+WHY THIS IS WRONG: Gives Maven information she explicitly doesn't have. An elderly character sprinting is physically inconsistent. "Explain everything" contradicts her desire for secrecy. "Make ${userName} feel brave" dictates the user character's emotions.
+
+## Output Format
+
+CRITICAL: Your entire response must be a single valid JSON object. Do not include any text, explanation, markdown formatting, or code fences before or after the JSON. Start your response with { and end with }.
+
+{
+  "characters": [{
+    "character": "Name",
+    "knows": ["string"],
+    "doesntKnow": ["string"],
+    "assumes": ["string"],
+    "wantsRightNow": "string",
+    "candidateActions": ["string"]
+  }]
+}`;
+}
+/**
+ * Build the user prompt for character knowledge analysis.
+ */
+function buildCharacterKnowledgeUserPrompt(sharedContext, continuityAudit) {
+    let prompt = sharedContext;
+    if (continuityAudit) {
+        prompt += `\n\n[Previous Analysis]\n${JSON.stringify(continuityAudit, null, 2)}`;
+    }
+    prompt +=
+        "\n\nAnalyze each NPC character above. For each, determine what they know, what they don't know, what they assume, what they want right now, and 2-3 candidate actions filtered through their limited perspective and physical capabilities.";
+    return prompt;
+}
+/**
+ * Parse character knowledge response.
+ */
+function parseCharacterKnowledgeResponse(response) {
+    try {
+        const parsed = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.parseJsonResponse)(response, {
+            shape: 'object',
+            moduleName: 'characterKnowledge',
+        });
+        if (!parsed || !(0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.isObject)(parsed))
+            return null;
+        if (!Array.isArray(parsed.characters))
+            return null;
+        const characters = [];
+        for (const item of parsed.characters) {
+            if (!(0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.isObject)(item))
+                continue;
+            const obj = item;
+            const name = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.character);
+            if (!name)
+                continue;
+            characters.push({
+                character: name,
+                knows: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(obj.knows) || [],
+                doesntKnow: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(obj.doesntKnow) || [],
+                assumes: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(obj.assumes) || [],
+                wantsRightNow: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(obj.wantsRightNow) || '',
+                candidateActions: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(obj.candidateActions) || [],
+            });
+        }
+        return { characters };
+    }
+    catch {
+        return null;
+    }
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/prompts/continuityAudit.ts"
+/*!****************************************************!*\
+  !*** ./src/v2/betterRp/prompts/continuityAudit.ts ***!
+  \****************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildContinuityAuditSystemPrompt: () => (/* binding */ buildContinuityAuditSystemPrompt),
+/* harmony export */   buildContinuityAuditUserPrompt: () => (/* binding */ buildContinuityAuditUserPrompt),
+/* harmony export */   parseContinuityAuditResponse: () => (/* binding */ parseContinuityAuditResponse)
+/* harmony export */ });
+/* harmony import */ var _utils_json__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../utils/json */ "./src/utils/json.ts");
+/**
+ * Step 1: Continuity Audit
+ *
+ * Grounds the scene in physical reality by identifying unresolved actions,
+ * physical continuity requirements, open threads, and environmental factors.
+ */
+
+/**
+ * Build the system prompt for continuity audit.
+ */
+function buildContinuityAuditSystemPrompt(npcNames, userName) {
+    return `You are a continuity editor reviewing a roleplay scene. Your job is to identify what must be maintained or addressed in the next response.
+
+You are auditing for: ${npcNames.join(', ')}
+You do NOT control ${userName} — do NOT decide their actions, dialogue, or emotions.
+
+You may note sensory details the world presents to ${userName} (scents, textures, sounds, temperature, visual impressions) but NEVER their reactions, thoughts, dialogue, or emotions.
+
+Respect each character's physical form. Check species (quadrupeds cannot wave, bipeds cannot gallop), age (a child speaks differently than an elder), size and strength differences, and physical features (tails, wings, ears) that affect how they interact with the world.
+
+Identify:
+(a) Unresolved actions needing response — questions asked, gestures made, actions initiated
+(b) Physical state that must be maintained — what characters are holding, wearing, their positions
+(c) Open narrative threads — conversations in progress, unresolved emotional moments, pending reveals
+(d) Environmental factors affecting the scene — time of day, weather, lighting, ambient sounds
+
+## Good Examples
+
+Example 1:
+{
+  "unresolvedActions": ["Kira asked 'Do you even care?' — this demands a response"],
+  "physicalContinuity": ["Kira is holding a wine glass in her left hand", "User is standing in the doorway, hasn't moved further in"],
+  "openThreads": ["Kira's confession about trust issues is hanging unresolved"],
+  "environmentalFactors": ["11:30 PM — late for loud events", "Rain audible outside", "Only the kitchen lamp is on"]
+}
+WHY THIS IS GOOD: Every item is grounded in what actually happened in the scene. Physical details match the established state. Environmental factors are specific and actionable.
+
+Example 2:
+{
+  "unresolvedActions": ["The merchant offered to show his 'special stock' and is waiting for a response"],
+  "physicalContinuity": ["Lyra's tail is wrapped around a chair leg (she's nervous)", "The table between them has two empty ale mugs"],
+  "openThreads": ["Lyra hasn't revealed she recognized the stolen pendant the merchant is wearing"],
+  "environmentalFactors": ["Busy marketplace — crowd noise makes private conversation difficult", "Midday sun — no shadows to hide in"]
+}
+WHY THIS IS GOOD: Notes species-specific details (tail behavior), tracks props on surfaces, identifies knowledge asymmetry, and connects environment to scene constraints.
+
+Example 3:
+{
+  "unresolvedActions": ["The guard dog began growling at the hidden compartment — this must be addressed"],
+  "physicalContinuity": ["Marcus is on all fours (canine form) blocking the hallway", "Sarah has the lockpick set in her right hand"],
+  "openThreads": ["Sarah still hasn't explained why she knows the layout of this building"],
+  "environmentalFactors": ["Power outage — only flashlights", "Third floor — escape options limited"]
+}
+WHY THIS IS GOOD: Correctly identifies a quadruped's posture ("on all fours"), tracks held items, notes unresolved mysteries, and environmental constraints that limit available actions.
+
+## Bad Examples
+
+Bad Example 1:
+{
+  "unresolvedActions": ["Someone should probably say something"],
+  "physicalContinuity": ["Characters are in a room"],
+  "openThreads": ["There's some tension"],
+  "environmentalFactors": ["It's nighttime"]
+}
+WHY THIS IS WRONG: Everything is vague and unhelpful. "Someone should say something" doesn't identify what was left unresolved. "Characters are in a room" conveys no useful physical state.
+
+Bad Example 2:
+{
+  "unresolvedActions": ["${userName} should apologize to Kira"],
+  "physicalContinuity": ["Kira puts down her glass and crosses her arms"],
+  "openThreads": ["The relationship will probably end soon"],
+  "environmentalFactors": ["The mood is tense"]
+}
+WHY THIS IS WRONG: Dictates ${userName}'s actions, invents physical actions that haven't happened, predicts future events, and confuses mood (subjective) with environment (objective).
+
+Bad Example 3:
+{
+  "unresolvedActions": ["Kira feels hurt and wants to leave"],
+  "physicalContinuity": ["Marcus waved goodbye with his paw"],
+  "openThreads": ["Everything from chapter 1 is still relevant"],
+  "environmentalFactors": ["The weather matches the sad mood"]
+}
+WHY THIS IS WRONG: Describes internal feelings as "unresolved actions," gives a quadruped character bipedal gestures (waving), references irrelevant old content, and uses pathetic fallacy instead of actual environmental data.
+
+## Output Format
+
+CRITICAL: Your entire response must be a single valid JSON object. Do not include any text, explanation, markdown formatting, or code fences before or after the JSON. Start your response with { and end with }.
+
+{
+  "unresolvedActions": ["string"],
+  "physicalContinuity": ["string"],
+  "openThreads": ["string"],
+  "environmentalFactors": ["string"]
+}`;
+}
+/**
+ * Build the user prompt for continuity audit.
+ */
+function buildContinuityAuditUserPrompt(sharedContext) {
+    return `${sharedContext}
+
+Analyze the scene above and produce a continuity audit. Identify unresolved actions, physical continuity requirements, open narrative threads, and environmental factors. Be specific and grounded in what actually happened — do not invent or predict.`;
+}
+/**
+ * Parse continuity audit response.
+ */
+function parseContinuityAuditResponse(response) {
+    try {
+        const parsed = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.parseJsonResponse)(response, {
+            shape: 'object',
+            moduleName: 'continuityAudit',
+        });
+        if (!parsed || !(0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.isObject)(parsed))
+            return null;
+        return {
+            unresolvedActions: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(parsed.unresolvedActions) || [],
+            physicalContinuity: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(parsed.physicalContinuity) || [],
+            openThreads: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(parsed.openThreads) || [],
+            environmentalFactors: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(parsed.environmentalFactors) || [],
+        };
+    }
+    catch {
+        return null;
+    }
+}
+
+
+/***/ },
+
+/***/ "./src/v2/betterRp/prompts/tensionSteering.ts"
+/*!****************************************************!*\
+  !*** ./src/v2/betterRp/prompts/tensionSteering.ts ***!
+  \****************************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildTensionSteeringSystemPrompt: () => (/* binding */ buildTensionSteeringSystemPrompt),
+/* harmony export */   buildTensionSteeringUserPrompt: () => (/* binding */ buildTensionSteeringUserPrompt),
+/* harmony export */   parseTensionSteeringResponse: () => (/* binding */ parseTensionSteeringResponse)
+/* harmony export */ });
+/* harmony import */ var _utils_json__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../utils/json */ "./src/utils/json.ts");
+/**
+ * Step 3: Tension Steering
+ *
+ * Determines the dramatic direction for the next response based on
+ * established character wants, scene trajectory, and dramatic irony opportunities.
+ */
+
+/**
+ * Build the system prompt for tension steering.
+ */
+function buildTensionSteeringSystemPrompt(npcNames, userName) {
+    return `You are a dramatic director planning the emotional arc of the next response.
+
+You are directing for: ${npcNames.join(', ')}
+You do NOT control ${userName} — do NOT decide their actions, dialogue, or emotions.
+
+You may describe sensory details the world presents to ${userName} (scents, textures, sounds, temperature, visual impressions) but NEVER their reactions, thoughts, dialogue, or emotions.
+
+Respect each character's physical form. Check species (quadrupeds cannot wave, bipeds cannot gallop), age (a child speaks differently than an elder), size and strength differences, and physical features (tails, wings, ears) that affect how they interact with the world.
+
+## ABSOLUTE RULE: Never Control ${userName}
+
+This is the most important rule. Violations include:
+- Predicting ${userName}'s emotional reaction ("${userName} will feel guilty")
+- Planning for ${userName} to take an action ("${userName} apologizes", "${userName} steps closer")
+- Assuming ${userName}'s internal state ("${userName} realizes they were wrong")
+- Making ${userName}'s choices for them ("${userName} decides to stay", "${userName} forgives Kira")
+- Framing threads around ${userName}'s expected behavior ("Getting ${userName} to open up")
+
+You plan ONLY what the NPCs do. ${userName}'s response is entirely up to the player.
+
+Your decision must serve the characters' established wants and the scene's emotional trajectory.
+
+## You Must Address the Continuity Audit
+
+The Previous Analysis contains a continuity audit with unresolvedActions and openThreads. These are things that MUST be addressed in the upcoming response — unanswered questions, pending reactions, unresolved moments. Your threadPriority MUST include the most important unresolved items. Your rationale MUST explain how your chosen directive serves addressing them. Do not ignore them.
+
+If someone asked a question, it needs an answer. If someone made a gesture, it needs a reaction. If a confession was made, it cannot be glossed over. The previous analysis identified these items specifically so they would be addressed — failing to incorporate them defeats the purpose of the pipeline.
+
+Consider:
+- Is the scene too early to resolve? Has enough tension built?
+- Is it stalling? Does it need a push forward?
+- Is there dramatic irony to exploit? (Characters knowing different things)
+- What would feel earned vs. forced at this point?
+- Which unresolved actions from the audit are most urgent to address?
+
+Directives:
+- "escalate" — increase tension, raise stakes, introduce complications
+- "sustain" — maintain current tension level, let it breathe, deepen what's there
+- "release" — allow a moment of relief, resolution, or tenderness (only when earned)
+- "pivot" — shift the scene's direction unexpectedly (new information, interruption, tonal shift)
+
+## Good Examples
+
+Example 1:
+{
+  "directive": "sustain",
+  "rationale": "The confrontation started 2 messages ago and Kira just made her most vulnerable statement yet. Resolving now would feel unearned. Let the rawness breathe — the user needs space to respond to what Kira revealed.",
+  "dramaticIronyOpportunities": ["User doesn't know Kira nearly said 'I love you' before catching herself", "Kira doesn't know the user overheard her phone call"],
+  "threadPriority": ["Kira's trust confession (primary — this is the emotional core)", "The rain as emotional mirror (secondary — ambient reinforcement)"],
+  "toneTarget": "Quiet tension — the kind where every small gesture carries enormous weight"
+}
+WHY THIS IS GOOD: The rationale explains WHY sustaining is correct (too early to resolve, vulnerability just happened). Irony opportunities are specific and derived from actual knowledge gaps. Thread priority ranks what matters. Tone target is evocative and actionable.
+
+Example 2:
+{
+  "directive": "escalate",
+  "rationale": "The negotiation has been circling for 4 messages without stakes. Fenris detected Lyra's anxiety but doesn't know why — this knowledge gap is primed to explode. The merchant is about to notice Lyra staring at the pendant. Push now.",
+  "dramaticIronyOpportunities": ["Lyra knows the pendant is stolen but Fenris thinks it's a normal deal", "The merchant doesn't realize he's wearing evidence"],
+  "threadPriority": ["Pendant recognition (primary — ticking bomb)", "Fenris's protective instincts (secondary — will amplify whatever happens)"],
+  "toneTarget": "Rising dread — the moment before someone says the wrong thing"
+}
+WHY THIS IS GOOD: Identifies scene stalling and provides specific reasons to escalate. Knows exactly which knowledge asymmetry to exploit. Thread priority identifies both the trigger and the amplifier.
+
+Example 3:
+{
+  "directive": "release",
+  "rationale": "After 8 messages of escalating danger, the characters just survived the collapse. The tension has been sustained past the breaking point — both characters and readers need a beat to breathe. A moment of relief here will make the NEXT escalation hit harder.",
+  "dramaticIronyOpportunities": ["Maven knows the second tremor is coming but the others don't — but hold this for after the release beat"],
+  "threadPriority": ["Physical safety check (primary — immediate need)", "Maven's hidden knowledge about the second tremor (secondary — planted for next escalation)"],
+  "toneTarget": "Fragile relief — the quiet after danger where people check if they're whole"
+}
+WHY THIS IS GOOD: Release is justified by sustained high tension. Notes that relief serves future escalation (structural thinking). Holds the dramatic irony for the next beat rather than wasting it.
+
+## Bad Examples
+
+Bad Example 1 — CONTROLS USER CHARACTER:
+{
+  "directive": "release",
+  "rationale": "${userName} has been tense for too long and needs to let their guard down. Once ${userName} sees Kira's vulnerability, they'll naturally soften.",
+  "dramaticIronyOpportunities": ["${userName} will realize they were wrong about Kira"],
+  "threadPriority": ["Getting ${userName} to open up emotionally", "Making ${userName} apologize"],
+  "toneTarget": "Warm reconciliation as ${userName} accepts Kira"
+}
+WHY THIS IS WRONG: EVERY field controls ${userName}. The rationale decides ${userName}'s emotional state ("been tense", "needs to let guard down"). It predicts ${userName}'s reaction ("they'll naturally soften"). Irony opportunities assume ${userName}'s future realization. Thread priorities are about making ${userName} do things. The tone target assumes ${userName}'s acceptance. You have ZERO authority over ${userName}'s actions, feelings, or choices.
+
+Bad Example 2 — CONTROLS USER CHARACTER SUBTLY:
+{
+  "directive": "escalate",
+  "rationale": "Kira should push harder so ${userName} is forced to confront their feelings about the relationship",
+  "dramaticIronyOpportunities": ["${userName} doesn't realize how much they need Kira"],
+  "threadPriority": ["${userName}'s emotional growth", "Kira helping ${userName} face the truth"],
+  "toneTarget": "Confrontational — ${userName} needs to be challenged"
+}
+WHY THIS IS WRONG: This looks like it's about Kira but it's actually scripting ${userName}'s arc. "Forced to confront their feelings" dictates ${userName}'s response. "${userName} doesn't realize" claims knowledge of ${userName}'s internal state. "${userName}'s emotional growth" is planning ${userName}'s character development. "${userName} needs to be challenged" decides what ${userName} needs. Frame everything through what the NPCs do, not what ${userName} should experience.
+
+Bad Example 3 — CONTROLS USER CHARACTER THROUGH OUTCOME:
+{
+  "directive": "sustain",
+  "rationale": "The tension should hold so that when ${userName} finally responds, the weight of the moment makes their words matter more",
+  "dramaticIronyOpportunities": ["${userName} is about to say something that changes everything"],
+  "threadPriority": ["Building to ${userName}'s decision point"],
+  "toneTarget": "Heavy anticipation of ${userName}'s next move"
+}
+WHY THIS IS WRONG: Predicts ${userName}'s future actions ("finally responds", "about to say something"). Plans around ${userName}'s decisions ("${userName}'s decision point"). Makes the tension serve ${userName}'s expected behavior rather than the NPCs' dynamics. The tone target is about ${userName}'s next move instead of the NPCs' emotional state.
+
+Bad Example 4 — VAGUE AND DIRECTIONLESS:
+{
+  "directive": "escalate",
+  "rationale": "More tension is always better",
+  "dramaticIronyOpportunities": [],
+  "threadPriority": ["Everything"],
+  "toneTarget": "Intense"
+}
+WHY THIS IS WRONG: Mindless escalation without scene-awareness. Empty irony array means no analysis was done. "Everything" as priority means nothing is prioritized. "Intense" is not an actionable tone target.
+
+## Output Format
+
+CRITICAL: Your entire response must be a single valid JSON object. Do not include any text, explanation, markdown formatting, or code fences before or after the JSON. Start your response with { and end with }.
+
+{
+  "directive": "escalate|sustain|release|pivot",
+  "rationale": "string",
+  "dramaticIronyOpportunities": ["string"],
+  "threadPriority": ["string"],
+  "toneTarget": "string"
+}`;
+}
+/**
+ * Build the user prompt for tension steering.
+ */
+function buildTensionSteeringUserPrompt(sharedContext, continuityAudit, characterKnowledge) {
+    let prompt = sharedContext;
+    const previousAnalysis = {};
+    if (continuityAudit)
+        previousAnalysis.continuityAudit = continuityAudit;
+    if (characterKnowledge)
+        previousAnalysis.characterKnowledge = characterKnowledge;
+    if (Object.keys(previousAnalysis).length > 0) {
+        prompt += `\n\n[Previous Analysis]\n${JSON.stringify(previousAnalysis, null, 2)}`;
+    }
+    prompt +=
+        '\n\nBased on the scene state and previous analysis, determine the dramatic direction for the next response. Your threadPriority MUST include the unresolved actions and open threads from the continuity audit — these are things that need to be addressed in the next response. Your rationale must explain how your directive serves addressing them. Choose a directive (escalate/sustain/release/pivot), explain your rationale, identify dramatic irony opportunities, prioritize threads, and set a tone target.';
+    return prompt;
+}
+/**
+ * Parse tension steering response.
+ */
+function parseTensionSteeringResponse(response) {
+    try {
+        const parsed = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.parseJsonResponse)(response, {
+            shape: 'object',
+            moduleName: 'tensionSteering',
+        });
+        if (!parsed || !(0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.isObject)(parsed))
+            return null;
+        const directive = (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(parsed.directive);
+        if (!directive ||
+            !['escalate', 'sustain', 'release', 'pivot'].includes(directive)) {
+            return null;
+        }
+        return {
+            directive: directive,
+            rationale: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(parsed.rationale) || '',
+            dramaticIronyOpportunities: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(parsed.dramaticIronyOpportunities) || [],
+            threadPriority: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringArray)(parsed.threadPriority) || [],
+            toneTarget: (0,_utils_json__WEBPACK_IMPORTED_MODULE_0__.asStringOrNull)(parsed.toneTarget) || '',
+        };
+    }
+    catch {
+        return null;
+    }
 }
 
 
@@ -114490,6 +116082,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _extractors_utils_buildPrompt__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ../extractors/utils/buildPrompt */ "./src/v2/extractors/utils/buildPrompt.ts");
 /* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /* harmony import */ var _training__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ../training */ "./src/v2/training/index.ts");
+/* harmony import */ var _betterRp__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ../betterRp */ "./src/v2/betterRp/index.ts");
 /**
  * Prompt Hook for Context-Aware Injection
  *
@@ -114500,6 +116093,7 @@ __webpack_require__.r(__webpack_exports__);
  * - CHAT_COMPLETION_PROMPT_READY: For chat completion APIs (OpenAI, Claude, etc.)
  * - GENERATE_BEFORE_COMBINE_PROMPTS: For text completion APIs (Kobold, TextGen, etc.)
  */
+
 
 
 
@@ -114693,12 +116287,21 @@ function findChatMessageRange(chatMessages) {
 // ============================================
 /**
  * Get recent messages from ST chat as formatted strings.
+ * Excludes the last message if it's an assistant message (swipe/regen),
+ * since that message is about to be replaced.
  */
 function getRecentMessages(stContext, count) {
+    const chat = stContext.chat;
+    if (chat.length === 0)
+        return '';
+    // During swipe/regen, the last message is the assistant response being replaced.
+    // Exclude it so we don't reference content that's about to change.
+    const lastMsg = chat[chat.length - 1];
+    const endIndex = lastMsg && !lastMsg.is_user ? chat.length - 1 : chat.length;
     const messages = [];
-    const start = Math.max(0, stContext.chat.length - count);
-    for (let i = start; i < stContext.chat.length; i++) {
-        const msg = stContext.chat[i];
+    const start = Math.max(0, endIndex - count);
+    for (let i = start; i < endIndex; i++) {
+        const msg = chat[i];
         if (msg.mes) {
             messages.push(`${msg.name}: ${msg.mes}`);
         }
@@ -114852,11 +116455,103 @@ async function tryInjectShakeup(params) {
         return null;
     }
 }
+// ============================================
+// Better RP Pipeline Injection
+// ============================================
+/**
+ * Try to run the Better RP pipeline and return injection text.
+ * Returns null if disabled, failed, or no beat plan produced.
+ */
+async function tryInjectBetterRp(params) {
+    const { settings, stContext, swipeContext, store, projection, shakeupInstruction } = params;
+    // Use dedicated Better RP profile if set, otherwise fall back to main
+    const profileId = settings.v2BetterRpProfileId || settings.v2ProfileId;
+    if (!settings.v2BetterRpEnabled) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: Disabled in settings');
+        return null;
+    }
+    if (!profileId) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: No profile ID configured');
+        return null;
+    }
+    if (!bridgeFunctions) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: Bridge functions not registered');
+        return null;
+    }
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: Starting pipeline');
+    // Create an AbortController so the stop button can cancel the pipeline
+    const abortController = new AbortController();
+    const context = SillyTavern.getContext();
+    const eventTypes = context.event_types;
+    const eventSource = context.eventSource;
+    const onStop = (() => {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: Generation stopped, aborting pipeline');
+        abortController.abort();
+    });
+    // Listen for stop button
+    if (eventTypes.GENERATION_STOPPED) {
+        eventSource.on(eventTypes.GENERATION_STOPPED, onStop);
+    }
+    try {
+        // Show toast notifications for progress
+        const st_echo = SillyTavern.getContext().toastr?.info;
+        const generator = (0,_training__WEBPACK_IMPORTED_MODULE_13__.withTrainingCapture)(new _generator_SillyTavernGenerator__WEBPACK_IMPORTED_MODULE_10__.SillyTavernGenerator({ profileId }));
+        const result = await (0,_betterRp__WEBPACK_IMPORTED_MODULE_14__.runBetterRpPipeline)({
+            generator,
+            store,
+            stContext,
+            swipeContext,
+            projection,
+            settings,
+            shakeupInstruction,
+            abortSignal: abortController.signal,
+            setStatus: (status) => {
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Better RP: ${status}`);
+                st_echo?.(`Better RP: ${status}`);
+            },
+        });
+        if (result.errors.length > 0) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugWarn)(`Better RP: ${result.errors.length} error(s):`, result.errors.map(e => `${e.step}: ${e.error.message}`));
+        }
+        // Format injection — returns null if step 4 failed
+        const userName = stContext.name1;
+        const npcNames = projection.charactersPresent.filter(name => name.toLowerCase() !== userName.toLowerCase());
+        const injection = (0,_betterRp__WEBPACK_IMPORTED_MODULE_14__.formatBeatPlanInjection)(result, npcNames, userName);
+        if (!injection) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugWarn)('Better RP: Pipeline completed but no beat plan produced');
+            st_echo?.('Better RP: Pipeline failed, proceeding normally');
+            return null;
+        }
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: Beat plan injection ready');
+        return injection;
+    }
+    catch (error) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugWarn)('Better RP: Pipeline failed (non-fatal):', error);
+        return null;
+    }
+    finally {
+        // Always clean up the stop listener
+        if (eventTypes.GENERATION_STOPPED) {
+            try {
+                if (typeof eventSource.off === 'function') {
+                    eventSource.off(eventTypes.GENERATION_STOPPED, onStop);
+                }
+                else if (typeof eventSource.removeListener === 'function') {
+                    eventSource.removeListener(eventTypes.GENERATION_STOPPED, onStop);
+                }
+            }
+            catch {
+                // Cleanup failure is non-fatal
+            }
+        }
+    }
+}
 /**
  * Handle the CHAT_COMPLETION_PROMPT_READY event.
  * This is called when ST is about to send a prompt to the LLM.
  */
 async function handlePromptReady(eventData) {
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Chat completion prompt hook fired', eventData.dryRun ? '(dry run)' : '(live)');
     // Skip dry runs (token counting passes)
     if (eventData.dryRun) {
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Skipping dry run in prompt hook');
@@ -114875,27 +116570,32 @@ async function handlePromptReady(eventData) {
     }
     const { store, swipeContext, stContext } = storeAndContext;
     const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
-    // If both injection types are disabled, nothing to do
-    if (!settings.v2InjectState && !settings.v2InjectNarrative) {
-        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Both state and narrative injection disabled');
+    // If all injection types are disabled, nothing to do
+    if (!settings.v2InjectState && !settings.v2InjectNarrative && !settings.v2BetterRpEnabled) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('All injection disabled (state, narrative, and Better RP)');
         return;
     }
     try {
         // Get the chat messages
         const chatMessages = eventData.chat;
-        // Get projection for the last message
+        // Get projection for state injection.
+        // Try projecting at the last message in chat. If that fails (e.g. no
+        // snapshot there yet), fall back to the message before it.
+        // This handles normal sends, swipes, group chats, and first messages.
         const lastMessageId = stContext.chat.length - 1;
-        const projectionMessageId = lastMessageId - 1;
-        if (projectionMessageId < 0) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No messages to project from');
-            return;
+        let projection = null;
+        for (let tryId = lastMessageId; tryId >= Math.max(0, lastMessageId - 1); tryId--) {
+            try {
+                projection = store.projectStateAtMessage(tryId, swipeContext);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`[chat] Projected state at message ${tryId}`);
+                break;
+            }
+            catch {
+                // Try the next candidate
+            }
         }
-        let projection;
-        try {
-            projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
-        }
-        catch (e) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Failed to project state:', e);
+        if (!projection) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`[chat] Failed to project state at messages ${lastMessageId} or ${lastMessageId - 1}`);
             return;
         }
         const tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_6__.getDefaultTokenCounter)();
@@ -114910,7 +116610,7 @@ async function handlePromptReady(eventData) {
         let stateContent = settings.v2InjectState
             ? buildAfterMessagesContent(store, swipeContext, projection)
             : '';
-        // Try shakeup injection — append to state content if triggered
+        // Try shakeup injection — generates the raw shakeup instruction
         const shakeupContent = await tryInjectShakeup({
             settings,
             stContext,
@@ -114918,7 +116618,25 @@ async function handlePromptReady(eventData) {
             store,
             projection,
         });
-        if (shakeupContent) {
+        // Try Better RP pipeline — if enabled, runs 4-step thinking pipeline
+        // The shakeup instruction (if any) is passed to all 4 steps.
+        // If Better RP produces a beat plan, it replaces the raw shakeup block.
+        const betterRpContent = await tryInjectBetterRp({
+            settings,
+            stContext,
+            swipeContext,
+            store,
+            projection,
+            shakeupInstruction: shakeupContent,
+        });
+        if (betterRpContent) {
+            // Better RP beat plan replaces the raw shakeup content
+            stateContent = stateContent
+                ? `${stateContent}\n\n${betterRpContent}`
+                : betterRpContent;
+        }
+        else if (shakeupContent) {
+            // Fallback: inject raw shakeup content (Better RP disabled or failed)
             stateContent = stateContent
                 ? `${stateContent}\n\n${shakeupContent}`
                 : shakeupContent;
@@ -115023,6 +116741,7 @@ async function handlePromptReady(eventData) {
  * enforce the budget. ST's own trimming will handle overflow.
  */
 async function handleTextCompletionPromptReady(eventData) {
+    (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Text completion prompt hook fired', eventData.dryRun ? '(dry run)' : '(live)');
     // Skip dry runs (token counting passes)
     if (eventData.dryRun) {
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Skipping dry run in text completion prompt hook');
@@ -115041,9 +116760,9 @@ async function handleTextCompletionPromptReady(eventData) {
     }
     const { store, swipeContext, stContext } = storeAndContext;
     const settings = (0,_settings__WEBPACK_IMPORTED_MODULE_0__.getV2Settings)();
-    // If both injection types are disabled, nothing to do
-    if (!settings.v2InjectState && !settings.v2InjectNarrative) {
-        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Both state and narrative injection disabled');
+    // If both injection types are disabled and Better RP is also disabled, nothing to do
+    if (!settings.v2InjectState && !settings.v2InjectNarrative && !settings.v2BetterRpEnabled) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('All injection disabled (state, narrative, and Better RP)');
         return;
     }
     try {
@@ -115052,20 +116771,24 @@ async function handleTextCompletionPromptReady(eventData) {
             (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No finalMesSend available for injection');
             return;
         }
-        // Get projection for the last message
+        // Get projection for state injection.
+        // Try projecting at the last message in chat. If that fails (e.g. no
+        // snapshot there yet), fall back to the message before it.
+        // This handles normal sends, swipes, group chats, and first messages.
         const lastMessageId = stContext.chat.length - 1;
-        const projectionMessageId = lastMessageId - 1;
-        if (projectionMessageId < 0) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('No messages to project from');
-            return;
+        let projection = null;
+        for (let tryId = lastMessageId; tryId >= Math.max(0, lastMessageId - 1); tryId--) {
+            try {
+                projection = store.projectStateAtMessage(tryId, swipeContext);
+                (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Projected state at message ${tryId}`);
+                break;
+            }
+            catch {
+                // Try the next candidate
+            }
         }
-        let projection;
-        try {
-            projection = store.projectStateAtMessage(projectionMessageId, swipeContext);
-        }
-        catch (e) {
-            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Failed to project state:', e);
-            return;
+        if (!projection) {
+            (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Failed to project state at messages ${lastMessageId} or ${lastMessageId - 1} (initialSnapshot=${store.initialSnapshotMessageId})`);
         }
         const tokenCounter = (0,_utils_tokenCount__WEBPACK_IMPORTED_MODULE_6__.getDefaultTokenCounter)();
         // Get the raw max context budget
@@ -115077,18 +116800,36 @@ async function handleTextCompletionPromptReady(eventData) {
         const availableBudget = Math.max(0, maxBudget - fixedContentTokens);
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Budget: max=${maxBudget}, fixed=${fixedContentTokens}, available=${availableBudget}`);
         // Build state content to know its token cost (skip if state injection disabled)
-        let stateContent = settings.v2InjectState
+        let stateContent = settings.v2InjectState && projection
             ? buildAfterMessagesContent(store, swipeContext, projection)
             : '';
-        // Try shakeup injection — append to state content if triggered
-        const shakeupContent = await tryInjectShakeup({
-            settings,
-            stContext,
-            swipeContext,
-            store,
-            projection,
-        });
-        if (shakeupContent) {
+        // Try shakeup injection — generates the raw shakeup instruction
+        const shakeupContent = projection
+            ? await tryInjectShakeup({
+                settings,
+                stContext,
+                swipeContext,
+                store,
+                projection,
+            })
+            : null;
+        // Try Better RP pipeline — if enabled, runs 4-step thinking pipeline
+        const betterRpContent = projection
+            ? await tryInjectBetterRp({
+                settings,
+                stContext,
+                swipeContext,
+                store,
+                projection,
+                shakeupInstruction: shakeupContent,
+            })
+            : null;
+        if (betterRpContent) {
+            stateContent = stateContent
+                ? `${stateContent}\n\n${betterRpContent}`
+                : betterRpContent;
+        }
+        else if (shakeupContent) {
             stateContent = stateContent
                 ? `${stateContent}\n\n${shakeupContent}`
                 : shakeupContent;
@@ -140794,6 +142535,10 @@ function createDefaultV2Settings() {
         v2InjectionTokenBudget: 0, // 0 = use ST's context size
         // Training Data Capture
         v2TrainingCapture: false, // Off by default — opt-in
+        // Better RP
+        v2BetterRpEnabled: false, // Off by default — opt-in
+        v2BetterRpMaxTokensPerStep: 2048,
+        v2BetterRpProfileId: '', // Empty = use main profile
     };
 }
 /**
@@ -140858,6 +142603,10 @@ function mergeV2WithDefaults(partial) {
         v2InjectionTokenBudget: partial.v2InjectionTokenBudget ?? defaults.v2InjectionTokenBudget,
         // Training Data Capture
         v2TrainingCapture: partial.v2TrainingCapture ?? defaults.v2TrainingCapture,
+        // Better RP
+        v2BetterRpEnabled: partial.v2BetterRpEnabled ?? defaults.v2BetterRpEnabled,
+        v2BetterRpMaxTokensPerStep: partial.v2BetterRpMaxTokensPerStep ?? defaults.v2BetterRpMaxTokensPerStep,
+        v2BetterRpProfileId: partial.v2BetterRpProfileId ?? defaults.v2BetterRpProfileId,
     };
 }
 
@@ -141034,7 +142783,11 @@ function isV2Settings(obj) {
         (typeof s.v2ShakeupEnabled === 'boolean' || s.v2ShakeupEnabled === undefined) &&
         (typeof s.v2ShakeupMaxMessages === 'number' ||
             s.v2ShakeupMaxMessages === undefined) &&
-        (typeof s.v2TrainingCapture === 'boolean' || s.v2TrainingCapture === undefined));
+        (typeof s.v2TrainingCapture === 'boolean' || s.v2TrainingCapture === undefined) &&
+        (typeof s.v2BetterRpEnabled === 'boolean' || s.v2BetterRpEnabled === undefined) &&
+        (typeof s.v2BetterRpMaxTokensPerStep === 'number' ||
+            s.v2BetterRpMaxTokensPerStep === undefined) &&
+        (typeof s.v2BetterRpProfileId === 'string' || s.v2BetterRpProfileId === undefined));
 }
 /**
  * Track toggle dependency rules.
@@ -147686,7 +149439,51 @@ function V2SettingsPanel() {
                                         const hasCustomTemp = customTemp !==
                                             undefined;
                                         return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(PromptListItem, { definition: def, isCustomized: isCustomized, hasCustomTemperature: hasCustomTemp, customTemperature: customTemp, onClick: () => setEditingPrompt(def) }, def.name));
-                                    }) })) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Advanced Settings" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "LLM configuration and category temperature defaults" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-advanced-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxtokens", children: "Max Tokens" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum tokens for LLM extraction responses" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxtokens", type: "number", className: "text_pole", min: "256", max: "16384", step: "256", value: settings.v2MaxTokens, onChange: e => {
+                                    }) })) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "Control what BlazeTracker injects into your prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectstate", label: "Auto Inject State", description: "Automatically inject scene state (time, location, characters, etc.) into prompts", checked: settings.v2InjectState, onChange: checked => handleUpdate('v2InjectState', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectnarrative", label: "Auto Inject Narrative", description: "Automatically inject chapter summaries and events into prompts", checked: settings.v2InjectNarrative, onChange: checked => handleUpdate('v2InjectNarrative', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectdepth", children: "Injection Depth" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Chat depth that the tracker will be injected at (0 = default behavior)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectiondepth", type: "number", className: "text_pole", min: "0", max: "999", step: "1", value: settings.v2InjectionDepth, onChange: e => {
+                                            const value = parseInt(e.target.value, 10);
+                                            if (!isNaN(value) && value >= 0) {
+                                                handleUpdate('v2InjectionDepth', value);
+                                            }
+                                        }, style: { width: '120px' } })] })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Chapter & Event Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "Configure how chapters and events are injected into context" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
+                                            const value = parseInt(e.target.value, 10);
+                                            if (!isNaN(value) &&
+                                                value >= 0 &&
+                                                value <= 10) {
+                                                handleUpdate('v2MaxRecentChapters', value);
+                                            }
+                                        }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentevents", children: "Max Recent Events" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum out-of-context events from current chapter to include (0-50)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentevents", type: "number", className: "text_pole", min: "0", max: "50", step: "1", value: settings.v2MaxRecentEvents, onChange: e => {
+                                            const value = parseInt(e.target.value, 10);
+                                            if (!isNaN(value) &&
+                                                value >= 0 &&
+                                                value <= 50) {
+                                                handleUpdate('v2MaxRecentEvents', value);
+                                            }
+                                        }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectionbudget", children: "Injection Token Budget" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Token budget for context injection (0 = auto-detect from ST settings)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectionbudget", type: "number", className: "text_pole", min: "0", max: "100000", step: "100", value: settings.v2InjectionTokenBudget, onChange: e => {
+                                            const value = parseInt(e.target.value, 10);
+                                            if (!isNaN(value) && value >= 0) {
+                                                handleUpdate('v2InjectionTokenBudget', value);
+                                            }
+                                        }, style: { width: '120px' } })] })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Scene Shakeups" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "LLM-driven random event injection to prevent stale conversations" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-shakeupenabled", label: "Enable Scene Shakeups", description: "Occasionally inject scene-appropriate disruptions into the generation prompt", checked: settings.v2ShakeupEnabled, onChange: checked => handleUpdate('v2ShakeupEnabled', checked) }), settings.v2ShakeupEnabled && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-shakeupmaxmessages", children: "Max Messages Between Shakeups" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Probability reaches 100% at this number of messages (quadratic curve: low early, guaranteed at max)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-shakeupmaxmessages", type: "number", className: "text_pole", min: "5", max: "100", step: "1", value: settings.v2ShakeupMaxMessages, onChange: e => {
+                                            const value = parseInt(e.target.value, 10);
+                                            if (!isNaN(value) &&
+                                                value >= 5 &&
+                                                value <= 100) {
+                                                handleUpdate('v2ShakeupMaxMessages', value);
+                                            }
+                                        }, style: { width: '120px' } })] }))] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Better RP" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "Pre-flight thinking pipeline that plans beats before each response" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-betterrpenabled", label: "Enable Better RP", description: "Run a 4-step LLM thinking pipeline before each response to plan continuity, character knowledge, tension, and beats", checked: settings.v2BetterRpEnabled, onChange: checked => handleUpdate('v2BetterRpEnabled', checked) }), settings.v2BetterRpEnabled && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-betterrpprofile", children: "Connection Profile" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "API connection for Better RP calls (blank = use main BlazeTracker profile)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { id: "bt-v2-betterrpprofile", className: "text_pole", value: settings.v2BetterRpProfileId, onChange: e => handleUpdate('v2BetterRpProfileId', e.target
+                                                    .value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "-- Use main profile --" }), profiles.map(profile => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: profile.id, children: profile.name ||
+                                                            profile.id }, profile.id)))] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-betterrpmaxtokens", children: "Max Tokens Per Step" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum tokens for each thinking step (512-8192). 4 steps run sequentially." }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-betterrpmaxtokens", type: "number", className: "text_pole", min: "512", max: "8192", step: "256", value: settings.v2BetterRpMaxTokensPerStep, onChange: e => {
+                                                    const value = parseInt(e
+                                                        .target
+                                                        .value, 10);
+                                                    if (!isNaN(value) &&
+                                                        value >=
+                                                            512 &&
+                                                        value <=
+                                                            8192) {
+                                                        handleUpdate('v2BetterRpMaxTokensPerStep', value);
+                                                    }
+                                                }, style: { width: '120px' } })] })] }))] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-toggle inline-drawer-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("b", { children: "Advanced Settings" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "inline-drawer-icon fa-solid fa-circle-chevron-down down" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "inline-drawer-content", style: { display: 'none' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { className: "bt-drawer-description", children: "LLM configuration and category temperature defaults" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-advanced-content", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxtokens", children: "Max Tokens" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum tokens for LLM extraction responses" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxtokens", type: "number", className: "text_pole", min: "256", max: "16384", step: "256", value: settings.v2MaxTokens, onChange: e => {
                                                     const value = parseInt(e.target.value, 10);
                                                     if (!isNaN(value) &&
                                                         value >= 256) {
@@ -147710,47 +149507,7 @@ function V2SettingsPanel() {
                                                         value >= 1) {
                                                         handleUpdate('v2MaxChapterMessagesToSend', value);
                                                     }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Context Injection" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Settings for injecting story context into prompts" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectstate", label: "Auto Inject State", description: "Automatically inject scene state (time, location, characters, etc.) into prompts", checked: settings.v2InjectState, onChange: checked => handleUpdate('v2InjectState', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-injectnarrative", label: "Auto Inject Narrative", description: "Automatically inject chapter summaries and events into prompts", checked: settings.v2InjectNarrative, onChange: checked => handleUpdate('v2InjectNarrative', checked) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Scene Shakeups" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "LLM-driven random event injection to prevent stale conversations" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-shakeupenabled", label: "Enable Scene Shakeups", description: "Occasionally inject scene-appropriate disruptions into the generation prompt", checked: settings.v2ShakeupEnabled, onChange: checked => handleUpdate('v2ShakeupEnabled', checked) }), settings.v2ShakeupEnabled && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: {
-                                            marginBottom: '1em',
-                                        }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-shakeupmaxmessages", children: "Max Messages Between Shakeups" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Probability reaches 100% at this number of messages (quadratic curve: low early, guaranteed at max)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-shakeupmaxmessages", type: "number", className: "text_pole", min: "5", max: "100", step: "1", value: settings.v2ShakeupMaxMessages, onChange: e => {
-                                                    const value = parseInt(e
-                                                        .target
-                                                        .value, 10);
-                                                    if (!isNaN(value) &&
-                                                        value >=
-                                                            5 &&
-                                                        value <= 100) {
-                                                        handleUpdate('v2ShakeupMaxMessages', value);
-                                                    }
-                                                }, style: {
-                                                    width: '120px',
-                                                } })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Training Data Capture" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Capture LLM input/output pairs for fine-tuning training data" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-trainingcapture", label: "Enable Training Capture", description: "Record all LLM calls as training pairs (stored in memory, download as JSONL)", checked: settings.v2TrainingCapture, onChange: checked => handleUpdate('v2TrainingCapture', checked) }), settings.v2TrainingCapture && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrainingDataControls, {})), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentchapters", children: "Max Recent Chapters" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum past chapters to include in \"Story So Far\" (0-10)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentchapters", type: "number", className: "text_pole", min: "0", max: "10", step: "1", value: settings.v2MaxRecentChapters, onChange: e => {
-                                                    const value = parseInt(e.target.value, 10);
-                                                    if (!isNaN(value) &&
-                                                        value >= 0 &&
-                                                        value <= 10) {
-                                                        handleUpdate('v2MaxRecentChapters', value);
-                                                    }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-maxrecentevents", children: "Max Recent Events" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Maximum out-of-context events from current chapter to include (0-50)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-maxrecentevents", type: "number", className: "text_pole", min: "0", max: "50", step: "1", value: settings.v2MaxRecentEvents, onChange: e => {
-                                                    const value = parseInt(e.target.value, 10);
-                                                    if (!isNaN(value) &&
-                                                        value >= 0 &&
-                                                        value <= 50) {
-                                                        handleUpdate('v2MaxRecentEvents', value);
-                                                    }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectionbudget", children: "Injection Token Budget" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Token budget for context injection (0 = auto-detect from ST settings)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectionbudget", type: "number", className: "text_pole", min: "0", max: "100000", step: "100", value: settings.v2InjectionTokenBudget, onChange: e => {
-                                                    const value = parseInt(e.target.value, 10);
-                                                    if (!isNaN(value) &&
-                                                        value >= 0) {
-                                                        handleUpdate('v2InjectionTokenBudget', value);
-                                                    }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-injectdepth", children: "Injection Depth" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Chat depth that the tracker will be injected at (0 = default behavior)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-injectiondepth", type: "number", className: "text_pole", min: "0", max: "999", step: "1", value: settings.v2InjectionDepth, onChange: e => {
-                                                    const value = parseInt(e.target.value, 10);
-                                                    if (!isNaN(value) &&
-                                                        value >= 0) {
-                                                        handleUpdate('v2InjectionDepth', value);
-                                                    }
-                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));
+                                                }, style: { width: '120px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Training Data Capture" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Capture LLM input/output pairs for fine-tuning training data" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ui_components_form__WEBPACK_IMPORTED_MODULE_7__.CheckboxField, { id: "bt-v2-trainingcapture", label: "Enable Training Capture", description: "Record all LLM calls as training pairs (stored in memory, download as JSONL)", checked: settings.v2TrainingCapture, onChange: checked => handleUpdate('v2TrainingCapture', checked) }), settings.v2TrainingCapture && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TrainingDataControls, {})), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("hr", {}), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptprefix", children: "Prompt Prefix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to prepend to all extraction prompts (e.g., /nothink)" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptprefix", type: "text", className: "text_pole", value: settings.v2PromptPrefix, onChange: e => handleUpdate('v2PromptPrefix', e.target.value), placeholder: "e.g., /nothink", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex-container flexFlowColumn", style: { marginBottom: '1em' }, children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "bt-v2-promptsuffix", children: "Prompt Suffix" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Text to append to all extraction prompts" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { id: "bt-v2-promptsuffix", type: "text", className: "text_pole", value: settings.v2PromptSuffix, onChange: e => handleUpdate('v2PromptSuffix', e.target.value), placeholder: "e.g., additional instructions", style: { width: '200px' } })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-section", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-section-header", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("strong", { children: "Category Temperatures" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("small", { children: "Default temperatures per category (individual prompts can override)" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bt-temperature-grid", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "time", label: "Time", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "location", label: "Location", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "props", label: "Props", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "climate", label: "Climate", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "characters", label: "Characters", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "relationships", label: "Relationships", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "scene", label: "Scene", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(TemperatureSlider, { category: "narrative", label: "Narrative", temperatures: settings.v2Temperatures, onChange: handleTemperatureChange })] })] })] })] })] })] }));
 }
 // ============================================
 // Mount Function
@@ -151466,6 +153223,12 @@ async function runV2Extraction(messageId, options = {}) {
     const extractionSettings = buildExtractionSettingsFromV2(v2Settings);
     // Slice context to only include messages up to messageId
     extractionContext.chat = extractionContext.chat.slice(0, messageId + 1);
+    // Skip extraction if the target message has no text content
+    const targetMessage = extractionContext.chat[messageId];
+    if (!targetMessage?.mes?.trim()) {
+        (0,_utils_debug__WEBPACK_IMPORTED_MODULE_7__.debugLog)('Skipping extraction for empty/whitespace message:', messageId);
+        return null;
+    }
     // Get or create event store
     const store = getV2EventStore();
     // Create abort controller and generator
