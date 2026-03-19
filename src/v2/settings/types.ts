@@ -122,6 +122,18 @@ export interface V2Settings {
 	v2MaxRecentEvents: number;
 	/** Token budget for injection (0 = use ST's context size) */
 	v2InjectionTokenBudget: number;
+
+	// Training Data Capture
+	/** Enable capturing LLM I/O pairs for training data */
+	v2TrainingCapture: boolean;
+
+	// Better RP
+	/** Enable pre-flight thinking pipeline for better RP responses */
+	v2BetterRpEnabled: boolean;
+	/** Max tokens per thinking step (512-8192) */
+	v2BetterRpMaxTokensPerStep: number;
+	/** Connection profile ID for Better RP calls (empty = use main profile) */
+	v2BetterRpProfileId: string;
 }
 
 /**
@@ -160,7 +172,13 @@ export function isV2Settings(obj: unknown): obj is V2Settings {
 		(typeof s.v2InjectState === 'boolean' || s.v2InjectState === undefined) &&
 		(typeof s.v2InjectNarrative === 'boolean' || s.v2InjectNarrative === undefined) &&
 		(typeof s.v2ShakeupEnabled === 'boolean' || s.v2ShakeupEnabled === undefined) &&
-		(typeof s.v2ShakeupMaxMessages === 'number' || s.v2ShakeupMaxMessages === undefined)
+		(typeof s.v2ShakeupMaxMessages === 'number' ||
+			s.v2ShakeupMaxMessages === undefined) &&
+		(typeof s.v2TrainingCapture === 'boolean' || s.v2TrainingCapture === undefined) &&
+		(typeof s.v2BetterRpEnabled === 'boolean' || s.v2BetterRpEnabled === undefined) &&
+		(typeof s.v2BetterRpMaxTokensPerStep === 'number' ||
+			s.v2BetterRpMaxTokensPerStep === undefined) &&
+		(typeof s.v2BetterRpProfileId === 'string' || s.v2BetterRpProfileId === undefined)
 	);
 }
 

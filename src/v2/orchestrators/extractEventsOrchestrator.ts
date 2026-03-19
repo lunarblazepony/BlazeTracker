@@ -46,6 +46,128 @@ function getExtractorState(name: string): ExtractorState {
 }
 
 /**
+ * Format a time delta for logging.
+ */
+function formatDelta(delta: {
+	days?: number;
+	hours?: number;
+	minutes?: number;
+	seconds?: number;
+}): string {
+	const parts: string[] = [];
+	if (delta.days) parts.push(`${delta.days}d`);
+	if (delta.hours) parts.push(`${delta.hours}h`);
+	if (delta.minutes) parts.push(`${delta.minutes}m`);
+	if (delta.seconds) parts.push(`${delta.seconds}s`);
+	return parts.length > 0 ? `+${parts.join('')}` : '+0';
+}
+
+/**
+ * Format an event into a concise one-line log string.
+ */
+function formatEventForLog(event: Event): string {
+	const e = event as any;
+	const subkind = 'subkind' in e ? String(e.subkind) : '';
+	const label = subkind ? `${e.kind}:${subkind}` : String(e.kind);
+
+	switch (e.kind) {
+		case 'time':
+			if (subkind === 'initial') return `${label} ${e.time}`;
+			if (subkind === 'delta') return `${label} ${formatDelta(e.delta)}`;
+			return label;
+
+		case 'location':
+			if (subkind === 'moved')
+				return `${label} → ${e.newArea} / ${e.newPlace} / ${e.newPosition}`;
+			if (subkind === 'prop_added') return `${label} + "${e.prop}"`;
+			if (subkind === 'prop_removed') return `${label} - "${e.prop}"`;
+			return label;
+
+		case 'forecast_generated':
+			return `${label} for "${e.areaName}"`;
+
+		case 'character':
+			if (subkind === 'appeared') return `${label} ${e.character}`;
+			if (subkind === 'departed') return `${label} ${e.character}`;
+			if (subkind === 'profile_set') {
+				const p = e.profile as Record<string, unknown>;
+				return `${label} ${e.character} (${p.sex}, ${p.species}, ${p.age})`;
+			}
+			if (subkind === 'akas_add')
+				return `${label} ${e.character} + ${JSON.stringify(e.akas)}`;
+			if (subkind === 'position_changed')
+				return `${label} ${e.character} → "${e.newValue}"`;
+			if (subkind === 'activity_changed')
+				return `${label} ${e.character} → ${e.newValue ? `"${e.newValue}"` : 'null'}`;
+			if (subkind === 'mood_added')
+				return `${label} ${e.character} + "${e.mood}"`;
+			if (subkind === 'mood_removed')
+				return `${label} ${e.character} - "${e.mood}"`;
+			if (subkind === 'outfit_changed')
+				return `${label} ${e.character} ${e.slot} → ${e.newValue ? `"${e.newValue}"` : 'null'}`;
+			if (subkind === 'physical_added')
+				return `${label} ${e.character} + "${e.physicalState}"`;
+			if (subkind === 'physical_removed')
+				return `${label} ${e.character} - "${e.physicalState}"`;
+			return `${label} ${e.character}`;
+
+		case 'relationship':
+			if (subkind === 'status_changed')
+				return `${label} ${(e.pair as string[]).join(' & ')} → "${e.newStatus}"`;
+			if (subkind === 'subject')
+				return `${label} ${(e.pair as string[]).join(' & ')}: ${String(e.subject)}${e.milestoneDescription ? ' [milestone]' : ''}`;
+			if (subkind === 'feeling_added')
+				return `${label} ${e.fromCharacter} → ${e.towardCharacter} + "${e.value}"`;
+			if (subkind === 'feeling_removed')
+				return `${label} ${e.fromCharacter} → ${e.towardCharacter} - "${e.value}"`;
+			if (subkind === 'secret_added')
+				return `${label} ${e.fromCharacter} → ${e.towardCharacter} + "${e.value}"`;
+			if (subkind === 'secret_removed')
+				return `${label} ${e.fromCharacter} → ${e.towardCharacter} - "${e.value}"`;
+			if (subkind === 'want_added')
+				return `${label} ${e.fromCharacter} → ${e.towardCharacter} + "${e.value}"`;
+			if (subkind === 'want_removed')
+				return `${label} ${e.fromCharacter} → ${e.towardCharacter} - "${e.value}"`;
+			return label;
+
+		case 'topic_tone':
+			return `${label} topic="${e.topic}" tone="${e.tone}"`;
+
+		case 'tension':
+			return `${label} ${e.level}/${e.type}/${e.direction}`;
+
+		case 'narrative_description': {
+			const desc = String(e.description);
+			return `${label} "${desc.length > 80 ? desc.substring(0, 80) + '...' : desc}"`;
+		}
+
+		case 'chapter':
+			if (subkind === 'ended')
+				return `${label} chapter ${e.chapterIndex} (${e.reason})`;
+			if (subkind === 'described')
+				return `${label} chapter ${e.chapterIndex} "${e.title}"`;
+			return label;
+
+		default:
+			return label;
+	}
+}
+
+/**
+ * Log extracted events with their details.
+ */
+function logExtractedEvents(extractorName: string, events: Event[]): void {
+	if (events.length === 0) {
+		debugLog(`${extractorName} produced no events`);
+		return;
+	}
+	debugLog(`${extractorName} produced ${events.length} event(s):`);
+	for (const event of events) {
+		debugLog(`  ${formatEventForLog(event)}`);
+	}
+}
+
+/**
  * Run event extraction for a turn.
  */
 export async function extractEvents(
@@ -103,10 +225,9 @@ export async function extractEvents(
 			state.ranAtMessages.push(currentMessage);
 			if (events.length > 0) {
 				state.producedAtMessages.push(currentMessage);
-				debugLog(`${extractor.name} produced ${events.length} events`);
-			} else {
-				debugLog(`${extractor.name} produced no events`);
 			}
+
+			logExtractedEvents(extractor.name, events);
 
 			// Add events to turn
 			turnEvents.push(...events);
@@ -152,6 +273,7 @@ export async function extractEvents(
 					character,
 					abortSignal,
 				);
+				logExtractedEvents(`${extractor.name}(${character})`, events);
 				turnEvents.push(...events);
 			} catch (error) {
 				errorLog(`${extractor.name} (${character}) failed:`, error);
@@ -208,6 +330,7 @@ export async function extractEvents(
 					pair,
 					abortSignal,
 				);
+				logExtractedEvents(`${extractor.name}(${pair.join('/')})`, events);
 				turnEvents.push(...events);
 			} catch (error) {
 				errorLog(`${extractor.name} (${pair.join('/')}) failed:`, error);

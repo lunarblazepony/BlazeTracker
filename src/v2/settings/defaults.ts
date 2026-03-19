@@ -88,6 +88,14 @@ export function createDefaultV2Settings(): V2Settings {
 		v2MaxRecentChapters: 5,
 		v2MaxRecentEvents: 15,
 		v2InjectionTokenBudget: 0, // 0 = use ST's context size
+
+		// Training Data Capture
+		v2TrainingCapture: false, // Off by default — opt-in
+
+		// Better RP
+		v2BetterRpEnabled: false, // Off by default — opt-in
+		v2BetterRpMaxTokensPerStep: 2048,
+		v2BetterRpProfileId: '', // Empty = use main profile
 	};
 }
 
@@ -165,5 +173,14 @@ export function mergeV2WithDefaults(partial: Partial<V2Settings>): V2Settings {
 		v2MaxRecentEvents: partial.v2MaxRecentEvents ?? defaults.v2MaxRecentEvents,
 		v2InjectionTokenBudget:
 			partial.v2InjectionTokenBudget ?? defaults.v2InjectionTokenBudget,
+
+		// Training Data Capture
+		v2TrainingCapture: partial.v2TrainingCapture ?? defaults.v2TrainingCapture,
+
+		// Better RP
+		v2BetterRpEnabled: partial.v2BetterRpEnabled ?? defaults.v2BetterRpEnabled,
+		v2BetterRpMaxTokensPerStep:
+			partial.v2BetterRpMaxTokensPerStep ?? defaults.v2BetterRpMaxTokensPerStep,
+		v2BetterRpProfileId: partial.v2BetterRpProfileId ?? defaults.v2BetterRpProfileId,
 	};
 }

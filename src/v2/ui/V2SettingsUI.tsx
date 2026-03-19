@@ -21,6 +21,7 @@ import { setDebugEnabled, errorLog } from '../../utils/debug';
 import { SelectField, CheckboxField } from '../../ui/components/form';
 import { mountAllV2ProjectionDisplays } from './mountV2Display';
 import { getAllV2Prompts, type PromptTemplate } from '../prompts';
+import { getTrainingPairCount, downloadTrainingData, clearTrainingPairs } from '../training';
 
 // ============================================
 // Types
@@ -533,6 +534,60 @@ function PromptListItem({
 }
 
 // ============================================
+// Training Data Controls
+// ============================================
+
+function TrainingDataControls() {
+	const [pairCount, setPairCount] = useState(getTrainingPairCount());
+
+	// Refresh count periodically while visible
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setPairCount(getTrainingPairCount());
+		}, 2000);
+		return () => clearInterval(interval);
+	}, []);
+
+	return (
+		<div
+			className="flex-container flexFlowColumn"
+			style={{ marginBottom: '1em', gap: '0.5em' }}
+		>
+			<small>
+				{pairCount} pair{pairCount !== 1 ? 's' : ''} captured this session
+			</small>
+			<div className="flex-container" style={{ gap: '0.5em' }}>
+				<button
+					className="menu_button"
+					disabled={pairCount === 0}
+					onClick={() => {
+						downloadTrainingData();
+					}}
+				>
+					Download JSONL
+				</button>
+				<button
+					className="menu_button"
+					disabled={pairCount === 0}
+					onClick={() => {
+						if (
+							confirm(
+								`Clear ${pairCount} captured training pair${pairCount !== 1 ? 's' : ''}?`,
+							)
+						) {
+							clearTrainingPairs();
+							setPairCount(0);
+						}
+					}}
+				>
+					Clear
+				</button>
+			</div>
+		</div>
+	);
+}
+
+// ============================================
 // Main V2 Settings Panel
 // ============================================
 
@@ -911,6 +966,396 @@ function V2SettingsPanel() {
 				</div>
 			</div>
 
+			{/* Context Injection - inline-drawer */}
+			<div className="inline-drawer">
+				<div className="inline-drawer-toggle inline-drawer-header">
+					<b>Context Injection</b>
+					<div className="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+				</div>
+				<div className="inline-drawer-content" style={{ display: 'none' }}>
+					<small className="bt-drawer-description">
+						Control what BlazeTracker injects into your prompts
+					</small>
+
+					<CheckboxField
+						id="bt-v2-injectstate"
+						label="Auto Inject State"
+						description="Automatically inject scene state (time, location, characters, etc.) into prompts"
+						checked={settings.v2InjectState}
+						onChange={checked =>
+							handleUpdate('v2InjectState', checked)
+						}
+					/>
+
+					<CheckboxField
+						id="bt-v2-injectnarrative"
+						label="Auto Inject Narrative"
+						description="Automatically inject chapter summaries and events into prompts"
+						checked={settings.v2InjectNarrative}
+						onChange={checked =>
+							handleUpdate('v2InjectNarrative', checked)
+						}
+					/>
+
+					{/* Injection Depth */}
+					<div
+						className="flex-container flexFlowColumn"
+						style={{ marginBottom: '1em' }}
+					>
+						<label htmlFor="bt-v2-injectdepth">
+							Injection Depth
+						</label>
+						<small>
+							Chat depth that the tracker will be injected
+							at (0 = default behavior)
+						</small>
+						<input
+							id="bt-v2-injectiondepth"
+							type="number"
+							className="text_pole"
+							min="0"
+							max="999"
+							step="1"
+							value={settings.v2InjectionDepth}
+							onChange={e => {
+								const value = parseInt(
+									e.target.value,
+									10,
+								);
+								if (!isNaN(value) && value >= 0) {
+									handleUpdate(
+										'v2InjectionDepth',
+										value,
+									);
+								}
+							}}
+							style={{ width: '120px' }}
+						/>
+					</div>
+				</div>
+			</div>
+
+			{/* Chapter/Event Injection - inline-drawer */}
+			<div className="inline-drawer">
+				<div className="inline-drawer-toggle inline-drawer-header">
+					<b>Chapter &amp; Event Injection</b>
+					<div className="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+				</div>
+				<div className="inline-drawer-content" style={{ display: 'none' }}>
+					<small className="bt-drawer-description">
+						Configure how chapters and events are injected into
+						context
+					</small>
+
+					{/* Max Recent Chapters */}
+					<div
+						className="flex-container flexFlowColumn"
+						style={{ marginBottom: '1em' }}
+					>
+						<label htmlFor="bt-v2-maxrecentchapters">
+							Max Recent Chapters
+						</label>
+						<small>
+							Maximum past chapters to include in
+							&quot;Story So Far&quot; (0-10)
+						</small>
+						<input
+							id="bt-v2-maxrecentchapters"
+							type="number"
+							className="text_pole"
+							min="0"
+							max="10"
+							step="1"
+							value={settings.v2MaxRecentChapters}
+							onChange={e => {
+								const value = parseInt(
+									e.target.value,
+									10,
+								);
+								if (
+									!isNaN(value) &&
+									value >= 0 &&
+									value <= 10
+								) {
+									handleUpdate(
+										'v2MaxRecentChapters',
+										value,
+									);
+								}
+							}}
+							style={{ width: '120px' }}
+						/>
+					</div>
+
+					{/* Max Recent Events */}
+					<div
+						className="flex-container flexFlowColumn"
+						style={{ marginBottom: '1em' }}
+					>
+						<label htmlFor="bt-v2-maxrecentevents">
+							Max Recent Events
+						</label>
+						<small>
+							Maximum out-of-context events from current
+							chapter to include (0-50)
+						</small>
+						<input
+							id="bt-v2-maxrecentevents"
+							type="number"
+							className="text_pole"
+							min="0"
+							max="50"
+							step="1"
+							value={settings.v2MaxRecentEvents}
+							onChange={e => {
+								const value = parseInt(
+									e.target.value,
+									10,
+								);
+								if (
+									!isNaN(value) &&
+									value >= 0 &&
+									value <= 50
+								) {
+									handleUpdate(
+										'v2MaxRecentEvents',
+										value,
+									);
+								}
+							}}
+							style={{ width: '120px' }}
+						/>
+					</div>
+
+					{/* Injection Token Budget */}
+					<div
+						className="flex-container flexFlowColumn"
+						style={{ marginBottom: '1em' }}
+					>
+						<label htmlFor="bt-v2-injectionbudget">
+							Injection Token Budget
+						</label>
+						<small>
+							Token budget for context injection (0 =
+							auto-detect from ST settings)
+						</small>
+						<input
+							id="bt-v2-injectionbudget"
+							type="number"
+							className="text_pole"
+							min="0"
+							max="100000"
+							step="100"
+							value={settings.v2InjectionTokenBudget}
+							onChange={e => {
+								const value = parseInt(
+									e.target.value,
+									10,
+								);
+								if (!isNaN(value) && value >= 0) {
+									handleUpdate(
+										'v2InjectionTokenBudget',
+										value,
+									);
+								}
+							}}
+							style={{ width: '120px' }}
+						/>
+					</div>
+				</div>
+			</div>
+
+			{/* Scene Shakeups - inline-drawer */}
+			<div className="inline-drawer">
+				<div className="inline-drawer-toggle inline-drawer-header">
+					<b>Scene Shakeups</b>
+					<div className="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+				</div>
+				<div className="inline-drawer-content" style={{ display: 'none' }}>
+					<small className="bt-drawer-description">
+						LLM-driven random event injection to prevent stale
+						conversations
+					</small>
+
+					<CheckboxField
+						id="bt-v2-shakeupenabled"
+						label="Enable Scene Shakeups"
+						description="Occasionally inject scene-appropriate disruptions into the generation prompt"
+						checked={settings.v2ShakeupEnabled}
+						onChange={checked =>
+							handleUpdate('v2ShakeupEnabled', checked)
+						}
+					/>
+
+					{settings.v2ShakeupEnabled && (
+						<div
+							className="flex-container flexFlowColumn"
+							style={{ marginBottom: '1em' }}
+						>
+							<label htmlFor="bt-v2-shakeupmaxmessages">
+								Max Messages Between Shakeups
+							</label>
+							<small>
+								Probability reaches 100% at this
+								number of messages (quadratic curve:
+								low early, guaranteed at max)
+							</small>
+							<input
+								id="bt-v2-shakeupmaxmessages"
+								type="number"
+								className="text_pole"
+								min="5"
+								max="100"
+								step="1"
+								value={
+									settings.v2ShakeupMaxMessages
+								}
+								onChange={e => {
+									const value = parseInt(
+										e.target.value,
+										10,
+									);
+									if (
+										!isNaN(value) &&
+										value >= 5 &&
+										value <= 100
+									) {
+										handleUpdate(
+											'v2ShakeupMaxMessages',
+											value,
+										);
+									}
+								}}
+								style={{ width: '120px' }}
+							/>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* Better RP - inline-drawer */}
+			<div className="inline-drawer">
+				<div className="inline-drawer-toggle inline-drawer-header">
+					<b>Better RP</b>
+					<div className="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+				</div>
+				<div className="inline-drawer-content" style={{ display: 'none' }}>
+					<small className="bt-drawer-description">
+						Pre-flight thinking pipeline that plans beats before
+						each response
+					</small>
+
+					<CheckboxField
+						id="bt-v2-betterrpenabled"
+						label="Enable Better RP"
+						description="Run a 4-step LLM thinking pipeline before each response to plan continuity, character knowledge, tension, and beats"
+						checked={settings.v2BetterRpEnabled}
+						onChange={checked =>
+							handleUpdate('v2BetterRpEnabled', checked)
+						}
+					/>
+
+					{settings.v2BetterRpEnabled && (
+						<>
+							<div
+								className="flex-container flexFlowColumn"
+								style={{ marginBottom: '1em' }}
+							>
+								<label htmlFor="bt-v2-betterrpprofile">
+									Connection Profile
+								</label>
+								<small>
+									API connection for Better RP
+									calls (blank = use main
+									BlazeTracker profile)
+								</small>
+								<select
+									id="bt-v2-betterrpprofile"
+									className="text_pole"
+									value={
+										settings.v2BetterRpProfileId
+									}
+									onChange={e =>
+										handleUpdate(
+											'v2BetterRpProfileId',
+											e.target
+												.value,
+										)
+									}
+								>
+									<option value="">
+										-- Use main profile
+										--
+									</option>
+									{profiles.map(profile => (
+										<option
+											key={
+												profile.id
+											}
+											value={
+												profile.id
+											}
+										>
+											{profile.name ||
+												profile.id}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div
+								className="flex-container flexFlowColumn"
+								style={{ marginBottom: '1em' }}
+							>
+								<label htmlFor="bt-v2-betterrpmaxtokens">
+									Max Tokens Per Step
+								</label>
+								<small>
+									Maximum tokens for each
+									thinking step (512-8192). 4
+									steps run sequentially.
+								</small>
+								<input
+									id="bt-v2-betterrpmaxtokens"
+									type="number"
+									className="text_pole"
+									min="512"
+									max="8192"
+									step="256"
+									value={
+										settings.v2BetterRpMaxTokensPerStep
+									}
+									onChange={e => {
+										const value =
+											parseInt(
+												e
+													.target
+													.value,
+												10,
+											);
+										if (
+											!isNaN(
+												value,
+											) &&
+											value >=
+												512 &&
+											value <=
+												8192
+										) {
+											handleUpdate(
+												'v2BetterRpMaxTokensPerStep',
+												value,
+											);
+										}
+									}}
+									style={{ width: '120px' }}
+								/>
+							</div>
+						</>
+					)}
+				</div>
+			</div>
+
 			{/* Advanced Section - uses ST inline-drawer */}
 			<div className="inline-drawer">
 				<div className="inline-drawer-toggle inline-drawer-header">
@@ -1082,243 +1527,31 @@ function V2SettingsPanel() {
 
 						<hr />
 
-						{/* Context Injection Settings Section */}
+						{/* Training Data Capture Section */}
 						<div className="bt-section-header">
-							<strong>Context Injection</strong>
+							<strong>Training Data Capture</strong>
 							<small>
-								Settings for injecting story context
-								into prompts
+								Capture LLM input/output pairs for
+								fine-tuning training data
 							</small>
 						</div>
 
 						<CheckboxField
-							id="bt-v2-injectstate"
-							label="Auto Inject State"
-							description="Automatically inject scene state (time, location, characters, etc.) into prompts"
-							checked={settings.v2InjectState}
+							id="bt-v2-trainingcapture"
+							label="Enable Training Capture"
+							description="Record all LLM calls as training pairs (stored in memory, download as JSONL)"
+							checked={settings.v2TrainingCapture}
 							onChange={checked =>
 								handleUpdate(
-									'v2InjectState',
+									'v2TrainingCapture',
 									checked,
 								)
 							}
 						/>
 
-						<CheckboxField
-							id="bt-v2-injectnarrative"
-							label="Auto Inject Narrative"
-							description="Automatically inject chapter summaries and events into prompts"
-							checked={settings.v2InjectNarrative}
-							onChange={checked =>
-								handleUpdate(
-									'v2InjectNarrative',
-									checked,
-								)
-							}
-						/>
-
-						<hr />
-
-						{/* Scene Shakeups Section */}
-						<div className="bt-section-header">
-							<strong>Scene Shakeups</strong>
-							<small>
-								LLM-driven random event injection to
-								prevent stale conversations
-							</small>
-						</div>
-
-						<CheckboxField
-							id="bt-v2-shakeupenabled"
-							label="Enable Scene Shakeups"
-							description="Occasionally inject scene-appropriate disruptions into the generation prompt"
-							checked={settings.v2ShakeupEnabled}
-							onChange={checked =>
-								handleUpdate(
-									'v2ShakeupEnabled',
-									checked,
-								)
-							}
-						/>
-
-						{settings.v2ShakeupEnabled && (
-							<div
-								className="flex-container flexFlowColumn"
-								style={{
-									marginBottom: '1em',
-								}}
-							>
-								<label htmlFor="bt-v2-shakeupmaxmessages">
-									Max Messages Between
-									Shakeups
-								</label>
-								<small>
-									Probability reaches 100% at
-									this number of messages
-									(quadratic curve: low early,
-									guaranteed at max)
-								</small>
-								<input
-									id="bt-v2-shakeupmaxmessages"
-									type="number"
-									className="text_pole"
-									min="5"
-									max="100"
-									step="1"
-									value={
-										settings.v2ShakeupMaxMessages
-									}
-									onChange={e => {
-										const value =
-											parseInt(
-												e
-													.target
-													.value,
-												10,
-											);
-										if (
-											!isNaN(
-												value,
-											) &&
-											value >=
-												5 &&
-											value <= 100
-										) {
-											handleUpdate(
-												'v2ShakeupMaxMessages',
-												value,
-											);
-										}
-									}}
-									style={{
-										width: '120px',
-									}}
-								/>
-							</div>
+						{settings.v2TrainingCapture && (
+							<TrainingDataControls />
 						)}
-
-						<hr />
-
-						{/* Max Recent Chapters */}
-						<div
-							className="flex-container flexFlowColumn"
-							style={{ marginBottom: '1em' }}
-						>
-							<label htmlFor="bt-v2-maxrecentchapters">
-								Max Recent Chapters
-							</label>
-							<small>
-								Maximum past chapters to include in
-								"Story So Far" (0-10)
-							</small>
-							<input
-								id="bt-v2-maxrecentchapters"
-								type="number"
-								className="text_pole"
-								min="0"
-								max="10"
-								step="1"
-								value={settings.v2MaxRecentChapters}
-								onChange={e => {
-									const value = parseInt(
-										e.target.value,
-										10,
-									);
-									if (
-										!isNaN(value) &&
-										value >= 0 &&
-										value <= 10
-									) {
-										handleUpdate(
-											'v2MaxRecentChapters',
-											value,
-										);
-									}
-								}}
-								style={{ width: '120px' }}
-							/>
-						</div>
-
-						{/* Max Recent Events */}
-						<div
-							className="flex-container flexFlowColumn"
-							style={{ marginBottom: '1em' }}
-						>
-							<label htmlFor="bt-v2-maxrecentevents">
-								Max Recent Events
-							</label>
-							<small>
-								Maximum out-of-context events from
-								current chapter to include (0-50)
-							</small>
-							<input
-								id="bt-v2-maxrecentevents"
-								type="number"
-								className="text_pole"
-								min="0"
-								max="50"
-								step="1"
-								value={settings.v2MaxRecentEvents}
-								onChange={e => {
-									const value = parseInt(
-										e.target.value,
-										10,
-									);
-									if (
-										!isNaN(value) &&
-										value >= 0 &&
-										value <= 50
-									) {
-										handleUpdate(
-											'v2MaxRecentEvents',
-											value,
-										);
-									}
-								}}
-								style={{ width: '120px' }}
-							/>
-						</div>
-
-						{/* Injection Token Budget */}
-						<div
-							className="flex-container flexFlowColumn"
-							style={{ marginBottom: '1em' }}
-						>
-							<label htmlFor="bt-v2-injectionbudget">
-								Injection Token Budget
-							</label>
-							<small>
-								Token budget for context injection
-								(0 = auto-detect from ST settings)
-							</small>
-							<input
-								id="bt-v2-injectionbudget"
-								type="number"
-								className="text_pole"
-								min="0"
-								max="100000"
-								step="100"
-								value={
-									settings.v2InjectionTokenBudget
-								}
-								onChange={e => {
-									const value = parseInt(
-										e.target.value,
-										10,
-									);
-									if (
-										!isNaN(value) &&
-										value >= 0
-									) {
-										handleUpdate(
-											'v2InjectionTokenBudget',
-											value,
-										);
-									}
-								}}
-								style={{ width: '120px' }}
-							/>
-						</div>
 
 						<hr />
 
@@ -1375,45 +1608,6 @@ function V2SettingsPanel() {
 								}
 								placeholder="e.g., additional instructions"
 								style={{ width: '200px' }}
-							/>
-						</div>
-
-						{/* Injection Depth */}
-						<div
-							className="flex-container flexFlowColumn"
-							style={{ marginBottom: '1em' }}
-						>
-							<label htmlFor="bt-v2-injectdepth">
-								Injection Depth
-							</label>
-							<small>
-								Chat depth that the tracker will be
-								injected at (0 = default behavior)
-							</small>
-							<input
-								id="bt-v2-injectiondepth"
-								type="number"
-								className="text_pole"
-								min="0"
-								max="999"
-								step="1"
-								value={settings.v2InjectionDepth}
-								onChange={e => {
-									const value = parseInt(
-										e.target.value,
-										10,
-									);
-									if (
-										!isNaN(value) &&
-										value >= 0
-									) {
-										handleUpdate(
-											'v2InjectionDepth',
-											value,
-										);
-									}
-								}}
-								style={{ width: '120px' }}
 							/>
 						</div>
 

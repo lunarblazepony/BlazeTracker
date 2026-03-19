@@ -17,6 +17,7 @@ import {
 } from './shakeupPrompt';
 import type { ShakeupSuggestion } from './types';
 import { debugLog, debugWarn } from '../../utils/debug';
+import { isTrainingCaptureEnabled, annotateLastCapture } from '../training';
 
 /**
  * Parameters for generating shakeup suggestions.
@@ -28,6 +29,7 @@ export interface GenerateShakeupParams {
 	swipeContext: SwipeContext;
 	characterDescription: string;
 	userDescription: string;
+	userName: string;
 	characterProfiles: string;
 	relationships: string;
 	recentMessages: string;
@@ -65,6 +67,7 @@ export async function generateShakeup(
 		const userPrompt = buildShakeupUserPrompt({
 			characterDescription: params.characterDescription,
 			userDescription: params.userDescription,
+			userName: params.userName,
 			characterProfiles: params.characterProfiles,
 			relationships: params.relationships,
 			sceneState,
@@ -85,6 +88,20 @@ export async function generateShakeup(
 
 		// Parse the response
 		const result = parseShakeupResponse(response);
+
+		if (isTrainingCaptureEnabled()) {
+			if (result) {
+				annotateLastCapture({
+					parsedResult: result,
+					parseSuccess: true,
+				});
+			} else {
+				annotateLastCapture({
+					parseSuccess: false,
+					parseError: 'Failed to parse shakeup response',
+				});
+			}
+		}
 
 		if (result) {
 			debugLog(`Generated ${result.suggestions.length} shakeup suggestions`);

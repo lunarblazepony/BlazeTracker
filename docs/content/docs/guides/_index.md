@@ -13,4 +13,6 @@ Task-oriented guides for common BlazeTracker workflows.
   {{< card link="batch-extraction" title="Batch Extraction" subtitle="Extract remaining messages or re-extract an entire chat." >}}
   {{< card link="macros" title="ST Macros" subtitle="Place BlazeTracker content anywhere in prompts with {{btState}} and {{btNarrative}}." >}}
   {{< card link="scene-shakeups" title="Scene Shakeups" subtitle="Random context-appropriate events to prevent stale conversations." >}}
+  {{< card link="better-rp" title="Better RP" subtitle="Pre-flight thinking pipeline that plans beats before each response." >}}
+  {{< card link="training-data" title="Training Data Capture" subtitle="Record LLM extraction calls as JSONL for fine-tuning." >}}
 {{< /cards >}}

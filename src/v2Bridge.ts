@@ -459,6 +459,13 @@ export async function runV2Extraction(
 	// Slice context to only include messages up to messageId
 	extractionContext.chat = extractionContext.chat.slice(0, messageId + 1);
 
+	// Skip extraction if the target message has no text content
+	const targetMessage = extractionContext.chat[messageId];
+	if (!targetMessage?.mes?.trim()) {
+		debugLog('Skipping extraction for empty/whitespace message:', messageId);
+		return null;
+	}
+
 	// Get or create event store
 	const store = getV2EventStore();
 
