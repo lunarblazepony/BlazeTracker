@@ -1,6 +1,6 @@
 {
 	"name": "sillytavern-blazetracker",
-	"version": "2.5.0",
+	"version": "2.5.1",
 	"description": "State tracking for SillyTavern RP",
 	"author": "Lunar Blaze",
 	"type": "commonjs",
