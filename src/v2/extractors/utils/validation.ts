@@ -385,8 +385,17 @@ export function filterCharactersAppeared<
 >(appeared: T[], projection: Projection | null): T[] {
 	if (!projection) return appeared;
 
-	const presentChars = new Set(projection.charactersPresent.map(c => c.toLowerCase()));
-	return appeared.filter(char => !presentChars.has(char.name.toLowerCase()));
+	const knownNames = new Set<string>();
+	for (const name of projection.charactersPresent) {
+		knownNames.add(name.toLowerCase());
+		const char = projection.characters[name];
+		if (char?.akas) {
+			for (const aka of char.akas) {
+				knownNames.add(aka.toLowerCase());
+			}
+		}
+	}
+	return appeared.filter(char => !knownNames.has(char.name.toLowerCase()));
 }
 
 /**
@@ -398,6 +407,15 @@ export function filterCharactersDeparted(
 ): string[] {
 	if (!projection) return [];
 
-	const presentChars = new Set(projection.charactersPresent.map(c => c.toLowerCase()));
-	return dedupeStrings(departed).filter(name => presentChars.has(name.toLowerCase()));
+	const knownNames = new Set<string>();
+	for (const name of projection.charactersPresent) {
+		knownNames.add(name.toLowerCase());
+		const char = projection.characters[name];
+		if (char?.akas) {
+			for (const aka of char.akas) {
+				knownNames.add(aka.toLowerCase());
+			}
+		}
+	}
+	return dedupeStrings(departed).filter(name => knownNames.has(name.toLowerCase()));
 }
