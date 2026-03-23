@@ -114803,8 +114803,17 @@ function filterPropsToRemove(props, projection) {
 function filterCharactersAppeared(appeared, projection) {
     if (!projection)
         return appeared;
-    const presentChars = new Set(projection.charactersPresent.map(c => c.toLowerCase()));
-    return appeared.filter(char => !presentChars.has(char.name.toLowerCase()));
+    const knownNames = new Set();
+    for (const name of projection.charactersPresent) {
+        knownNames.add(name.toLowerCase());
+        const char = projection.characters[name];
+        if (char?.akas) {
+            for (const aka of char.akas) {
+                knownNames.add(aka.toLowerCase());
+            }
+        }
+    }
+    return appeared.filter(char => !knownNames.has(char.name.toLowerCase()));
 }
 /**
  * Filter characters that departed - removes characters not currently present.
@@ -114812,8 +114821,17 @@ function filterCharactersAppeared(appeared, projection) {
 function filterCharactersDeparted(departed, projection) {
     if (!projection)
         return [];
-    const presentChars = new Set(projection.charactersPresent.map(c => c.toLowerCase()));
-    return dedupeStrings(departed).filter(name => presentChars.has(name.toLowerCase()));
+    const knownNames = new Set();
+    for (const name of projection.charactersPresent) {
+        knownNames.add(name.toLowerCase());
+        const char = projection.characters[name];
+        if (char?.akas) {
+            for (const aka of char.akas) {
+                knownNames.add(aka.toLowerCase());
+            }
+        }
+    }
+    return dedupeStrings(departed).filter(name => knownNames.has(name.toLowerCase()));
 }
 
 
@@ -116083,6 +116101,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils_worldinfo__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ../utils/worldinfo */ "./src/v2/utils/worldinfo.ts");
 /* harmony import */ var _training__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ../training */ "./src/v2/training/index.ts");
 /* harmony import */ var _betterRp__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ../betterRp */ "./src/v2/betterRp/index.ts");
+/* harmony import */ var sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! sillytavern-utils-lib/config */ "./node_modules/sillytavern-utils-lib/dist/config.js");
 /**
  * Prompt Hook for Context-Aware Injection
  *
@@ -116093,6 +116112,7 @@ __webpack_require__.r(__webpack_exports__);
  * - CHAT_COMPLETION_PROMPT_READY: For chat completion APIs (OpenAI, Claude, etc.)
  * - GENERATE_BEFORE_COMBINE_PROMPTS: For text completion APIs (Kobold, TextGen, etc.)
  */
+
 
 
 
@@ -116493,8 +116513,8 @@ async function tryInjectBetterRp(params) {
         eventSource.on(eventTypes.GENERATION_STOPPED, onStop);
     }
     try {
-        // Show toast notifications for progress
-        const st_echo = SillyTavern.getContext().toastr?.info;
+        // Ensure stop button is visible during pipeline LLM calls
+        context.deactivateSendButtons();
         const generator = (0,_training__WEBPACK_IMPORTED_MODULE_13__.withTrainingCapture)(new _generator_SillyTavernGenerator__WEBPACK_IMPORTED_MODULE_10__.SillyTavernGenerator({ profileId }));
         const result = await (0,_betterRp__WEBPACK_IMPORTED_MODULE_14__.runBetterRpPipeline)({
             generator,
@@ -116507,7 +116527,7 @@ async function tryInjectBetterRp(params) {
             abortSignal: abortController.signal,
             setStatus: (status) => {
                 (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)(`Better RP: ${status}`);
-                st_echo?.(`Better RP: ${status}`);
+                (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_15__.st_echo)('info', `Better RP: ${status}`);
             },
         });
         if (result.errors.length > 0) {
@@ -116519,7 +116539,7 @@ async function tryInjectBetterRp(params) {
         const injection = (0,_betterRp__WEBPACK_IMPORTED_MODULE_14__.formatBeatPlanInjection)(result, npcNames, userName);
         if (!injection) {
             (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugWarn)('Better RP: Pipeline completed but no beat plan produced');
-            st_echo?.('Better RP: Pipeline failed, proceeding normally');
+            (0,sillytavern_utils_lib_config__WEBPACK_IMPORTED_MODULE_15__.st_echo)('info', 'Better RP: Pipeline failed, proceeding normally');
             return null;
         }
         (0,_utils_debug__WEBPACK_IMPORTED_MODULE_1__.debugLog)('Better RP: Beat plan injection ready');

@@ -30,6 +30,7 @@ import { formatCharacterProfiles, formatRelationshipState } from '../extractors/
 import { getWorldinfoForPrompt } from '../utils/worldinfo';
 import { withTrainingCapture } from '../training';
 import { runBetterRpPipeline, formatBeatPlanInjection } from '../betterRp';
+import { st_echo } from 'sillytavern-utils-lib/config';
 
 // Track if hooks are registered
 let chatCompletionHookRegistered = false;
@@ -603,12 +604,8 @@ async function tryInjectBetterRp(params: {
 	}
 
 	try {
-		// Show toast notifications for progress
-		const st_echo = (
-			SillyTavern.getContext() as unknown as {
-				toastr?: { info?: (msg: string) => void };
-			}
-		).toastr?.info;
+		// Ensure stop button is visible during pipeline LLM calls
+		context.deactivateSendButtons();
 
 		const generator = withTrainingCapture(new SillyTavernGenerator({ profileId }));
 
@@ -623,7 +620,7 @@ async function tryInjectBetterRp(params: {
 			abortSignal: abortController.signal,
 			setStatus: (status: string) => {
 				debugLog(`Better RP: ${status}`);
-				st_echo?.(`Better RP: ${status}`);
+				st_echo('info', `Better RP: ${status}`);
 			},
 		});
 
@@ -644,7 +641,7 @@ async function tryInjectBetterRp(params: {
 
 		if (!injection) {
 			debugWarn('Better RP: Pipeline completed but no beat plan produced');
-			st_echo?.('Better RP: Pipeline failed, proceeding normally');
+			st_echo('info', 'Better RP: Pipeline failed, proceeding normally');
 			return null;
 		}
 
